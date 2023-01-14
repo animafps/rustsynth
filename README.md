@@ -4,7 +4,7 @@
 
 Safe rust vapoursynth wrapper
 
-Semi-rewrite of the vapoursynth-rs wrapper which are currently outdated for the current and latest VapourSyth API version
+Semi-rewrite of the [vapoursynth-rs](https://github.com/YaLTeR/vapoursynth-rs) wrapper which are currently outdated for the current and latest VapourSyth API version
 
 for the low level bindings see [rustsynth-sys](https://github.com/animafps/rustsynth-sys)
 
