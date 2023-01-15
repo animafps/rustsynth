@@ -56,7 +56,7 @@ jobs:
           matrix.toolchain == 'stable-x86_64-unknown-linux-gnu' &&
           github.event_name == 'push' &&
           github.ref == 'refs/heads/master'
-        uses: upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v1
         with:
           path: target/doc
       - name: Deploy to GitHub Pages
