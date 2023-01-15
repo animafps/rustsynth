@@ -120,7 +120,7 @@ impl<'core> PluginFunctionIter<'core> {
     pub fn new(plugin: Plugin<'core>) -> Self {
         PluginFunctionIter {
             function: None,
-            plugin: plugin,
+            plugin,
         }
     }
 }

@@ -9,7 +9,5 @@ repository = "https://github.com/animafps/rustsynth"
 categories = ["multimedia::video", "api-bindings"]
 keywords = ["vapoursynth"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 rustsynth-sys = {version = "0.1", path = "../rustsynth-sys"}

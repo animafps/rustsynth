@@ -2,4 +2,3 @@
 rustsynth-sys/target/
 rustsynth/target/
 **/*.rs.bk
-/Cargo.lock

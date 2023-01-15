@@ -5,4 +5,3 @@
 Low level Vapoursynth bindings to rust
 
 [Documentation](https://docs.rs/rustsynth-sys)
-
