@@ -5,7 +5,7 @@ use std::{
     sync::atomic::{AtomicPtr, Ordering},
 };
 
-use crate::{core::CoreRef, plugin::Plugin};
+use crate::{core::CoreRef, plugin::{Plugin, PluginIter}};
 
 /// A wrapper for the VapourSynth API.
 #[derive(Debug, Clone, Copy)]
@@ -77,7 +77,11 @@ impl API {
         }
     }
 
-    pub fn get_next_plugin<'core>(
+    pub fn plugins<'core>(&self,core: CoreRef<'core>) -> PluginIter<'core> {
+        PluginIter::new(core)
+    }
+
+    pub fn next_plugin<'core>(
         &self,
         plugin: Option<Plugin>,
         core: CoreRef,
@@ -97,7 +101,7 @@ impl API {
         }
     }
 
-    pub fn get_plugin_by_namespace<'core>(
+    pub fn plugin_by_namespace<'core>(
         &self,
         namespace: &str,
         core: CoreRef,
@@ -114,7 +118,7 @@ impl API {
         }
     }
 
-    pub fn get_plugin_by_id<'core>(&self, id: &str, core: CoreRef) -> Option<Plugin<'core>> {
+    pub fn plugin_by_id<'core>(&self, id: &str, core: CoreRef) -> Option<Plugin<'core>> {
         unsafe {
             let id = CString::new(id).unwrap();
             let handle = self.handle.as_ref().getPluginByID.unwrap()(id.as_ptr(), core.ptr());
