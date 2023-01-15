@@ -1,7 +1,7 @@
 use ffi::VSPluginFunction;
 use rustsynth_sys as ffi;
 use std::{
-    ffi::{c_int, CStr, CString},
+    ffi::{CStr, CString},
     marker::PhantomData,
     ptr::{self, NonNull},
 };
@@ -33,6 +33,7 @@ impl<'core> Plugin<'core> {
         self.handle.as_ptr()
     }
 
+    /// The path to the shared object of the plugin or `None` if is a internal VapourSynth plugin
     pub fn path(&self) -> Option<&'core str> {
         let ptr = unsafe { API::get_cached().get_plugin_path(self.ptr()) };
         if ptr.is_null() {
@@ -69,7 +70,7 @@ impl<'core> Plugin<'core> {
         }
     }
 
-    pub fn version(&self) -> c_int {
+    pub fn version(&self) -> i32 {
         unsafe { API::get_cached().get_plugin_version(self.ptr()) }
     }
 
@@ -82,6 +83,13 @@ impl<'core> Plugin<'core> {
             } else {
                 Some(PluginFunction::from_ptr(ptr))
             }
+        }
+    }
+
+    pub fn function_iter(&self) -> PluginFunctionIter {
+        PluginFunctionIter {
+            function: None,
+            plugin: *self,
         }
     }
 
@@ -102,6 +110,31 @@ impl<'core> Plugin<'core> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct PluginFunctionIter<'core> {
+    function: Option<PluginFunction<'core>>,
+    pub plugin: Plugin<'core>,
+}
+
+impl<'core> PluginFunctionIter<'core> {
+    pub fn new(plugin: Plugin<'core>) -> Self {
+        PluginFunctionIter {
+            function: None,
+            plugin: plugin,
+        }
+    }
+}
+
+impl<'core> Iterator for PluginFunctionIter<'core> {
+    type Item = PluginFunction<'core>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.function = self.plugin.next_function(self.function);
+        self.function
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct PluginFunction<'core> {
     handle: NonNull<ffi::VSPluginFunction>,
     _owner: PhantomData<&'core ()>,
@@ -141,11 +174,11 @@ impl<'core> PluginFunction<'core> {
 }
 
 /// An interator over the loaded plugins
-/// 
+///
 #[derive(Debug, Clone, Copy)]
 pub struct PluginIter<'core> {
     plugin: Option<Plugin<'core>>,
-    pub core: CoreRef<'core>
+    pub core: CoreRef<'core>,
 }
 
 impl<'core> PluginIter<'core> {

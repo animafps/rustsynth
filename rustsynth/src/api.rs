@@ -1,11 +1,14 @@
 use rustsynth_sys as ffi;
 use std::{
-    ffi::{c_char, c_int, CString},
+    ffi::{c_char, CString},
     ptr::{self, NonNull},
     sync::atomic::{AtomicPtr, Ordering},
 };
 
-use crate::{core::CoreRef, plugin::{Plugin, PluginIter}};
+use crate::{
+    core::CoreRef,
+    plugin::{Plugin, PluginIter},
+};
 
 /// A wrapper for the VapourSynth API.
 #[derive(Debug, Clone, Copy)]
@@ -77,7 +80,7 @@ impl API {
         }
     }
 
-    pub fn plugins<'core>(&self,core: CoreRef<'core>) -> PluginIter<'core> {
+    pub fn plugins<'core>(&self, core: CoreRef<'core>) -> PluginIter<'core> {
         PluginIter::new(core)
     }
 
@@ -146,7 +149,7 @@ impl API {
         self.handle.as_ref().getPluginName.unwrap()(plugin)
     }
 
-    pub(crate) unsafe fn get_plugin_version(&self, plugin: *mut ffi::VSPlugin) -> c_int {
+    pub(crate) unsafe fn get_plugin_version(&self, plugin: *mut ffi::VSPlugin) -> i32 {
         self.handle.as_ref().getPluginVersion.unwrap()(plugin)
     }
 
