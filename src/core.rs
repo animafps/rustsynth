@@ -1,5 +1,6 @@
+use crate::api::API;
 use rustsynth_sys as ffi;
-use std::{marker::PhantomData, ptr::NonNull};
+use std::{ffi::CStr, marker::PhantomData, ptr::NonNull};
 
 /// A reference to a VapourSynth core.
 #[derive(Debug, Clone, Copy)]
@@ -29,4 +30,32 @@ impl<'core> CoreRef<'core> {
     pub(crate) fn ptr(&self) -> *mut ffi::VSCore {
         self.handle.as_ptr()
     }
+
+    pub fn info(&self) -> CoreInfo {
+        let core_info = unsafe { API::get_cached().get_core_info(self.ptr()) };
+        let version_string = unsafe { CStr::from_ptr(core_info.versionString).to_str().unwrap() };
+        debug_assert!(core_info.numThreads >= 0);
+        debug_assert!(core_info.maxFramebufferSize >= 0);
+        debug_assert!(core_info.usedFramebufferSize >= 0);
+
+        CoreInfo {
+            version_string,
+            core_version: core_info.core,
+            api_version: core_info.api,
+            num_threads: core_info.numThreads as usize,
+            max_framebuffer_size: core_info.maxFramebufferSize as u64,
+            used_framebuffer_size: core_info.usedFramebufferSize as u64,
+        }
+    }
+}
+
+/// Contains information about a VapourSynth core.
+#[derive(Debug, Clone, Copy, Hash)]
+pub struct CoreInfo {
+    pub version_string: &'static str,
+    pub core_version: i32,
+    pub api_version: i32,
+    pub num_threads: usize,
+    pub max_framebuffer_size: u64,
+    pub used_framebuffer_size: u64,
 }

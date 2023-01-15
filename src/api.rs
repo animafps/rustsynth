@@ -1,6 +1,6 @@
 use rustsynth_sys as ffi;
 use std::{
-    ffi::c_char,
+    ffi::{c_char, c_int, CString},
     ptr::{self, NonNull},
     sync::atomic::{AtomicPtr, Ordering},
 };
@@ -70,26 +70,117 @@ impl API {
     /// `rustsynth_sys::VSAPI::freeCore()` after ensuring that all frame requests have completed
     /// and all objects belonging to the core have been released.
     #[inline]
-    pub fn create_core<'core>(self, flags: i32) -> CoreRef<'core> {
+    pub fn create_core<'core>(&self, flags: i32) -> CoreRef<'core> {
         unsafe {
             let handle = (self.handle.as_ref().createCore).unwrap()(flags);
             CoreRef::from_ptr(handle)
         }
     }
 
-    pub fn get_next_plugin<'core>(self, plugin: Option<Plugin>, core: CoreRef) -> Plugin<'core> {
+    pub fn get_next_plugin<'core>(
+        &self,
+        plugin: Option<Plugin>,
+        core: CoreRef,
+    ) -> Option<Plugin<'core>> {
         unsafe {
-            let pluginptr = if plugin.is_none() {
-                ptr::null_mut()
+            let pluginptr = if let Some(value) = plugin {
+                value.ptr()
             } else {
-                plugin.unwrap().ptr()
+                ptr::null_mut()
             };
             let handle = self.handle.as_ref().getNextPlugin.unwrap()(pluginptr, core.ptr());
-            Plugin::from_ptr(handle)
+            if handle.is_null() {
+                None
+            } else {
+                Some(Plugin::from_ptr(handle))
+            }
         }
     }
 
-    pub(crate) unsafe fn get_plugin_path(self, plugin: *mut ffi::VSPlugin) -> *const c_char {
+    pub fn get_plugin_by_namespace<'core>(
+        &self,
+        namespace: &str,
+        core: CoreRef,
+    ) -> Option<Plugin<'core>> {
+        unsafe {
+            let ns = CString::new(namespace).unwrap();
+            let handle =
+                self.handle.as_ref().getPluginByNamespace.unwrap()(ns.as_ptr(), core.ptr());
+            if handle.is_null() {
+                None
+            } else {
+                Some(Plugin::from_ptr(handle))
+            }
+        }
+    }
+
+    pub fn get_plugin_by_id<'core>(&self, id: &str, core: CoreRef) -> Option<Plugin<'core>> {
+        unsafe {
+            let id = CString::new(id).unwrap();
+            let handle = self.handle.as_ref().getPluginByID.unwrap()(id.as_ptr(), core.ptr());
+            if handle.is_null() {
+                None
+            } else {
+                Some(Plugin::from_ptr(handle))
+            }
+        }
+    }
+
+    pub(crate) unsafe fn get_plugin_path(&self, plugin: *mut ffi::VSPlugin) -> *const c_char {
         self.handle.as_ref().getPluginPath.unwrap()(plugin)
+    }
+
+    pub(crate) unsafe fn get_plugin_id(&self, plugin: *mut ffi::VSPlugin) -> *const c_char {
+        self.handle.as_ref().getPluginID.unwrap()(plugin)
+    }
+
+    pub(crate) unsafe fn get_plugin_ns(&self, plugin: *mut ffi::VSPlugin) -> *const c_char {
+        self.handle.as_ref().getPluginNamespace.unwrap()(plugin)
+    }
+
+    pub(crate) unsafe fn get_plugin_name(&self, plugin: *mut ffi::VSPlugin) -> *const c_char {
+        self.handle.as_ref().getPluginName.unwrap()(plugin)
+    }
+
+    pub(crate) unsafe fn get_plugin_version(&self, plugin: *mut ffi::VSPlugin) -> c_int {
+        self.handle.as_ref().getPluginVersion.unwrap()(plugin)
+    }
+
+    pub(crate) unsafe fn get_plugin_function_name(
+        &self,
+        function: *mut ffi::VSPluginFunction,
+    ) -> *const c_char {
+        self.handle.as_ref().getPluginFunctionName.unwrap()(function)
+    }
+
+    pub(crate) unsafe fn get_plugin_function_by_name(
+        &self,
+        name: *const c_char,
+        plugin: *mut ffi::VSPlugin,
+    ) -> *mut ffi::VSPluginFunction {
+        self.handle.as_ref().getPluginFunctionByName.unwrap()(name, plugin)
+    }
+
+    pub(crate) unsafe fn get_next_plugin_function(
+        &self,
+        function: *mut ffi::VSPluginFunction,
+        plugin: *mut ffi::VSPlugin,
+    ) -> *mut ffi::VSPluginFunction {
+        self.handle.as_ref().getNextPluginFunction.unwrap()(function, plugin)
+    }
+
+    pub(crate) unsafe fn get_plugin_function_arguments(
+        &self,
+        function: *mut ffi::VSPluginFunction,
+    ) -> *const c_char {
+        self.handle.as_ref().getPluginFunctionArguments.unwrap()(function)
+    }
+
+    pub(crate) unsafe fn get_core_info(&self, core: *mut ffi::VSCore) -> ffi::VSCoreInfo {
+        use std::mem::MaybeUninit;
+
+        let mut info = MaybeUninit::uninit();
+        self.handle.as_ref().getCoreInfo.unwrap()(core, info.as_mut_ptr());
+        info.assume_init()
     }
 }
