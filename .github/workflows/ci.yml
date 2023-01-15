@@ -59,6 +59,9 @@ jobs:
         uses: upload-pages-artifact@v1
         with:
           path: target/doc
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
   build-test-lint-macos:
     name: macOS - build, test and lint
     runs-on: macos-latest
