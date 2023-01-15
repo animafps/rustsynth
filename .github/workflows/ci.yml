@@ -46,6 +46,19 @@ jobs:
       - name: Check format
         run: |
           cargo fmt -- --check
+      - name: Run doc
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --verbose
+      - name: Deploy documentation
+        if: >
+          matrix.toolchain == 'stable-x86_64-unknown-linux-gnu' &&
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/master'
+        uses: upload-pages-artifact@v1
+        with:
+          path: target/doc
   build-test-lint-macos:
     name: macOS - build, test and lint
     runs-on: macos-latest
