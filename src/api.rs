@@ -32,7 +32,7 @@ impl API {
 
         let handle = if handle.is_null() {
             // Attempt retrieving it otherwise.
-            let handle = unsafe { ffi::getVapourSynthAPI(40) } as *mut ffi::VSAPI;
+            let handle = unsafe { ffi::getVapourSynthAPI(4) } as *mut ffi::VSAPI;
 
             if !handle.is_null() {
                 // If we successfully retrieved the API, cache it.
