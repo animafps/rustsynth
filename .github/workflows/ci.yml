@@ -15,7 +15,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install g++ make autoconf automake libtool pkg-config nasm git
-          git clone --branch release-3.0.4 https://github.com/sekrit-twc/zimg.git
+          git clone --branch release-3.0.4 --depth 1 https://github.com/sekrit-twc/zimg.git
           cd zimg   
           ./autogen.sh
           ./configure
@@ -23,8 +23,7 @@ jobs:
           sudo make install
           cd ..
           sudo apt-get install cython3
-          git clone --branch R61 https://github.com/vapoursynth/vapoursynth.git
-          cd vapoursynth
+          cd rustsynth-sys/vapoursynth
           ./autogen.sh
           ./configure
           make
