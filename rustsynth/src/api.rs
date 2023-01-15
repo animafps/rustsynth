@@ -1,6 +1,6 @@
 use rustsynth_sys as ffi;
 use std::{
-    ffi::{c_char, CString},
+    ffi::{c_char, CString, c_int},
     ptr::{self, NonNull},
     sync::atomic::{AtomicPtr, Ordering},
 };
@@ -189,5 +189,38 @@ impl API {
         let mut info = MaybeUninit::uninit();
         self.handle.as_ref().getCoreInfo.unwrap()(core, info.as_mut_ptr());
         info.assume_init()
+    }
+
+    pub(crate) unsafe fn invoke(
+        &self,
+        plugin: *mut ffi::VSPlugin,
+        name: *const c_char,
+        args: *mut ffi::VSMap,
+    ) -> *mut ffi::VSMap {
+        self.handle.as_ref().invoke.unwrap()(plugin, name, args)
+    }
+
+    pub(crate) unsafe fn clear_map(&self, map: *mut ffi::VSMap) {
+        self.handle.as_ref().clearMap.unwrap()(map);
+    }
+
+    pub(crate) unsafe fn map_num_elements(&self, map: *mut ffi::VSMap, key: *const c_char) -> c_int {
+        self.handle.as_ref().mapNumElements.unwrap()(map, key)
+    }
+
+    pub(crate) unsafe fn map_num_keys(&self, map: *mut ffi::VSMap) -> c_int {
+        self.handle.as_ref().mapNumKeys.unwrap()(map)
+    }
+
+    pub(crate) unsafe fn map_get_key(&self, map: *mut ffi::VSMap, index: c_int) -> *const c_char {
+        self.handle.as_ref().mapGetKey.unwrap()(map, index)
+    }
+
+    pub(crate) unsafe fn create_map(&self) -> *mut ffi::VSMap {
+        self.handle.as_ref().createMap.unwrap()()
+    }
+
+    pub(crate) unsafe fn free_map(&self, map: *mut ffi::VSMap) {
+        self.handle.as_ref().freeMap.unwrap()(map)
     }
 }

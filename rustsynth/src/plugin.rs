@@ -1,4 +1,4 @@
-use ffi::VSPluginFunction;
+use ffi::{VSMap, VSPluginFunction};
 use rustsynth_sys as ffi;
 use std::{
     ffi::{CStr, CString},
@@ -74,26 +74,26 @@ impl<'core> Plugin<'core> {
         unsafe { API::get_cached().get_plugin_version(self.ptr()) }
     }
 
-    pub fn function(&self, name: &str) -> Option<PluginFunction<'core>> {
+    pub fn function(&'core self, name: &str) -> Option<PluginFunction<'core>> {
         let name_ptr = CString::new(name).unwrap();
         unsafe {
             let ptr = API::get_cached().get_plugin_function_by_name(name_ptr.as_ptr(), self.ptr());
             if ptr.is_null() {
                 None
             } else {
-                Some(PluginFunction::from_ptr(ptr))
+                Some(PluginFunction::from_ptr(ptr, self))
             }
         }
     }
 
-    pub fn function_iter(&self) -> PluginFunctionIter {
+    pub fn function_iter(&'core self) -> PluginFunctionIter {
         PluginFunctionIter {
             function: None,
-            plugin: *self,
+            plugin: self,
         }
     }
 
-    pub fn next_function(&self, function: Option<PluginFunction>) -> Option<PluginFunction<'core>> {
+    pub fn next_function(&'core self, function: Option<PluginFunction>) -> Option<PluginFunction<'core>> {
         unsafe {
             let function = if let Some(value) = function {
                 value.ptr()
@@ -104,7 +104,7 @@ impl<'core> Plugin<'core> {
             if ptr.is_null() {
                 None
             } else {
-                Some(PluginFunction::from_ptr(ptr))
+                Some(PluginFunction::from_ptr(ptr, self))
             }
         }
     }
@@ -113,11 +113,11 @@ impl<'core> Plugin<'core> {
 #[derive(Debug, Clone, Copy)]
 pub struct PluginFunctionIter<'core> {
     function: Option<PluginFunction<'core>>,
-    pub plugin: Plugin<'core>,
+    pub plugin: &'core Plugin<'core>,
 }
 
 impl<'core> PluginFunctionIter<'core> {
-    pub fn new(plugin: Plugin<'core>) -> Self {
+    pub fn new(plugin: &'core Plugin<'core>) -> Self {
         PluginFunctionIter {
             function: None,
             plugin,
@@ -138,13 +138,15 @@ impl<'core> Iterator for PluginFunctionIter<'core> {
 pub struct PluginFunction<'core> {
     handle: NonNull<ffi::VSPluginFunction>,
     _owner: PhantomData<&'core ()>,
+    plugin: &'core Plugin<'core>,
 }
 
 impl<'core> PluginFunction<'core> {
-    pub(crate) unsafe fn from_ptr(ptr: *mut VSPluginFunction) -> Self {
+    pub(crate) unsafe fn from_ptr(ptr: *mut VSPluginFunction, plugin: &'core Plugin<'core>) -> Self {
         PluginFunction {
             handle: NonNull::new_unchecked(ptr),
             _owner: PhantomData,
+            plugin,
         }
     }
 
@@ -170,6 +172,15 @@ impl<'core> PluginFunction<'core> {
         } else {
             Some(unsafe { CStr::from_ptr(ptr).to_str().unwrap() })
         }
+    }
+
+
+    /// # Safety
+    ///
+    /// Result maybe null
+    pub unsafe fn invoke(&self, args: *mut VSMap) -> *mut VSMap {
+        let name = CString::new(self.name().unwrap()).unwrap();
+        unsafe { API::get_cached().invoke(self.plugin.ptr(), name.as_ptr(), args) }
     }
 }
 
