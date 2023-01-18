@@ -1,6 +1,6 @@
 use rustsynth_sys as ffi;
 use std::{
-    ffi::{c_char, CString, c_int},
+    ffi::{c_char, c_int, CString},
     ptr::{self, NonNull},
     sync::atomic::{AtomicPtr, Ordering},
 };
@@ -134,9 +134,7 @@ impl API {
     }
 
     pub fn version(&self) -> i32 {
-        unsafe {
-            self.handle.as_ref().getAPIVersion.unwrap()()
-        }
+        unsafe { self.handle.as_ref().getAPIVersion.unwrap()() }
     }
 
     pub(crate) unsafe fn get_plugin_path(&self, plugin: *mut ffi::VSPlugin) -> *const c_char {
@@ -210,7 +208,11 @@ impl API {
         self.handle.as_ref().clearMap.unwrap()(map);
     }
 
-    pub(crate) unsafe fn map_num_elements(&self, map: *mut ffi::VSMap, key: *const c_char) -> c_int {
+    pub(crate) unsafe fn map_num_elements(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+    ) -> c_int {
         self.handle.as_ref().mapNumElements.unwrap()(map, key)
     }
 
@@ -231,7 +233,7 @@ impl API {
     }
 
     pub(crate) unsafe fn map_get_type(&self, map: *mut ffi::VSMap, key: *const c_char) -> i32 {
-        self.handle.as_ref().mapGetType.unwrap()(map,key)
+        self.handle.as_ref().mapGetType.unwrap()(map, key)
     }
 }
 

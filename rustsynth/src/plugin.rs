@@ -93,7 +93,10 @@ impl<'core> Plugin<'core> {
         }
     }
 
-    pub fn next_function(&'core self, function: Option<PluginFunction>) -> Option<PluginFunction<'core>> {
+    pub fn next_function(
+        &'core self,
+        function: Option<PluginFunction>,
+    ) -> Option<PluginFunction<'core>> {
         unsafe {
             let function = if let Some(value) = function {
                 value.ptr()
@@ -142,7 +145,10 @@ pub struct PluginFunction<'core> {
 }
 
 impl<'core> PluginFunction<'core> {
-    pub(crate) unsafe fn from_ptr(ptr: *mut VSPluginFunction, plugin: &'core Plugin<'core>) -> Self {
+    pub(crate) unsafe fn from_ptr(
+        ptr: *mut VSPluginFunction,
+        plugin: &'core Plugin<'core>,
+    ) -> Self {
         PluginFunction {
             handle: NonNull::new_unchecked(ptr),
             _owner: PhantomData,
@@ -173,7 +179,6 @@ impl<'core> PluginFunction<'core> {
             Some(unsafe { CStr::from_ptr(ptr).to_str().unwrap() })
         }
     }
-
 
     /// # Safety
     ///

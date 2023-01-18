@@ -1,10 +1,10 @@
 //! VapourSynth maps.
 
-use std::ffi::{CStr};
+use rustsynth_sys as ffi;
+use std::ffi::CStr;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut, Index};
 use std::ptr::NonNull;
-use rustsynth_sys as ffi;
 
 use crate::api::API;
 
@@ -171,10 +171,8 @@ impl<'owner, 'elem> MapRefMut<'owner, 'elem> {
 impl<'elem> Map<'elem> {
     pub fn new() -> Self {
         Map {
-            handle: unsafe {
-                NonNull::new_unchecked(API::get_cached().create_map())
-            },
-            _elem: PhantomData
+            handle: unsafe { NonNull::new_unchecked(API::get_cached().create_map()) },
+            _elem: PhantomData,
         }
     }
 
@@ -238,7 +236,7 @@ impl<'elem> Map<'elem> {
 
     /// An iterator visiting all keys  in arbitrary order.
     pub fn keys(&self) -> Keys<'_> {
-        Keys {inner: self.iter()}
+        Keys { inner: self.iter() }
     }
 
     /// An iterator visiting all key-value pairs in arbitrary order. The iterator element type is (&'elem str, &'elem Value)
@@ -252,7 +250,7 @@ impl<'elem> Map<'elem> {
     }
 
     pub fn len(&self) -> usize {
-        let int= unsafe { API::get_cached().map_num_keys(self.handle.as_ptr())};
+        let int = unsafe { API::get_cached().map_num_keys(self.handle.as_ptr()) };
         int.try_into().unwrap()
     }
 
@@ -260,7 +258,6 @@ impl<'elem> Map<'elem> {
         self.len() == 0
     }
 }
-
 
 impl Index<&str> for Map<'_> {
     type Output = Value;
@@ -281,17 +278,17 @@ impl Index<&str> for Map<'_> {
 /// documentation for more.
 ///
 /// [`keys`]: Map::keys
-/// 
+///
 /// # Example
-/// 
-/// ``` 
+///
+/// ```
 /// use rustysynth::map::Map;
 /// let map = Map::new();
-/// 
+///
 /// let iter_keys = map.keys();
 /// ```
 pub struct Keys<'elem> {
-    inner: Iter<'elem>
+    inner: Iter<'elem>,
 }
 
 impl<'elem> Iterator for Keys<'elem> {
@@ -314,11 +311,11 @@ impl<'elem> Iterator for Keys<'elem> {
 /// ```
 /// use rustysynth::map::Map;
 /// let map = Map::new();
-/// 
+///
 /// let iter = map.iter();
 /// ```
 pub struct Iter<'a> {
-    map: &'a Map<'a> ,
+    map: &'a Map<'a>,
     items: usize,
 }
 
@@ -331,14 +328,13 @@ impl<'a> Iter<'a> {
     }
 }
 
-impl<'a> Iterator for Iter<'a>{
+impl<'a> Iterator for Iter<'a> {
     type Item = (&'a str, &'a Value);
 
     fn next(&mut self) -> Option<Self::Item> {
         todo!()
     }
 }
-
 
 /// An iterator over the values of a `Map`.
 ///
@@ -352,11 +348,11 @@ impl<'a> Iterator for Iter<'a>{
 /// ```
 /// use rustysynth::map::Map;
 /// let map = Map::new();
-/// 
+///
 /// let iter = map.values();
 /// ```
 pub struct Values<'a> {
-    inner: Iter<'a>
+    inner: Iter<'a>,
 }
 
 impl<'a> Iterator for Values<'a> {
@@ -367,8 +363,5 @@ impl<'a> Iterator for Values<'a> {
     type Item = &'a Value;
 }
 
-
 /// A struct holding the elements of a value in a map
-pub struct Value {
-
-}
+pub struct Value {}
