@@ -2,15 +2,11 @@
 
 use std::ffi::{CStr};
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, Index};
 use std::ptr::NonNull;
 use rustsynth_sys as ffi;
 
-pub mod keys;
-
 use crate::api::API;
-
-use self::keys::Keys;
 
 /// A VapourSynth map.
 ///
@@ -173,6 +169,15 @@ impl<'owner, 'elem> MapRefMut<'owner, 'elem> {
 }
 
 impl<'elem> Map<'elem> {
+    pub fn new() -> Self {
+        Map {
+            handle: unsafe {
+                NonNull::new_unchecked(API::get_cached().create_map())
+            },
+            _elem: PhantomData
+        }
+    }
+
     /// Wraps pointer into `Map`.
     ///
     /// # Safety
@@ -184,6 +189,10 @@ impl<'elem> Map<'elem> {
             handle: NonNull::new_unchecked(handle as *mut ffi::VSMap),
             _elem: PhantomData,
         }
+    }
+
+    pub fn get(&self, key: &str) -> &Value {
+        todo!()
     }
 
     /// Clears the map.
@@ -227,14 +236,139 @@ impl<'elem> Map<'elem> {
         self.key_raw(index).to_str().unwrap()
     }
 
-    /// Returns an iterator over all keys in a map.
-    #[inline]
-    pub fn keys(&self) -> Keys {
-        Keys::new(self)
+    /// An iterator visiting all keys  in arbitrary order.
+    pub fn keys(&self) -> Keys<'_> {
+        Keys {inner: self.iter()}
+    }
+
+    /// An iterator visiting all key-value pairs in arbitrary order. The iterator element type is (&'elem str, &'elem Value)
+    pub fn iter(&self) -> Iter<'_> {
+        Iter::new(self)
+    }
+
+    /// An iterator visiting all values in arbitrary order.
+    pub fn values(&self) -> Values<'_> {
+        Values { inner: self.iter() }
     }
 
     pub fn len(&self) -> usize {
         let int= unsafe { API::get_cached().map_num_keys(self.handle.as_ptr())};
         int.try_into().unwrap()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+
+impl Index<&str> for Map<'_> {
+    type Output = Value;
+
+    /// Returns a reference to the value corresponding to the supplied key.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the key is not present in the `HashMap`.
+    fn index(&self, index: &str) -> &Self::Output {
+        self.get(index)
+    }
+}
+
+/// An iterator over the keys of a `Map`.
+///
+/// This `struct` is created by the [`keys`] method on [`Map`]. See its
+/// documentation for more.
+///
+/// [`keys`]: Map::keys
+/// 
+/// # Example
+/// 
+/// ``` 
+/// use rustysynth::map::Map;
+/// let map = Map::new();
+/// 
+/// let iter_keys = map.keys();
+/// ```
+pub struct Keys<'elem> {
+    inner: Iter<'elem>
+}
+
+impl<'elem> Iterator for Keys<'elem> {
+    fn next(self: &mut Keys<'elem>) -> Option<Self::Item> {
+        Some(self.inner.next()?.0)
+    }
+
+    type Item = &'elem str;
+}
+
+/// An iterator over the entries of a `Map`.
+///
+/// This `struct` is created by the [`iter`] method on [`Map`]. See its
+/// documentation for more.
+///
+/// [`iter`]: Map::iter
+///
+/// # Example
+///
+/// ```
+/// use rustysynth::map::Map;
+/// let map = Map::new();
+/// 
+/// let iter = map.iter();
+/// ```
+pub struct Iter<'a> {
+    map: &'a Map<'a> ,
+    items: usize,
+}
+
+impl<'a> Iter<'a> {
+    pub(crate) fn new(map: &'a Map) -> Self {
+        Iter {
+            map,
+            items: map.len(),
+        }
+    }
+}
+
+impl<'a> Iterator for Iter<'a>{
+    type Item = (&'a str, &'a Value);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        todo!()
+    }
+}
+
+
+/// An iterator over the values of a `Map`.
+///
+/// This `struct` is created by the [`values`] method on [`Map`]. See its
+/// documentation for more.
+///
+/// [`values`]: Map::values
+///
+/// # Example
+///
+/// ```
+/// use rustysynth::map::Map;
+/// let map = Map::new();
+/// 
+/// let iter = map.values();
+/// ```
+pub struct Values<'a> {
+    inner: Iter<'a>
+}
+
+impl<'a> Iterator for Values<'a> {
+    fn next(self: &mut Values<'a>) -> Option<Self::Item> {
+        Some(self.inner.next()?.1)
+    }
+
+    type Item = &'a Value;
+}
+
+
+/// A struct holding the elements of a value in a map
+pub struct Value {
+
 }

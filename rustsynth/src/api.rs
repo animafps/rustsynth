@@ -133,6 +133,12 @@ impl API {
         }
     }
 
+    pub fn version(&self) -> i32 {
+        unsafe {
+            self.handle.as_ref().getAPIVersion.unwrap()()
+        }
+    }
+
     pub(crate) unsafe fn get_plugin_path(&self, plugin: *mut ffi::VSPlugin) -> *const c_char {
         self.handle.as_ref().getPluginPath.unwrap()(plugin)
     }
@@ -222,5 +228,23 @@ impl API {
 
     pub(crate) unsafe fn free_map(&self, map: *mut ffi::VSMap) {
         self.handle.as_ref().freeMap.unwrap()(map)
+    }
+
+    pub(crate) unsafe fn map_get_type(&self, map: *mut ffi::VSMap, key: *const c_char) -> i32 {
+        self.handle.as_ref().mapGetType.unwrap()(map,key)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        let api = super::API::get().unwrap();
+        assert_eq!(api.version(), 262144);
+    }
+
+    fn create_core() {
+        let api = super::API::get().unwrap();
+        api.create_core(0);
     }
 }
