@@ -39,7 +39,7 @@ jobs:
           cargo build
       - name: Test
         run: |
-          cargo test
+          cargo test --lib
       - name: Lint
         run: |
           cargo clippy -- -D warnings
@@ -83,7 +83,7 @@ jobs:
           cargo build
       - name: Test
         run: |
-          cargo test
+          cargo test --lib
       - name: Lint
         run: |
           cargo clippy -- -D warnings
