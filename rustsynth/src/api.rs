@@ -11,6 +11,8 @@ use crate::{
 };
 
 /// A wrapper for the VapourSynth API.
+/// 
+/// 
 #[derive(Debug, Clone, Copy)]
 pub struct API {
     // Note that this is *const, not *mut.
@@ -29,13 +31,13 @@ impl API {
     /// Returns `None` on error
     // If we're linking to VSScript anyway, use the VSScript function.
     #[inline]
-    pub fn get() -> Option<Self> {
+    pub fn get(version: i32) -> Option<Self> {
         // Check if we already have the API.
         let handle = RAW_API.load(Ordering::Relaxed);
 
         let handle = if handle.is_null() {
             // Attempt retrieving it otherwise.
-            let handle = unsafe { ffi::getVapourSynthAPI(4) } as *mut ffi::VSAPI;
+            let handle = unsafe { ffi::getVapourSynthAPI(version) } as *mut ffi::VSAPI;
 
             if !handle.is_null() {
                 // If we successfully retrieved the API, cache it.
@@ -241,12 +243,7 @@ impl API {
 mod tests {
     #[test]
     fn it_works() {
-        let api = super::API::get().unwrap();
+        let api = super::API::get(4).unwrap();
         assert_eq!(api.version(), 262144);
-    }
-
-    fn create_core() {
-        let api = super::API::get().unwrap();
-        api.create_core(0);
     }
 }

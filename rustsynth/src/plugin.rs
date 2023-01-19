@@ -194,7 +194,7 @@ impl<'core> PluginFunction<'core> {
 #[derive(Debug, Clone, Copy)]
 pub struct PluginIter<'core> {
     plugin: Option<Plugin<'core>>,
-    pub core: CoreRef<'core>,
+    core: CoreRef<'core>,
 }
 
 impl<'core> PluginIter<'core> {

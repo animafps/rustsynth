@@ -1,5 +1,4 @@
-//! VapourSynth maps.
-
+//! VapourSynth map.
 use rustsynth_sys as ffi;
 use std::ffi::CStr;
 use std::marker::PhantomData;
@@ -11,35 +10,20 @@ use crate::api::API;
 /// A VapourSynth map.
 ///
 /// A map contains key-value pairs where the value is zero or more elements of a certain type.
-// This type is intended to be publicly used only in reference form.
+/// 
+/// It is currently immutable
+/// 
+/// # Examples
+/// 
+/// ```
+/// use rustsynth::map::Map;
+/// let map = Map::new();
+/// ```
 #[derive(Debug)]
 pub struct Map<'elem> {
     // The actual mutability of this depends on whether it's accessed via `&Map` or `&mut Map`.
     handle: NonNull<ffi::VSMap>,
     _elem: PhantomData<&'elem ()>,
-}
-
-/// A reference to a VapourSynth map.
-#[derive(Debug)]
-pub struct MapRef<'owner, 'elem> {
-    // Only immutable references to this are allowed.
-    map: Map<'elem>,
-    _owner: PhantomData<&'owner ()>,
-}
-
-/// A reference to a mutable VapourSynth map.
-#[derive(Debug)]
-pub struct MapRefMut<'owner, 'elem> {
-    // Both mutable and immutable references to this are allowed.
-    map: Map<'elem>,
-    _owner: PhantomData<&'owner ()>,
-}
-
-/// An owned VapourSynth map.
-#[derive(Debug)]
-pub struct OwnedMap<'elem> {
-    // Both mutable and immutable references to this are allowed.
-    map: Map<'elem>,
 }
 
 unsafe impl<'elem> Send for Map<'elem> {}
@@ -63,117 +47,30 @@ impl<'elem> DerefMut for Map<'elem> {
     }
 }
 
-impl<'owner, 'elem> Deref for MapRef<'owner, 'elem> {
-    type Target = Map<'elem>;
 
-    // Technically this should return `&'owner`.
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.map
-    }
-}
-
-impl<'owner, 'elem> Deref for MapRefMut<'owner, 'elem> {
-    type Target = Map<'elem>;
-
-    // Technically this should return `&'owner`.
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.map
-    }
-}
-
-impl<'owner, 'elem> DerefMut for MapRefMut<'owner, 'elem> {
-    // Technically this should return `&'owner`.
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.map
-    }
-}
-
-impl<'elem> Drop for OwnedMap<'elem> {
+impl<'elem> Drop for Map<'elem> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
-            API::get_cached().free_map(self.map.ptr());
+            API::get_cached().free_map(self.ptr());
         }
     }
 }
 
-impl<'elem> Deref for OwnedMap<'elem> {
-    type Target = Map<'elem>;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.map
-    }
-}
-
-impl<'elem> DerefMut for OwnedMap<'elem> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.map
-    }
-}
-
-impl<'elem> OwnedMap<'elem> {
-    /// Creates a new map.
-    #[inline]
-    pub fn new(api: API) -> Self {
-        Self {
-            map: unsafe { Map::from_ptr(api.create_map()) },
-        }
-    }
-
-    /// Wraps pointer into `OwnedMap`.
-    ///
-    /// # Safety
-    /// The caller needs to ensure the pointer and the lifetime is valid and that this is an owned
-    /// map pointer.
-    #[inline]
-    pub(crate) unsafe fn from_ptr(handle: *mut ffi::VSMap) -> Self {
-        Self {
-            map: Map::from_ptr(handle),
-        }
-    }
-}
-
-impl<'owner, 'elem> MapRef<'owner, 'elem> {
-    /// Wraps pointer into `MapRef`.
-    ///
-    /// # Safety
-    /// The caller needs to ensure the pointer and the lifetimes are valid, and that there are no
-    /// mutable references to the given map.
-    #[inline]
-    pub(crate) unsafe fn from_ptr(handle: *const ffi::VSMap) -> Self {
-        Self {
-            map: Map::from_ptr(handle),
-            _owner: PhantomData,
-        }
-    }
-}
-
-impl<'owner, 'elem> MapRefMut<'owner, 'elem> {
-    /// Wraps pointer into `MapRefMut`.
-    ///
-    /// # Safety
-    /// The caller needs to ensure the pointer and the lifetimes are valid, and that there are no
-    /// references to the given map.
-    #[inline]
-    pub(crate) unsafe fn from_ptr(handle: *mut ffi::VSMap) -> Self {
-        Self {
-            map: Map::from_ptr(handle),
-            _owner: PhantomData,
+impl<'elem> Default for Map<'elem> {
+    fn default() -> Self {
+        Map {
+            handle: unsafe { NonNull::new_unchecked(API::get_cached().create_map()) },
+            _elem: PhantomData,
         }
     }
 }
 
 impl<'elem> Map<'elem> {
+    #[inline]
+    #[must_use]
     pub fn new() -> Self {
-        Map {
-            handle: unsafe { NonNull::new_unchecked(API::get_cached().create_map()) },
-            _elem: PhantomData,
-        }
+        Default::default()
     }
 
     /// Wraps pointer into `Map`.
@@ -266,9 +163,18 @@ impl Index<&str> for Map<'_> {
     ///
     /// # Panics
     ///
-    /// Panics if the key is not present in the `HashMap`.
+    /// Panics if the key is not present in the `Map`.
     fn index(&self, index: &str) -> &Self::Output {
         self.get(index)
+    }
+}
+
+impl<'a, 'elem> IntoIterator for &'a Map<'elem> {
+    type Item = (&'a str, &'a Value);
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -282,21 +188,21 @@ impl Index<&str> for Map<'_> {
 /// # Example
 ///
 /// ```
-/// use rustysynth::map::Map;
+/// use rustsynth::map::Map;
 /// let map = Map::new();
 ///
 /// let iter_keys = map.keys();
 /// ```
-pub struct Keys<'elem> {
-    inner: Iter<'elem>,
+pub struct Keys<'a> {
+    inner: Iter<'a>,
 }
 
-impl<'elem> Iterator for Keys<'elem> {
-    fn next(self: &mut Keys<'elem>) -> Option<Self::Item> {
+impl<'a> Iterator for Keys<'a> {
+    fn next(self: &mut Keys<'a>) -> Option<Self::Item> {
         Some(self.inner.next()?.0)
     }
 
-    type Item = &'elem str;
+    type Item = &'a str;
 }
 
 /// An iterator over the entries of a `Map`.
@@ -309,7 +215,7 @@ impl<'elem> Iterator for Keys<'elem> {
 /// # Example
 ///
 /// ```
-/// use rustysynth::map::Map;
+/// use rustsynth::map::Map;
 /// let map = Map::new();
 ///
 /// let iter = map.iter();
@@ -346,7 +252,7 @@ impl<'a> Iterator for Iter<'a> {
 /// # Example
 ///
 /// ```
-/// use rustysynth::map::Map;
+/// use rustsynth::map::Map;
 /// let map = Map::new();
 ///
 /// let iter = map.values();
