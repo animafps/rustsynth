@@ -4,6 +4,12 @@ Based on the work done on [vapoursynth-rs](https://github.com/YaLTeR/vapoursynth
 
 ## rustsynth
 
+> **Warning**
+> 
+> VapourSynth API coverage is limited and is still in early devlopment so breaking changes will occur to the API before v1.0
+>
+> [Roadmap](https://github.com/animafps/rustsynth/issues/1)
+
 [![crates.io](https://img.shields.io/crates/v/rustsynth.svg)](https://crates.io/crates/rustsynth)
 
 Safe rust vapoursynth wrapper
