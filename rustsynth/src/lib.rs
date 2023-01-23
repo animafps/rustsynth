@@ -11,6 +11,6 @@ pub mod prelude {
     //!
     //! Contains the types you most likely want to import anyway.
     pub use super::api::API;
-    pub use super::plugin::Plugin;
     pub use super::map::Map;
+    pub use super::plugin::Plugin;
 }

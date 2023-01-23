@@ -1,25 +1,62 @@
 //! VapourSynth map.
 use rustsynth_sys as ffi;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut, Index};
+use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
 use crate::api::API;
 
+/// The types of values that can be set in a map
+#[derive(Debug)]
+pub enum ValueType {
+    Unset,
+    Int,
+    Float,
+    Data,
+    Function,
+    VideoNode,
+    AudioNode,
+    VideoFrame,
+    AudioFrame,
+}
+
+impl std::convert::TryFrom<i32> for ValueType {
+    fn try_from(value: i32) -> Result<ValueType, Self::Error> {
+        match value {
+            0 => Ok(ValueType::Unset),
+            1 => Ok(ValueType::Int),
+            2 => Ok(ValueType::Float),
+            3 => Ok(ValueType::Data),
+            4 => Ok(ValueType::Function),
+            5 => Ok(ValueType::VideoNode),
+            6 => Ok(ValueType::AudioNode),
+            7 => Ok(ValueType::VideoFrame),
+            8 => Ok(ValueType::AudioFrame),
+            _ => Err("Not a valid map value type"),
+        }
+    }
+
+    type Error = &'static str;
+}
+
 /// A VapourSynth map.
 ///
 /// A map contains key-value pairs where the value is zero or more elements of a certain type.
-/// 
+///
+/// values may be
+/// - an integer (`i64`)
+/// - an array of integers (`Vec<i64>`)
+///
 /// It is currently immutable
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// use rustsynth::map::Map;
 /// let map = Map::new();
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Map<'elem> {
     // The actual mutability of this depends on whether it's accessed via `&Map` or `&mut Map`.
     handle: NonNull<ffi::VSMap>,
@@ -47,15 +84,14 @@ impl<'elem> DerefMut for Map<'elem> {
     }
 }
 
-
-impl<'elem> Drop for Map<'elem> {
-    #[inline]
-    fn drop(&mut self) {
-        unsafe {
-            API::get_cached().free_map(self.ptr());
-        }
-    }
-}
+///impl<'elem> Drop for Map<'elem> {
+///    #[inline]
+///    fn drop(&mut self) {
+///        unsafe {
+///            API::get_cached().free_map(self.ptr());
+///        }
+///    }
+///}
 
 impl<'elem> Default for Map<'elem> {
     fn default() -> Self {
@@ -86,8 +122,68 @@ impl<'elem> Map<'elem> {
         }
     }
 
-    pub fn get(&self, key: &str) -> &Value {
-        todo!()
+    ///
+    pub fn get(&self, key: &str) -> Result<Value, &'static str> {
+        let value_type = self.get_type(key);
+        let ckey = CString::new(key).unwrap();
+        match value_type {
+            ValueType::Int => {
+                if self.num_elements(key) > 1 {
+                    Ok(Value::IntArray(unsafe {
+                        API::get_cached().map_get_int_array(self.ptr(), ckey.as_ptr())
+                    }))
+                } else {
+                    Ok(Value::Int(unsafe {
+                        API::get_cached().map_get_integer(self.ptr(), ckey.as_ptr())
+                    }))
+                }
+            }
+            ValueType::Float => {
+                if self.num_elements(key) > 1 {
+                    Ok(Value::FloatArray(unsafe {
+                        API::get_cached().map_get_float_array(self.ptr(), ckey.as_ptr())
+                    }))
+                } else {
+                    Ok(Value::Float(unsafe {
+                        API::get_cached().map_get_float(self.ptr(), ckey.as_ptr())
+                    }))
+                }
+            }
+            _ => panic!("Not implemented"),
+        }
+    }
+
+    pub fn num_elements(&self, key: &str) -> i32 {
+        let key = CString::new(key).unwrap();
+        unsafe { API::get_cached().map_num_elements(self.ptr(), key.as_ptr()) }
+    }
+
+    pub fn get_type(&self, key: &str) -> ValueType {
+        let key = CString::new(key).unwrap();
+        unsafe {
+            API::get_cached()
+                .map_get_type(self.ptr(), key.as_ptr())
+                .try_into()
+                .unwrap()
+        }
+    }
+
+    pub fn set(&self, key: &str, data: Value) {
+        let key = CString::new(key).unwrap();
+        match data {
+            Value::Int(val) => unsafe {
+                API::get_cached().map_set_integer(self.ptr(), key.as_ptr(), val);
+            },
+            Value::IntArray(val) => unsafe {
+                API::get_cached().map_set_int_array(
+                    self.ptr(),
+                    key.as_ptr(),
+                    val.as_ptr(),
+                    val.len().try_into().unwrap(),
+                );
+            },
+            _ => todo!(),
+        }
     }
 
     /// Clears the map.
@@ -146,9 +242,8 @@ impl<'elem> Map<'elem> {
         Values { inner: self.iter() }
     }
 
-    pub fn len(&self) -> usize {
-        let int = unsafe { API::get_cached().map_num_keys(self.handle.as_ptr()) };
-        int.try_into().unwrap()
+    pub fn len(&self) -> i32 {
+        unsafe { API::get_cached().map_num_keys(self.handle.as_ptr()) }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -156,26 +251,30 @@ impl<'elem> Map<'elem> {
     }
 }
 
-impl Index<&str> for Map<'_> {
-    type Output = Value;
+impl<'a> IntoIterator for Map<'a> {
+    type Item = (&'a str, &'a Value);
+    type IntoIter = IntoIter<'a>;
 
-    /// Returns a reference to the value corresponding to the supplied key.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the key is not present in the `Map`.
-    fn index(&self, index: &str) -> &Self::Output {
-        self.get(index)
+    /// Self consuming iter over Key-values in the `Map`
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter {
+            map: self,
+            items: self.len(),
+        }
     }
 }
 
-impl<'a, 'elem> IntoIterator for &'a Map<'elem> {
-    type Item = (&'a str, &'a Value);
-    type IntoIter = Iter<'a>;
+pub struct IntoIter<'a> {
+    map: Map<'a>,
+    items: i32,
+}
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+impl<'a> Iterator for IntoIter<'a> {
+    fn next(&mut self) -> Option<Self::Item> {
+        todo!()
     }
+
+    type Item = (&'a str, &'a Value);
 }
 
 /// An iterator over the keys of a `Map`.
@@ -222,7 +321,7 @@ impl<'a> Iterator for Keys<'a> {
 /// ```
 pub struct Iter<'a> {
     map: &'a Map<'a>,
-    items: usize,
+    items: i32,
 }
 
 impl<'a> Iter<'a> {
@@ -269,5 +368,11 @@ impl<'a> Iterator for Values<'a> {
     type Item = &'a Value;
 }
 
-/// A struct holding the elements of a value in a map
-pub struct Value {}
+/// A enum of the elements of a value in a map
+#[derive(Clone, Debug)]
+pub enum Value {
+    Int(i64),
+    Float(f64),
+    IntArray(Vec<i64>),
+    FloatArray(Vec<f64>),
+}

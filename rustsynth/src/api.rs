@@ -10,9 +10,11 @@ use crate::{
     plugin::{Plugin, PluginIter},
 };
 
+use std::mem::MaybeUninit;
+
 /// A wrapper for the VapourSynth API.
-/// 
-/// 
+///
+///
 #[derive(Debug, Clone, Copy)]
 pub struct API {
     // Note that this is *const, not *mut.
@@ -31,13 +33,15 @@ impl API {
     /// Returns `None` on error
     // If we're linking to VSScript anyway, use the VSScript function.
     #[inline]
-    pub fn get(version: i32) -> Option<Self> {
+    pub fn get() -> Option<Self> {
         // Check if we already have the API.
         let handle = RAW_API.load(Ordering::Relaxed);
 
         let handle = if handle.is_null() {
             // Attempt retrieving it otherwise.
-            let handle = unsafe { ffi::getVapourSynthAPI(version) } as *mut ffi::VSAPI;
+            let handle =
+                unsafe { ffi::getVapourSynthAPI(ffi::VAPOURSYNTH_API_MAJOR.try_into().unwrap()) }
+                    as *mut ffi::VSAPI;
 
             if !handle.is_null() {
                 // If we successfully retrieved the API, cache it.
@@ -190,8 +194,6 @@ impl API {
     }
 
     pub(crate) unsafe fn get_core_info(&self, core: *mut ffi::VSCore) -> ffi::VSCoreInfo {
-        use std::mem::MaybeUninit;
-
         let mut info = MaybeUninit::uninit();
         self.handle.as_ref().getCoreInfo.unwrap()(core, info.as_mut_ptr());
         info.assume_init()
@@ -218,6 +220,12 @@ impl API {
         self.handle.as_ref().mapNumElements.unwrap()(map, key)
     }
 
+    pub(crate) unsafe fn copy_map(&self, map: *mut ffi::VSMap) -> *mut ffi::VSMap {
+        let mut dest = MaybeUninit::uninit();
+        self.handle.as_ref().copyMap.unwrap()(map, dest.as_mut_ptr());
+        dest.as_mut_ptr()
+    }
+
     pub(crate) unsafe fn map_num_keys(&self, map: *mut ffi::VSMap) -> c_int {
         self.handle.as_ref().mapNumKeys.unwrap()(map)
     }
@@ -237,13 +245,82 @@ impl API {
     pub(crate) unsafe fn map_get_type(&self, map: *mut ffi::VSMap, key: *const c_char) -> i32 {
         self.handle.as_ref().mapGetType.unwrap()(map, key)
     }
+
+    pub(crate) unsafe fn map_set_integer(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+        integer: i64,
+    ) -> i32 {
+        self.handle.as_ref().mapSetInt.unwrap()(map, key, integer, 0)
+    }
+
+    pub(crate) unsafe fn map_get_integer(&self, map: *mut ffi::VSMap, key: *const c_char) -> i64 {
+        let mut dest = MaybeUninit::uninit();
+        let integer = self.handle.as_ref().mapGetInt.unwrap()(map, key, 0, dest.as_mut_ptr());
+        if dest.assume_init() == 0 {
+            return integer;
+        } else {
+            panic!("Not successful")
+        }
+    }
+
+    pub(crate) unsafe fn map_get_float(&self, map: *mut ffi::VSMap, key: *const c_char) -> f64 {
+        let mut dest = MaybeUninit::uninit();
+        let integer = self.handle.as_ref().mapGetFloat.unwrap()(map, key, 0, dest.as_mut_ptr());
+        if dest.assume_init() == 0 {
+            return integer;
+        } else {
+            panic!("Not successful")
+        }
+    }
+
+    pub(crate) unsafe fn map_get_int_array(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+    ) -> Vec<i64> {
+        let mut dest = MaybeUninit::uninit();
+        let ptr = self.handle.as_ref().mapGetIntArray.unwrap()(map, key, dest.as_mut_ptr());
+        if dest.assume_init() == 0 {
+            std::slice::from_raw_parts(ptr, self.map_num_elements(map, key).try_into().unwrap())
+                .to_vec()
+        } else {
+            panic!("Not successful")
+        }
+    }
+
+    pub(crate) unsafe fn map_get_float_array(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+    ) -> Vec<f64> {
+        let mut dest = MaybeUninit::uninit();
+        let ptr = self.handle.as_ref().mapGetFloatArray.unwrap()(map, key, dest.as_mut_ptr());
+        if dest.assume_init() == 0 {
+            std::slice::from_raw_parts(ptr, self.map_num_elements(map, key).try_into().unwrap())
+                .to_vec()
+        } else {
+            panic!("Not successful")
+        }
+    }
+
+    pub(crate) unsafe fn map_set_int_array(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+        int_array: *const i64,
+        size: i32,
+    ) -> i32 {
+        self.handle.as_ref().mapSetIntArray.unwrap()(map, key, int_array, size)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
     fn it_works() {
-        let api = super::API::get(4).unwrap();
+        let api = super::API::get().unwrap();
         assert_eq!(api.version(), 262144);
     }
 }
