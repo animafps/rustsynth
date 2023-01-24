@@ -252,14 +252,14 @@ impl API {
         key: *const c_char,
         integer: i64,
     ) -> i32 {
-        self.handle.as_ref().mapSetInt.unwrap()(map, key, integer, 0)
+        self.handle.as_ref().mapSetInt.unwrap()(map, key, integer, 1)
     }
 
     pub(crate) unsafe fn map_get_integer(&self, map: *mut ffi::VSMap, key: *const c_char) -> i64 {
         let mut dest = MaybeUninit::uninit();
         let integer = self.handle.as_ref().mapGetInt.unwrap()(map, key, 0, dest.as_mut_ptr());
         if dest.assume_init() == 0 {
-            return integer;
+            integer
         } else {
             panic!("Not successful")
         }
@@ -269,7 +269,7 @@ impl API {
         let mut dest = MaybeUninit::uninit();
         let integer = self.handle.as_ref().mapGetFloat.unwrap()(map, key, 0, dest.as_mut_ptr());
         if dest.assume_init() == 0 {
-            return integer;
+            integer
         } else {
             panic!("Not successful")
         }
@@ -313,6 +313,63 @@ impl API {
         size: i32,
     ) -> i32 {
         self.handle.as_ref().mapSetIntArray.unwrap()(map, key, int_array, size)
+    }
+
+    pub(crate) unsafe fn map_set_float(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+        val: f64,
+    ) -> i32 {
+        self.handle.as_ref().mapSetFloat.unwrap()(map, key, val, 1)
+    }
+
+    pub(crate) unsafe fn map_set_float_array(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+        array: *const f64,
+        size: i32,
+    ) -> i32 {
+        self.handle.as_ref().mapSetFloatArray.unwrap()(map, key, array, size)
+    }
+
+    pub(crate) unsafe fn get_node_type(&self, node: *mut ffi::VSNode) -> i32 {
+        self.handle.as_ref().getNodeType.unwrap()(node)
+    }
+
+    pub(crate) unsafe fn get_video_info(&self, node: *mut ffi::VSNode) -> *const ffi::VSVideoInfo {
+        self.handle.as_ref().getVideoInfo.unwrap()(node)
+    }
+
+    pub(crate) unsafe fn map_get_data(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+        index: i32,
+    ) -> *const c_char {
+        let mut dest = MaybeUninit::uninit();
+        self.handle.as_ref().mapGetData.unwrap()(map, key, index, dest.as_mut_ptr())
+    }
+
+    pub(crate) unsafe fn map_get_data_type_hint(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+        index: i32,
+    ) -> i32 {
+        let mut dest = MaybeUninit::uninit();
+        self.handle.as_ref().mapGetDataTypeHint.unwrap()(map, key, index, dest.as_mut_ptr())
+    }
+
+    pub(crate) unsafe fn map_get_data_size(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+        index: i32,
+    ) -> i32 {
+        let mut dest = MaybeUninit::uninit();
+        self.handle.as_ref().mapGetDataSize.unwrap()(map, key, index, dest.as_mut_ptr())
     }
 }
 

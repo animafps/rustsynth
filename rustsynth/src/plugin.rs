@@ -6,7 +6,7 @@ use std::{
     ptr::{self, NonNull},
 };
 
-use crate::{api::API, core::CoreRef};
+use crate::{api::API, core::CoreRef, prelude::Map};
 
 /// A VapourSynth plugin.
 #[derive(Debug, Clone, Copy)]
@@ -187,6 +187,10 @@ impl<'core> PluginFunction<'core> {
         let name = CString::new(self.name().unwrap()).unwrap();
         unsafe { API::get_cached().invoke(self.plugin.ptr(), name.as_ptr(), args) }
     }
+
+    pub fn call(&self, args: Map) -> Map {
+        unsafe { Map::from_ptr(self.invoke(args.ptr())) }
+    }
 }
 
 /// An interator over the loaded plugins
@@ -206,7 +210,6 @@ impl<'core> PluginIter<'core> {
 impl<'core> Iterator for PluginIter<'core> {
     type Item = Plugin<'core>;
 
-    // next() is the only required method
     fn next(&mut self) -> Option<Self::Item> {
         self.plugin = unsafe { API::get_cached().next_plugin(self.plugin, self.core) };
         self.plugin

@@ -1,9 +1,10 @@
 //! VapourSynth map.
 use rustsynth_sys as ffi;
-use std::ffi::{CStr, CString};
+use std::ffi::{c_char, CStr, CString};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
+use std::slice;
 
 use crate::api::API;
 
@@ -19,6 +20,14 @@ pub enum ValueType {
     AudioNode,
     VideoFrame,
     AudioFrame,
+}
+
+/// The types of data that can be set as data type
+#[derive(Clone, Debug)]
+pub enum DataType<'a> {
+    Unknown(*const c_char),
+    String(String),
+    Binary(&'a [u8]),
 }
 
 impl std::convert::TryFrom<i32> for ValueType {
@@ -127,27 +136,14 @@ impl<'elem> Map<'elem> {
         let value_type = self.get_type(key);
         let ckey = CString::new(key).unwrap();
         match value_type {
-            ValueType::Int => {
-                if self.num_elements(key) > 1 {
-                    Ok(Value::IntArray(unsafe {
-                        API::get_cached().map_get_int_array(self.ptr(), ckey.as_ptr())
-                    }))
-                } else {
-                    Ok(Value::Int(unsafe {
-                        API::get_cached().map_get_integer(self.ptr(), ckey.as_ptr())
-                    }))
-                }
-            }
-            ValueType::Float => {
-                if self.num_elements(key) > 1 {
-                    Ok(Value::FloatArray(unsafe {
-                        API::get_cached().map_get_float_array(self.ptr(), ckey.as_ptr())
-                    }))
-                } else {
-                    Ok(Value::Float(unsafe {
-                        API::get_cached().map_get_float(self.ptr(), ckey.as_ptr())
-                    }))
-                }
+            ValueType::Int => Ok(Value::Int(unsafe {
+                API::get_cached().map_get_int_array(self.ptr(), ckey.as_ptr())
+            })),
+            ValueType::Float => Ok(Value::Float(unsafe {
+                API::get_cached().map_get_float_array(self.ptr(), ckey.as_ptr())
+            })),
+            ValueType::Data => {
+                Ok(Value::Data(DataIter { map: self, len: self.len(), counter: 0, key: ckey.as_ptr() }))
             }
             _ => panic!("Not implemented"),
         }
@@ -168,21 +164,31 @@ impl<'elem> Map<'elem> {
         }
     }
 
-    pub fn set(&self, key: &str, data: Value) {
+    pub fn set(&self, key: &str, data: Value) -> Result<(), &'static str> {
         let key = CString::new(key).unwrap();
-        match data {
+        let status = match data {
             Value::Int(val) => unsafe {
-                API::get_cached().map_set_integer(self.ptr(), key.as_ptr(), val);
-            },
-            Value::IntArray(val) => unsafe {
                 API::get_cached().map_set_int_array(
                     self.ptr(),
                     key.as_ptr(),
                     val.as_ptr(),
                     val.len().try_into().unwrap(),
-                );
+                )
+            },
+            Value::Float(val) => unsafe {
+                API::get_cached().map_set_float_array(
+                    self.ptr(),
+                    key.as_ptr(),
+                    val.as_ptr(),
+                    val.len().try_into().unwrap(),
+                )
             },
             _ => todo!(),
+        };
+        if status == 0 {
+            Ok(())
+        } else {
+            Err("Unkown Error")
         }
     }
 
@@ -252,7 +258,7 @@ impl<'elem> Map<'elem> {
 }
 
 impl<'a> IntoIterator for Map<'a> {
-    type Item = (&'a str, &'a Value);
+    type Item = (&'a str, Value<'a>);
     type IntoIter = IntoIter<'a>;
 
     /// Self consuming iter over Key-values in the `Map`
@@ -260,6 +266,7 @@ impl<'a> IntoIterator for Map<'a> {
         IntoIter {
             map: self,
             items: self.len(),
+            counter: 0,
         }
     }
 }
@@ -267,6 +274,7 @@ impl<'a> IntoIterator for Map<'a> {
 pub struct IntoIter<'a> {
     map: Map<'a>,
     items: i32,
+    counter: usize,
 }
 
 impl<'a> Iterator for IntoIter<'a> {
@@ -274,7 +282,7 @@ impl<'a> Iterator for IntoIter<'a> {
         todo!()
     }
 
-    type Item = (&'a str, &'a Value);
+    type Item = (&'a str, Value<'a>);
 }
 
 /// An iterator over the keys of a `Map`.
@@ -322,6 +330,7 @@ impl<'a> Iterator for Keys<'a> {
 pub struct Iter<'a> {
     map: &'a Map<'a>,
     items: i32,
+    counter: usize,
 }
 
 impl<'a> Iter<'a> {
@@ -329,15 +338,22 @@ impl<'a> Iter<'a> {
         Iter {
             map,
             items: map.len(),
+            counter: 0,
         }
     }
 }
 
 impl<'a> Iterator for Iter<'a> {
-    type Item = (&'a str, &'a Value);
+    type Item = (&'a str, Value<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+        if self.counter > self.items.try_into().unwrap() {
+            None
+        } else {
+            let key = self.map.key(self.counter);
+            self.counter += 1;
+            Some((key, self.map.get(key).unwrap()))
+        }
     }
 }
 
@@ -365,14 +381,94 @@ impl<'a> Iterator for Values<'a> {
         Some(self.inner.next()?.1)
     }
 
-    type Item = &'a Value;
+    type Item = Value<'a>;
 }
 
 /// A enum of the elements of a value in a map
 #[derive(Clone, Debug)]
-pub enum Value {
-    Int(i64),
-    Float(f64),
-    IntArray(Vec<i64>),
-    FloatArray(Vec<f64>),
+pub enum Value<'a> {
+    Int(Vec<i64>),
+    Float(Vec<f64>),
+    Data(DataIter<'a>),
+}
+
+impl<'a> Value<'a> {
+    /// Exposes the inner value of the integer element
+    ///
+    /// # Panics
+    ///
+    /// Will panic if not an instance of an integer value
+    pub fn unwrap_int(self) -> Vec<i64> {
+        match self {
+            Self::Int(val) => val,
+            _ => panic!("Not an integer"),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct DataIter<'a> {
+    map: &'a Map<'a>,
+    len: i32,
+    counter: usize,
+    key: *const c_char,
+}
+
+impl<'a> DataIter<'a> {
+    fn new(map: &'a Map, key: &'a str) -> Self {
+        let key = CString::new(key).unwrap();
+        let len = unsafe { API::get_cached().map_num_elements(map.ptr(), key.as_ptr()) };
+        Self {
+            map,
+            len,
+            counter: 0,
+            key: key.as_ptr(),
+        }
+    }
+}
+
+impl<'a> Iterator for DataIter<'a> {
+    type Item = DataType<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.len > self.counter.try_into().unwrap() {
+            return None;
+        }
+        let ptr = unsafe {
+            API::get_cached().map_get_data(
+                self.map.ptr(),
+                self.key,
+                self.counter.try_into().unwrap(),
+            )
+        };
+        match unsafe {
+            API::get_cached().map_get_data_type_hint(
+                self.map.ptr(),
+                self.key,
+                self.counter.try_into().unwrap(),
+            )
+        } {
+            1 => {
+                self.counter += 1;
+                Some(unsafe { DataType::String(CStr::from_ptr(ptr).to_string_lossy().to_string()) })
+            }
+            0 => {
+                let data = Some(unsafe {
+                    DataType::Binary(slice::from_raw_parts(
+                        ptr as *const u8,
+                        API::get_cached()
+                            .map_get_data_size(
+                                self.map.ptr(),
+                                self.key,
+                                self.counter.try_into().unwrap(),
+                            )
+                            .try_into()
+                            .unwrap(), // `len` may not be correct as assuming each part of the slice is a byte
+                    ))
+                });
+                self.counter += 1;
+                data
+            }
+            _ => Some(DataType::Unknown(ptr)),
+        }
+    }
 }
