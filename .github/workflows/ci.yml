@@ -7,6 +7,8 @@ jobs:
   build-test-lint-linux:
     name: Linux - build, test and lint
     runs-on: ubuntu-latest
+    env: 
+      LD_LIBRARY_PATH: /usr/lib
     steps:
       - uses: actions/checkout@v2
         with:
