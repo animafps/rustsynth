@@ -2,6 +2,8 @@
 
 Based on the work done on [vapoursynth-rs](https://github.com/YaLTeR/vapoursynth-rs)
 
+**[support and dev discord](https://discord.com/invite/5z3YhWstQr)**
+
 ## rustsynth
 
 > **Warning**
