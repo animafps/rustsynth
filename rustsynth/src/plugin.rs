@@ -9,6 +9,8 @@ use std::{
 use crate::{api::API, core::CoreRef, prelude::Map};
 
 /// A VapourSynth plugin.
+///
+/// There are a few of these built into the core, and therefore available at all times: the basic filters (identifier `com.vapoursynth.std`, namespace `std`), the resizers (identifier `com.vapoursynth.resize`, namespace `resize`), and the Avisynth compatibility module, if running in Windows (identifier `com.vapoursynth.avisynth`, namespace `avs`).
 #[derive(Debug, Clone, Copy)]
 pub struct Plugin<'core> {
     handle: NonNull<ffi::VSPlugin>,
@@ -43,6 +45,7 @@ impl<'core> Plugin<'core> {
         }
     }
 
+    /// The id associated with the plugin or `None` if it has no id set
     pub fn id(&self) -> Option<&'core str> {
         let ptr = unsafe { API::get_cached().get_plugin_id(self.ptr()) };
         if ptr.is_null() {
@@ -52,6 +55,7 @@ impl<'core> Plugin<'core> {
         }
     }
 
+    /// The namespace associated with the plugin or `None` if it has no namespace set
     pub fn namespace(&self) -> Option<&'core str> {
         let ptr = unsafe { API::get_cached().get_plugin_ns(self.ptr()) };
         if ptr.is_null() {
@@ -61,6 +65,7 @@ impl<'core> Plugin<'core> {
         }
     }
 
+    /// The name associated with the plugin or `None` if it has no name set
     pub fn name(&self) -> Option<&'core str> {
         let ptr = unsafe { API::get_cached().get_plugin_name(self.ptr()) };
         if ptr.is_null() {
@@ -74,6 +79,9 @@ impl<'core> Plugin<'core> {
         unsafe { API::get_cached().get_plugin_version(self.ptr()) }
     }
 
+    /// Get function associated with the name
+    ///
+    /// returns `None` if no function is found
     pub fn function(&'core self, name: &str) -> Option<PluginFunction<'core>> {
         let name_ptr = CString::new(name).unwrap();
         unsafe {
@@ -86,6 +94,7 @@ impl<'core> Plugin<'core> {
         }
     }
 
+    /// Creates an iterator over all the functions of the plugin in an arbitrary order
     pub fn function_iter(&'core self) -> PluginFunctionIter {
         PluginFunctionIter {
             function: None,
@@ -93,7 +102,7 @@ impl<'core> Plugin<'core> {
         }
     }
 
-    pub fn next_function(
+    fn next_function(
         &'core self,
         function: Option<PluginFunction>,
     ) -> Option<PluginFunction<'core>> {
@@ -113,14 +122,17 @@ impl<'core> Plugin<'core> {
     }
 }
 
+/// The iterator over the functions found in a plugin
+///
+/// created by [Plugin::function_iter()]
 #[derive(Debug, Clone, Copy)]
 pub struct PluginFunctionIter<'core> {
     function: Option<PluginFunction<'core>>,
-    pub plugin: &'core Plugin<'core>,
+    plugin: &'core Plugin<'core>,
 }
 
 impl<'core> PluginFunctionIter<'core> {
-    pub fn new(plugin: &'core Plugin<'core>) -> Self {
+    fn new(plugin: &'core Plugin<'core>) -> Self {
         PluginFunctionIter {
             function: None,
             plugin,
@@ -137,6 +149,7 @@ impl<'core> Iterator for PluginFunctionIter<'core> {
     }
 }
 
+/// A function of a plugin
 #[derive(Debug, Clone, Copy)]
 pub struct PluginFunction<'core> {
     handle: NonNull<ffi::VSPluginFunction>,
@@ -190,28 +203,5 @@ impl<'core> PluginFunction<'core> {
 
     pub fn call(&self, args: Map) -> Map {
         unsafe { Map::from_ptr(self.invoke(args.ptr())) }
-    }
-}
-
-/// An interator over the loaded plugins
-///
-#[derive(Debug, Clone, Copy)]
-pub struct PluginIter<'core> {
-    plugin: Option<Plugin<'core>>,
-    core: CoreRef<'core>,
-}
-
-impl<'core> PluginIter<'core> {
-    pub fn new(core: CoreRef<'core>) -> Self {
-        PluginIter { plugin: None, core }
-    }
-}
-
-impl<'core> Iterator for PluginIter<'core> {
-    type Item = Plugin<'core>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.plugin = unsafe { API::get_cached().next_plugin(self.plugin, self.core) };
-        self.plugin
     }
 }

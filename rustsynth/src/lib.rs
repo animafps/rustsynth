@@ -1,5 +1,5 @@
-pub extern crate rustsynth_sys as sys;
-pub use sys as ffi;
+pub extern crate rustsynth_sys;
+pub use rustsynth_sys as ffi;
 
 pub mod api;
 pub mod core;

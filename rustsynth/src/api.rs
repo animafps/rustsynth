@@ -1,3 +1,4 @@
+//! Module for interacting with the VapourSynth API
 use rustsynth_sys as ffi;
 use std::{
     ffi::{c_char, c_int, CString},
@@ -5,10 +6,7 @@ use std::{
     sync::atomic::{AtomicPtr, Ordering},
 };
 
-use crate::{
-    core::CoreRef,
-    plugin::{Plugin, PluginIter},
-};
+use crate::{core::CoreRef, plugin::Plugin};
 
 use std::mem::MaybeUninit;
 
@@ -279,14 +277,20 @@ impl API {
         &self,
         map: *mut ffi::VSMap,
         key: *const c_char,
-    ) -> Vec<i64> {
+    ) -> Result<Vec<i64>, i32> {
         let mut dest = MaybeUninit::uninit();
         let ptr = self.handle.as_ref().mapGetIntArray.unwrap()(map, key, dest.as_mut_ptr());
-        if dest.assume_init() == 0 {
-            std::slice::from_raw_parts(ptr, self.map_num_elements(map, key).try_into().unwrap())
-                .to_vec()
+        let err = dest.assume_init();
+        if err == 0 {
+            Ok(
+                std::slice::from_raw_parts(
+                    ptr,
+                    self.map_num_elements(map, key).try_into().unwrap(),
+                )
+                .to_vec(),
+            )
         } else {
-            panic!("Not successful")
+            Err(err)
         }
     }
 
@@ -294,14 +298,20 @@ impl API {
         &self,
         map: *mut ffi::VSMap,
         key: *const c_char,
-    ) -> Vec<f64> {
+    ) -> Result<Vec<f64>, i32> {
         let mut dest = MaybeUninit::uninit();
         let ptr = self.handle.as_ref().mapGetFloatArray.unwrap()(map, key, dest.as_mut_ptr());
-        if dest.assume_init() == 0 {
-            std::slice::from_raw_parts(ptr, self.map_num_elements(map, key).try_into().unwrap())
-                .to_vec()
+        let err = dest.assume_init();
+        if err == 0 {
+            Ok(
+                std::slice::from_raw_parts(
+                    ptr,
+                    self.map_num_elements(map, key).try_into().unwrap(),
+                )
+                .to_vec(),
+            )
         } else {
-            panic!("Not successful")
+            Err(err)
         }
     }
 
@@ -370,6 +380,34 @@ impl API {
     ) -> i32 {
         let mut dest = MaybeUninit::uninit();
         self.handle.as_ref().mapGetDataSize.unwrap()(map, key, index, dest.as_mut_ptr())
+    }
+
+    pub(crate) unsafe fn map_set_empty(&self, map: *mut ffi::VSMap, key: *const c_char) -> i32 {
+        self.handle.as_ref().mapSetEmpty.unwrap()(map, key, 0)
+    }
+}
+
+/// An interator over the loaded plugins
+///
+/// created by [API::plugins()]
+#[derive(Debug, Clone, Copy)]
+pub struct PluginIter<'core> {
+    plugin: Option<Plugin<'core>>,
+    core: CoreRef<'core>,
+}
+
+impl<'core> PluginIter<'core> {
+    pub fn new(core: CoreRef<'core>) -> Self {
+        PluginIter { plugin: None, core }
+    }
+}
+
+impl<'core> Iterator for PluginIter<'core> {
+    type Item = Plugin<'core>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.plugin = unsafe { API::get_cached().next_plugin(self.plugin, self.core) };
+        self.plugin
     }
 }
 

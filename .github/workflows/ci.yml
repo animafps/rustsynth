@@ -7,21 +7,20 @@ jobs:
   build-test-lint-linux:
     name: Linux - build, test and lint
     runs-on: ubuntu-latest
-    env: 
-      LD_LIBRARY_PATH: /usr/lib
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: recursive
       - name: Build vapoursynth
         run: |
+          sudo ldconfig -v -n /usr/lib
           sudo apt-get update
           sudo apt-get install g++ make autoconf automake libtool pkg-config nasm git
           git clone --branch release-3.0.4 --depth 1 https://github.com/sekrit-twc/zimg.git
           cd zimg   
           ./autogen.sh
           ./configure
-          make -j4
+          make -j4w
           sudo make install
           cd ..
           sudo apt-get install cython3
