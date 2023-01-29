@@ -3,6 +3,7 @@ pub use rustsynth_sys as ffi;
 
 pub mod api;
 pub mod core;
+pub mod function;
 pub mod map;
 pub mod node;
 pub mod plugin;

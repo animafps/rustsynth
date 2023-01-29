@@ -20,7 +20,7 @@ jobs:
           cd zimg   
           ./autogen.sh
           ./configure
-          make -j4w
+          make
           sudo make install
           cd ..
           sudo apt-get install cython3

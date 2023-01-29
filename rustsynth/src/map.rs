@@ -1,7 +1,9 @@
 //! VapourSynth map and structs to manipulate a map.
 //!
+//! To create a map it can be returned by function or created with [API::create_map()]
 use rustsynth_sys as ffi;
 use std::ffi::{c_char, CStr, CString};
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
@@ -25,13 +27,13 @@ pub enum ValueType {
 
 /// The types of data that can be set as data type
 #[derive(Clone, Debug, PartialEq)]
-pub enum DataType<'a> {
+pub enum DataType {
     /// Unkown pointer to data
     Unknown(*const c_char),
     /// A valid UTF-8 string
     String(String),
-    /// A slice of bytes
-    Binary(&'a [u8]),
+    /// A vector of bytes
+    Binary(Vec<u8>),
 }
 
 impl std::convert::TryFrom<i32> for ValueType {
@@ -62,21 +64,28 @@ impl std::convert::TryFrom<i32> for ValueType {
 /// values may be a vector of
 /// - integers (`Vec<i64>`)
 /// - floats (`Vec<f64>`)
-/// - a data type (array of strings or raw binary) (`Vec<DataType<'a>>`) see [DataType]
-/// - nodes (`Vec<Node>`) see [Node]
-/// - functions (`Vec<Function>`) see [Function]
-/// - filters (`Vec<Filter>`) see [Filter]
-/// - frames (`Vec<Frame>`) see [Frames]
-/// 
+/// - a data type (array of strings or raw binary) (`Vec<DataType<'a>>`) see [`DataType`]
+/// - nodes (`Vec<Node>`) see [`Node`]
+/// - functions (`Vec<Function>`) see [`Function`]
+/// - filters (`Vec<Filter>`) see [`Filter`]
+/// - frames (`Vec<Frame>`) see [`Frame`]
+///
 /// or empty
+///
+/// [`Node`]: crate::node::Node
+/// [`Function`]: crate::function::Function
+/// [`Filter`]: crate::filter::Filter
+/// [`Frame`]: crate::frame::Frame
 ///
 /// # Examples
 ///
 /// ```
-/// use rustsynth::map::{Map, Value};
-/// let map = Map::new();
-/// map.set("best", Value::Int(vec![1,26,4])).unwrap();
-/// assert_eq!(map.get("best").unwrap(), Value::Int(vec![1,26,4]))
+/// use rustsynth::{api::API,map::{Map, Value}};
+/// let api = API::get().unwrap();
+///
+/// let map = api.create_map();
+/// map.set("best", vec![1,26,4]);
+/// assert_eq!(map.get::<Vec<i64>>("best").unwrap(), vec![1,26,4])
 /// ```
 #[derive(Debug, Copy, Clone)]
 pub struct Map<'elem> {
@@ -115,22 +124,7 @@ impl<'elem> DerefMut for Map<'elem> {
 ///    }
 ///}
 
-impl<'elem> Default for Map<'elem> {
-    fn default() -> Self {
-        Map {
-            handle: unsafe { NonNull::new_unchecked(API::get_cached().create_map()) },
-            _elem: PhantomData,
-        }
-    }
-}
-
 impl<'elem> Map<'elem> {
-    #[inline]
-    #[must_use]
-    pub fn new() -> Self {
-        Default::default()
-    }
-
     /// Wraps pointer into `Map`.
     ///
     /// # Safety
@@ -147,16 +141,19 @@ impl<'elem> Map<'elem> {
     /// Fetches the `Value` enum associated with the key from the map
     ///
     /// The function will return a [MapPropError] if there was a problem getting the value from the Map
-    pub fn get(&self, key: &str) -> Result<Value, MapPropError> {
+    pub fn get<T: TryFrom<Value>>(&self, key: &str) -> Result<T, MapPropError>
+    where
+        <T as TryFrom<Value>>::Error: Debug,
+    {
         let value_type = self.get_type(key);
         let ckey = CString::new(key).unwrap();
-        match value_type {
-            ValueType::Int => Ok(Value::Int(unsafe {
+        let result = match value_type {
+            ValueType::Int => MapPropError::handle(unsafe {
                 API::get_cached().map_get_int_array(self.ptr(), ckey.as_ptr())
-            })),
-            ValueType::Float => Ok(Value::Float(unsafe {
+            }),
+            ValueType::Float => MapPropError::handle(unsafe {
                 API::get_cached().map_get_float_array(self.ptr(), ckey.as_ptr())
-            })),
+            }),
             ValueType::Data => Ok(Value::Data(
                 DataIter {
                     map: self,
@@ -164,10 +161,71 @@ impl<'elem> Map<'elem> {
                     counter: 0,
                     key: ckey.as_ptr(),
                 }
-                .collect(),
+                .collect::<Vec<DataType>>(),
             )),
-            ValueType::Unset => Ok(Value::Empty),
             _ => unreachable!(),
+        };
+        match result {
+            Err(error) => Err(error),
+            Ok(val) => Ok(T::try_from(val).expect("")),
+        }
+    }
+
+    /// Appends data to a value
+    pub fn append<T: Into<AppendValue>>(&self, key: &str, data: T) -> Result<(), MapPropError> {
+        let key = CString::new(key).unwrap();
+        let status = match data.into() {
+            AppendValue::Int(val) => unsafe {
+                API::get_cached().map_set_int(
+                    self.ptr(),
+                    key.as_ptr(),
+                    val,
+                    ffi::VSMapAppendMode::maAppend,
+                )
+            },
+            AppendValue::Float(val) => unsafe {
+                API::get_cached().map_set_float(
+                    self.ptr(),
+                    key.as_ptr(),
+                    val,
+                    ffi::VSMapAppendMode::maAppend,
+                )
+            },
+            _ => unreachable!(),
+        };
+        if status != 0 {
+            Err(MapPropError::Type)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Overwrites a value at the value
+    pub fn replace<T: Into<AppendValue>>(&self, key: &str, data: T) -> Result<(), MapPropError> {
+        let key = CString::new(key).unwrap();
+        let status = match data.into() {
+            AppendValue::Int(val) => unsafe {
+                API::get_cached().map_set_int(
+                    self.ptr(),
+                    key.as_ptr(),
+                    val,
+                    ffi::VSMapAppendMode::maReplace,
+                )
+            },
+            AppendValue::Float(val) => unsafe {
+                API::get_cached().map_set_float(
+                    self.ptr(),
+                    key.as_ptr(),
+                    val,
+                    ffi::VSMapAppendMode::maReplace,
+                )
+            },
+            _ => unreachable!(),
+        };
+        if status != 0 {
+            Err(MapPropError::Type)
+        } else {
+            Ok(())
         }
     }
 
@@ -191,9 +249,9 @@ impl<'elem> Map<'elem> {
     /// Sets a value at a key
     ///
     /// if the key is not present then will create a key
-    pub fn set(&self, key: &str, data: Value) -> Result<(), &'static str> {
+    pub fn set<T: Into<Value>>(&self, key: &str, data: T) {
         let key = CString::new(key).unwrap();
-        let status = match data {
+        let status = match data.into() {
             Value::Int(val) => unsafe {
                 API::get_cached().map_set_int_array(
                     self.ptr(),
@@ -210,17 +268,11 @@ impl<'elem> Map<'elem> {
                     val.len().try_into().unwrap(),
                 )
             },
-            Value::Empty => unsafe {
-                API::get_cached().map_set_empty(self.ptr(), key.as_ptr())
-            }
+            Value::Empty => unsafe { API::get_cached().map_set_empty(self.ptr(), key.as_ptr()) },
             _ => unreachable!(),
         };
-        if status == 0 {
-            Ok(())
-        } else if status == 1 {
-            Err("Size is negative")
-        } else {
-            Err("Unkown Error")
+        if status != 0 {
+            panic!("Size error")
         }
     }
 
@@ -291,7 +343,7 @@ impl<'elem> Map<'elem> {
 }
 
 impl<'a> IntoIterator for Map<'a> {
-    type Item = (&'a str, Value<'a>);
+    type Item = (&'a str, Value);
     type IntoIter = IntoIter<'a>;
 
     /// Self consuming iter over Key-values in the `Map`
@@ -315,7 +367,7 @@ impl<'a> Iterator for IntoIter<'a> {
         todo!()
     }
 
-    type Item = (&'a str, Value<'a>);
+    type Item = (&'a str, Value);
 }
 
 /// An iterator over the keys of a `Map`.
@@ -328,8 +380,10 @@ impl<'a> Iterator for IntoIter<'a> {
 /// # Example
 ///
 /// ```
-/// use rustsynth::map::Map;
-/// let map = Map::new();
+/// use rustsynth::{map::Map,api::API};
+///
+/// let api = API::get().unwrap();
+/// let map = api.create_map();
 ///
 /// let iter_keys = map.keys();
 /// ```
@@ -355,8 +409,9 @@ impl<'a> Iterator for Keys<'a> {
 /// # Example
 ///
 /// ```
-/// use rustsynth::map::Map;
-/// let map = Map::new();
+/// use rustsynth::{api::API,map::Map};
+/// let api = API::get().unwrap();
+/// let map = api.create_map();
 ///
 /// let iter = map.iter();
 /// ```
@@ -377,7 +432,7 @@ impl<'a> Iter<'a> {
 }
 
 impl<'a> Iterator for Iter<'a> {
-    type Item = (&'a str, Value<'a>);
+    type Item = (&'a str, Value);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.counter == self.items.try_into().unwrap() {
@@ -400,8 +455,9 @@ impl<'a> Iterator for Iter<'a> {
 /// # Example
 ///
 /// ```
-/// use rustsynth::map::Map;
-/// let map = Map::new();
+/// use rustsynth::{api::API,map::Map};
+/// let api = API::get().unwrap();
+/// let map = api.create_map();
 ///
 /// let iter = map.values();
 /// ```
@@ -414,19 +470,25 @@ impl<'a> Iterator for Values<'a> {
         Some(self.inner.next()?.1)
     }
 
-    type Item = Value<'a>;
+    type Item = Value;
 }
 
 /// A enum of the elements of a value in a map
 #[derive(Clone, Debug, PartialEq)]
-pub enum Value<'a> {
+pub enum Value {
     Int(Vec<i64>),
     Float(Vec<f64>),
-    Data(Vec<DataType<'a>>),
+    Data(Vec<DataType>),
     Empty,
 }
 
-impl<'a> Value<'a> {
+pub enum AppendValue {
+    Int(i64),
+    Float(f64),
+    Data(DataType),
+}
+
+impl Value {
     /// Exposes the inner value of the integer element
     ///
     /// # Panics
@@ -436,6 +498,13 @@ impl<'a> Value<'a> {
         match self {
             Self::Int(val) => val,
             _ => panic!("Not an integer value"),
+        }
+    }
+
+    pub fn unwrap_int_or<E>(self, err: E) -> Result<Vec<i64>, E> {
+        match self {
+            Self::Int(val) => Ok(val),
+            _ => Err(err),
         }
     }
 
@@ -451,16 +520,86 @@ impl<'a> Value<'a> {
         }
     }
 
+    pub fn unwrap_float_or<E>(self, err: E) -> Result<Vec<f64>, E> {
+        match self {
+            Self::Float(val) => Ok(val),
+            _ => Err(err),
+        }
+    }
+
     /// Exposes the inner value of the data element
     ///
     /// # Panics
     ///
     /// Will panic if not an instance of an data value
-    pub fn unwrap_data(self) -> Vec<DataType<'a>> {
+    pub fn unwrap_data(self) -> Vec<DataType> {
         match self {
             Self::Data(val) => val,
             _ => panic!("Not a data value"),
         }
+    }
+
+    pub fn unwrap_data_or<E>(self, err: E) -> Result<Vec<DataType>, E> {
+        match self {
+            Self::Data(val) => Ok(val),
+            _ => Err(err),
+        }
+    }
+}
+
+impl From<Vec<f64>> for Value {
+    fn from(value: Vec<f64>) -> Self {
+        Self::Float(value)
+    }
+}
+
+impl From<Vec<i64>> for Value {
+    fn from(value: Vec<i64>) -> Self {
+        Self::Int(value)
+    }
+}
+
+impl From<Vec<DataType>> for Value {
+    fn from(value: Vec<DataType>) -> Self {
+        Self::Data(value)
+    }
+}
+
+impl TryFrom<Value> for Vec<i64> {
+    type Error = MapPropError;
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        value.unwrap_int_or(MapPropError::Type)
+    }
+}
+
+impl TryFrom<Value> for Vec<f64> {
+    type Error = MapPropError;
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        value.unwrap_float_or(MapPropError::Type)
+    }
+}
+impl TryFrom<Value> for Vec<DataType> {
+    type Error = MapPropError;
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        value.unwrap_data_or(MapPropError::Type)
+    }
+}
+
+impl From<f64> for AppendValue {
+    fn from(value: f64) -> Self {
+        Self::Float(value)
+    }
+}
+
+impl From<i64> for AppendValue {
+    fn from(value: i64) -> Self {
+        Self::Int(value)
+    }
+}
+
+impl From<DataType> for AppendValue {
+    fn from(value: DataType) -> Self {
+        Self::Data(value)
     }
 }
 
@@ -486,7 +625,7 @@ impl<'a> DataIter<'a> {
 }
 
 impl<'a> Iterator for DataIter<'a> {
-    type Item = DataType<'a>;
+    type Item = DataType;
     fn next(&mut self) -> Option<Self::Item> {
         if self.len > self.counter.try_into().unwrap() {
             return None;
@@ -511,17 +650,20 @@ impl<'a> Iterator for DataIter<'a> {
             }
             0 => {
                 let data = Some(unsafe {
-                    DataType::Binary(slice::from_raw_parts(
-                        ptr as *const u8,
-                        API::get_cached()
-                            .map_get_data_size(
-                                self.map.ptr(),
-                                self.key,
-                                self.counter.try_into().unwrap(),
-                            )
-                            .try_into()
-                            .unwrap(), // `len` may not be correct as assuming each part of the slice is a byte
-                    ))
+                    DataType::Binary(
+                        slice::from_raw_parts(
+                            ptr as *const u8,
+                            API::get_cached()
+                                .map_get_data_size(
+                                    self.map.ptr(),
+                                    self.key,
+                                    self.counter.try_into().unwrap(),
+                                )
+                                .try_into()
+                                .unwrap(), // `len` may not be correct as assuming each part of the slice is a byte
+                        )
+                        .to_vec(),
+                    )
                 });
                 self.counter += 1;
                 data
@@ -545,12 +687,15 @@ pub enum MapPropError {
 }
 
 impl MapPropError {
-    fn handle(int: i32) -> Self {
-        match int {
-            int if int == ffi::VSMapPropertyError::peUnset as i32 => Self::Unset,
-            int if int == ffi::VSMapPropertyError::peIndex as i32 => Self::Index,
-            int if int == ffi::VSMapPropertyError::peType as i32 => Self::Type,
-            _ => unreachable!(),
+    fn handle<T: Into<Value>>(result: Result<T, i32>) -> Result<Value, Self> {
+        match result {
+            Ok(val) => Ok(val.into()),
+            Err(val) => match val {
+                int if int == ffi::VSMapPropertyError::peUnset as i32 => Err(Self::Unset),
+                int if int == ffi::VSMapPropertyError::peIndex as i32 => Err(Self::Index),
+                int if int == ffi::VSMapPropertyError::peType as i32 => Err(Self::Type),
+                _ => unreachable!(),
+            },
         }
     }
 }
@@ -561,21 +706,25 @@ mod tests {
 
     #[test]
     fn int_set() {
-        let map = Map::new();
-        map.set("best", Value::Int(vec![1, 26, 4])).unwrap();
+        API::get();
+        let api = API::get().unwrap();
+        let map = api.create_map();
+        map.set("best", vec![1, 26, 4]);
     }
 
     #[test]
     fn int_type() {
-        let map = Map::new();
-        map.set("best", Value::Int(vec![1, 26, 4])).unwrap();
+        let api = API::get().unwrap();
+        let map = api.create_map();
+        map.set("best", vec![1, 26, 4]);
         assert_eq!(map.get_type("best"), ValueType::Int);
     }
 
     #[test]
     fn int_get() {
-        let map = Map::new();
-        map.set("best", Value::Int(vec![1, 26, 4])).unwrap();
-        assert_eq!(map.get("best").unwrap(), Value::Int(vec![1, 26, 4]))
+        let api = API::get().unwrap();
+        let map = api.create_map();
+        map.set("best", vec![1, 26, 4]);
+        assert_eq!(map.get::<Vec<i64>>("best").unwrap(), vec![1, 26, 4])
     }
 }

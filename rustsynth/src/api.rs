@@ -6,7 +6,7 @@ use std::{
     sync::atomic::{AtomicPtr, Ordering},
 };
 
-use crate::{core::CoreRef, plugin::Plugin};
+use crate::{core::CoreRef, map::Value, plugin::Plugin, prelude::Map};
 
 use std::mem::MaybeUninit;
 
@@ -26,7 +26,7 @@ unsafe impl Sync for API {}
 static RAW_API: AtomicPtr<ffi::VSAPI> = AtomicPtr::new(ptr::null_mut());
 
 impl API {
-    /// Retrieves the VapourSynth API.
+    /// Creates and retrieves the VapourSynth API.
     ///
     /// Returns `None` on error
     // If we're linking to VSScript anyway, use the VSScript function.
@@ -81,6 +81,14 @@ impl API {
         unsafe {
             let handle = (self.handle.as_ref().createCore).unwrap()(flags);
             CoreRef::from_ptr(handle)
+        }
+    }
+
+    /// Creates a vapoursynth map and returns it
+    pub fn create_map(&self) -> Map {
+        unsafe {
+            let handle = self.handle.as_ref().createMap.unwrap()();
+            Map::from_ptr(handle)
         }
     }
 
@@ -232,10 +240,6 @@ impl API {
         self.handle.as_ref().mapGetKey.unwrap()(map, index)
     }
 
-    pub(crate) unsafe fn create_map(&self) -> *mut ffi::VSMap {
-        self.handle.as_ref().createMap.unwrap()()
-    }
-
     pub(crate) unsafe fn free_map(&self, map: *mut ffi::VSMap) {
         self.handle.as_ref().freeMap.unwrap()(map)
     }
@@ -330,8 +334,9 @@ impl API {
         map: *mut ffi::VSMap,
         key: *const c_char,
         val: f64,
+        append: ffi::VSMapAppendMode,
     ) -> i32 {
-        self.handle.as_ref().mapSetFloat.unwrap()(map, key, val, 1)
+        self.handle.as_ref().mapSetFloat.unwrap()(map, key, val, append as i32)
     }
 
     pub(crate) unsafe fn map_set_float_array(
@@ -384,6 +389,16 @@ impl API {
 
     pub(crate) unsafe fn map_set_empty(&self, map: *mut ffi::VSMap, key: *const c_char) -> i32 {
         self.handle.as_ref().mapSetEmpty.unwrap()(map, key, 0)
+    }
+
+    pub(crate) unsafe fn map_set_int(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+        int: i64,
+        append: ffi::VSMapAppendMode,
+    ) -> i32 {
+        self.handle.as_ref().mapSetInt.unwrap()(map, key, int, append as i32)
     }
 }
 
