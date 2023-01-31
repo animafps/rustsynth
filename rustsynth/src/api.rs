@@ -6,7 +6,10 @@ use std::{
     sync::atomic::{AtomicPtr, Ordering},
 };
 
-use crate::{core::CoreRef, map::Value, plugin::Plugin, prelude::Map};
+use crate::{
+    core::{CoreRef, Plugins},
+    plugin::Plugin,
+};
 
 use std::mem::MaybeUninit;
 
@@ -24,6 +27,37 @@ unsafe impl Sync for API {}
 
 /// A cached API pointer. Note that this is `*const ffi::VSAPI`, not `*mut`.
 static RAW_API: AtomicPtr<ffi::VSAPI> = AtomicPtr::new(ptr::null_mut());
+
+// Macros for implementing repetitive functions.
+macro_rules! map_get_something {
+    ($name:ident, $func:ident, $rv:ty) => {
+        #[inline]
+        pub(crate) unsafe fn $name(
+            self,
+            map: &ffi::VSMap,
+            key: *const c_char,
+            index: i32,
+            error: &mut i32,
+        ) -> $rv {
+            self.handle.as_ref().$func.unwrap()(map, key, index, error)
+        }
+    };
+}
+
+macro_rules! map_set_something {
+    ($name:ident, $func:ident, $type:ty) => {
+        #[inline]
+        pub(crate) unsafe fn $name(
+            self,
+            map: &mut ffi::VSMap,
+            key: *const c_char,
+            value: $type,
+            append: ffi::VSMapAppendMode,
+        ) -> i32 {
+            self.handle.as_ref().$func.unwrap()(map, key, value, append as i32)
+        }
+    };
+}
 
 impl API {
     /// Creates and retrieves the VapourSynth API.
@@ -85,21 +119,22 @@ impl API {
     }
 
     /// Creates a vapoursynth map and returns it
-    pub fn create_map(&self) -> Map {
-        unsafe {
-            let handle = self.handle.as_ref().createMap.unwrap()();
-            Map::from_ptr(handle)
-        }
+    pub(crate) fn create_map(&self) -> *mut ffi::VSMap {
+        unsafe { self.handle.as_ref().createMap.unwrap()() }
     }
 
-    pub fn plugins<'core>(&self, core: CoreRef<'core>) -> PluginIter<'core> {
-        PluginIter::new(core)
+    pub(crate) unsafe fn free_core(&self, core: *mut ffi::VSCore) {
+        self.handle.as_ref().freeCore.unwrap()(core)
     }
 
-    pub fn next_plugin<'core>(
+    pub(crate) fn plugins<'core>(&self, core: &'core CoreRef<'core>) -> Plugins<'core> {
+        Plugins::new(core)
+    }
+
+    pub(crate) fn next_plugin<'core>(
         &self,
         plugin: Option<Plugin>,
-        core: CoreRef,
+        core: &CoreRef,
     ) -> Option<Plugin<'core>> {
         unsafe {
             let pluginptr = if let Some(value) = plugin {
@@ -116,10 +151,10 @@ impl API {
         }
     }
 
-    pub fn plugin_by_namespace<'core>(
+    pub(crate) fn plugin_by_namespace<'core>(
         &self,
         namespace: &str,
-        core: CoreRef,
+        core: &CoreRef<'core>,
     ) -> Option<Plugin<'core>> {
         unsafe {
             let ns = CString::new(namespace).unwrap();
@@ -133,7 +168,11 @@ impl API {
         }
     }
 
-    pub fn plugin_by_id<'core>(&self, id: &str, core: CoreRef) -> Option<Plugin<'core>> {
+    pub(crate) fn plugin_by_id<'core>(
+        &self,
+        id: &str,
+        core: &'core CoreRef<'core>,
+    ) -> Option<Plugin<'core>> {
         unsafe {
             let id = CString::new(id).unwrap();
             let handle = self.handle.as_ref().getPluginByID.unwrap()(id.as_ptr(), core.ptr());
@@ -214,15 +253,11 @@ impl API {
         self.handle.as_ref().invoke.unwrap()(plugin, name, args)
     }
 
-    pub(crate) unsafe fn clear_map(&self, map: *mut ffi::VSMap) {
+    pub(crate) unsafe fn clear_map(&self, map: &mut ffi::VSMap) {
         self.handle.as_ref().clearMap.unwrap()(map);
     }
 
-    pub(crate) unsafe fn map_num_elements(
-        &self,
-        map: *mut ffi::VSMap,
-        key: *const c_char,
-    ) -> c_int {
+    pub(crate) unsafe fn map_num_elements(&self, map: &ffi::VSMap, key: *const c_char) -> c_int {
         self.handle.as_ref().mapNumElements.unwrap()(map, key)
     }
 
@@ -232,91 +267,38 @@ impl API {
         dest.as_mut_ptr()
     }
 
-    pub(crate) unsafe fn map_num_keys(&self, map: *mut ffi::VSMap) -> c_int {
+    pub(crate) unsafe fn map_num_keys(&self, map: &ffi::VSMap) -> c_int {
         self.handle.as_ref().mapNumKeys.unwrap()(map)
     }
 
-    pub(crate) unsafe fn map_get_key(&self, map: *mut ffi::VSMap, index: c_int) -> *const c_char {
+    pub(crate) unsafe fn map_get_key(&self, map: &ffi::VSMap, index: c_int) -> *const c_char {
         self.handle.as_ref().mapGetKey.unwrap()(map, index)
     }
 
-    pub(crate) unsafe fn free_map(&self, map: *mut ffi::VSMap) {
+    pub(crate) unsafe fn free_map(&self, map: &mut ffi::VSMap) {
         self.handle.as_ref().freeMap.unwrap()(map)
     }
 
-    pub(crate) unsafe fn map_get_type(&self, map: *mut ffi::VSMap, key: *const c_char) -> i32 {
+    pub(crate) unsafe fn map_get_type(&self, map: &ffi::VSMap, key: *const c_char) -> c_int {
         self.handle.as_ref().mapGetType.unwrap()(map, key)
-    }
-
-    pub(crate) unsafe fn map_set_integer(
-        &self,
-        map: *mut ffi::VSMap,
-        key: *const c_char,
-        integer: i64,
-    ) -> i32 {
-        self.handle.as_ref().mapSetInt.unwrap()(map, key, integer, 1)
-    }
-
-    pub(crate) unsafe fn map_get_integer(&self, map: *mut ffi::VSMap, key: *const c_char) -> i64 {
-        let mut dest = MaybeUninit::uninit();
-        let integer = self.handle.as_ref().mapGetInt.unwrap()(map, key, 0, dest.as_mut_ptr());
-        if dest.assume_init() == 0 {
-            integer
-        } else {
-            panic!("Not successful")
-        }
-    }
-
-    pub(crate) unsafe fn map_get_float(&self, map: *mut ffi::VSMap, key: *const c_char) -> f64 {
-        let mut dest = MaybeUninit::uninit();
-        let integer = self.handle.as_ref().mapGetFloat.unwrap()(map, key, 0, dest.as_mut_ptr());
-        if dest.assume_init() == 0 {
-            integer
-        } else {
-            panic!("Not successful")
-        }
     }
 
     pub(crate) unsafe fn map_get_int_array(
         &self,
-        map: *mut ffi::VSMap,
+        map: &ffi::VSMap,
         key: *const c_char,
-    ) -> Result<Vec<i64>, i32> {
-        let mut dest = MaybeUninit::uninit();
-        let ptr = self.handle.as_ref().mapGetIntArray.unwrap()(map, key, dest.as_mut_ptr());
-        let err = dest.assume_init();
-        if err == 0 {
-            Ok(
-                std::slice::from_raw_parts(
-                    ptr,
-                    self.map_num_elements(map, key).try_into().unwrap(),
-                )
-                .to_vec(),
-            )
-        } else {
-            Err(err)
-        }
+        error: &mut i32,
+    ) -> *const i64 {
+        self.handle.as_ref().mapGetIntArray.unwrap()(map, key, error)
     }
 
     pub(crate) unsafe fn map_get_float_array(
         &self,
-        map: *mut ffi::VSMap,
+        map: &ffi::VSMap,
         key: *const c_char,
-    ) -> Result<Vec<f64>, i32> {
-        let mut dest = MaybeUninit::uninit();
-        let ptr = self.handle.as_ref().mapGetFloatArray.unwrap()(map, key, dest.as_mut_ptr());
-        let err = dest.assume_init();
-        if err == 0 {
-            Ok(
-                std::slice::from_raw_parts(
-                    ptr,
-                    self.map_num_elements(map, key).try_into().unwrap(),
-                )
-                .to_vec(),
-            )
-        } else {
-            Err(err)
-        }
+        error: &mut i32,
+    ) -> *const f64 {
+        self.handle.as_ref().mapGetFloatArray.unwrap()(map, key, error)
     }
 
     pub(crate) unsafe fn map_set_int_array(
@@ -327,16 +309,6 @@ impl API {
         size: i32,
     ) -> i32 {
         self.handle.as_ref().mapSetIntArray.unwrap()(map, key, int_array, size)
-    }
-
-    pub(crate) unsafe fn map_set_float(
-        &self,
-        map: *mut ffi::VSMap,
-        key: *const c_char,
-        val: f64,
-        append: ffi::VSMapAppendMode,
-    ) -> i32 {
-        self.handle.as_ref().mapSetFloat.unwrap()(map, key, val, append as i32)
     }
 
     pub(crate) unsafe fn map_set_float_array(
@@ -357,14 +329,8 @@ impl API {
         self.handle.as_ref().getVideoInfo.unwrap()(node)
     }
 
-    pub(crate) unsafe fn map_get_data(
-        &self,
-        map: *mut ffi::VSMap,
-        key: *const c_char,
-        index: i32,
-    ) -> *const c_char {
-        let mut dest = MaybeUninit::uninit();
-        self.handle.as_ref().mapGetData.unwrap()(map, key, index, dest.as_mut_ptr())
+    pub(crate) unsafe fn set_cache_mode(&self, node: *mut ffi::VSNode, mode: i32) {
+        self.handle.as_ref().setCacheMode.unwrap()(node, mode)
     }
 
     pub(crate) unsafe fn map_get_data_type_hint(
@@ -379,51 +345,68 @@ impl API {
 
     pub(crate) unsafe fn map_get_data_size(
         &self,
-        map: *mut ffi::VSMap,
+        map: &ffi::VSMap,
         key: *const c_char,
         index: i32,
+        error: &mut i32,
     ) -> i32 {
-        let mut dest = MaybeUninit::uninit();
-        self.handle.as_ref().mapGetDataSize.unwrap()(map, key, index, dest.as_mut_ptr())
+        self.handle.as_ref().mapGetDataSize.unwrap()(map, key, index, error)
     }
 
     pub(crate) unsafe fn map_set_empty(&self, map: *mut ffi::VSMap, key: *const c_char) -> i32 {
         self.handle.as_ref().mapSetEmpty.unwrap()(map, key, 0)
     }
 
-    pub(crate) unsafe fn map_set_int(
+    pub(crate) unsafe fn map_get_error(&self, map: &ffi::VSMap) -> *const c_char {
+        self.handle.as_ref().mapGetError.unwrap()(map)
+    }
+
+    pub(crate) unsafe fn map_set_error(&self, map: &mut ffi::VSMap, error: *const c_char) {
+        self.handle.as_ref().mapSetError.unwrap()(map, error)
+    }
+
+    pub(crate) unsafe fn set_thread_count(&self, core: *mut ffi::VSCore, count: i32) -> i32 {
+        self.handle.as_ref().setThreadCount.unwrap()(count, core)
+    }
+
+    pub(crate) unsafe fn map_delete_key(&self, map: &mut ffi::VSMap, key: *const c_char) -> c_int {
+        self.handle.as_ref().mapDeleteKey.unwrap()(map, key)
+    }
+
+    pub(crate) unsafe fn map_set_data(
         &self,
-        map: *mut ffi::VSMap,
+        map: &mut ffi::VSMap,
         key: *const c_char,
-        int: i64,
+        value: &[u8],
+        data_type: ffi::VSDataTypeHint,
         append: ffi::VSMapAppendMode,
     ) -> i32 {
-        self.handle.as_ref().mapSetInt.unwrap()(map, key, int, append as i32)
+        let length = value.len();
+        assert!(length <= i32::max_value() as usize);
+        let length = length as i32;
+
+        self.handle.as_ref().mapSetData.unwrap()(
+            map,
+            key,
+            value.as_ptr() as _,
+            length,
+            data_type as i32,
+            append as i32,
+        )
     }
-}
 
-/// An interator over the loaded plugins
-///
-/// created by [API::plugins()]
-#[derive(Debug, Clone, Copy)]
-pub struct PluginIter<'core> {
-    plugin: Option<Plugin<'core>>,
-    core: CoreRef<'core>,
-}
+    map_get_something!(map_get_int, mapGetInt, i64);
+    map_get_something!(map_get_float, mapGetFloat, f64);
+    map_get_something!(map_get_data, mapGetData, *const c_char);
+    map_get_something!(map_get_node, mapGetNode, *mut ffi::VSNode);
+    map_get_something!(map_get_frame, mapGetFrame, *const ffi::VSFrame);
+    map_get_something!(map_get_func, mapGetFunction, *mut ffi::VSFunction);
 
-impl<'core> PluginIter<'core> {
-    pub fn new(core: CoreRef<'core>) -> Self {
-        PluginIter { plugin: None, core }
-    }
-}
-
-impl<'core> Iterator for PluginIter<'core> {
-    type Item = Plugin<'core>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.plugin = unsafe { API::get_cached().next_plugin(self.plugin, self.core) };
-        self.plugin
-    }
+    map_set_something!(map_set_int, mapSetInt, i64);
+    map_set_something!(map_set_float, mapSetFloat, f64);
+    map_set_something!(map_set_node, mapSetNode, *mut ffi::VSNode);
+    map_set_something!(map_set_frame, mapSetFrame, *const ffi::VSFrame);
+    map_set_something!(map_set_func, mapSetFunction, *mut ffi::VSFunction);
 }
 
 #[cfg(test)]

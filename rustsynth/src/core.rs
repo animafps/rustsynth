@@ -1,4 +1,5 @@
-use crate::api::API;
+use crate::{api::API, plugin::Plugin};
+use core::fmt;
 use rustsynth_sys as ffi;
 use std::{ffi::CStr, marker::PhantomData, ptr::NonNull};
 
@@ -31,6 +32,11 @@ impl<'core> CoreRef<'core> {
         self.handle.as_ptr()
     }
 
+    /// Returns an instance of `CoreInfo`
+    ///
+    /// # Panics
+    ///
+    /// Will panic if core configuration is not valid
     pub fn info(&self) -> CoreInfo {
         let core_info = unsafe { API::get_cached().get_core_info(self.ptr()) };
         let version_string = unsafe { CStr::from_ptr(core_info.versionString).to_str().unwrap() };
@@ -47,6 +53,38 @@ impl<'core> CoreRef<'core> {
             used_framebuffer_size: core_info.usedFramebufferSize as u64,
         }
     }
+
+    /// Returns an instance of `Some(Plugin)` if there exists a plugin loaded associated with the namespace
+    ///
+    /// None if no plugin is found
+    pub fn plugin_by_namespace(&self, namespace: &str) -> Option<Plugin<'_>> {
+        unsafe { API::get_cached() }.plugin_by_namespace(namespace, self)
+    }
+
+    /// Returns an instance of `Some(Plugin)` if there exists a plugin loaded associated with the id
+    ///
+    /// None if no plugin is found
+    pub fn plugin_by_id(&self, id: &str) -> Option<Plugin<'_>> {
+        unsafe { API::get_cached() }.plugin_by_id(id, self)
+    }
+
+    /// Returns a iterator over the loaded plugins
+    pub fn plugins(&self) -> Plugins<'_> {
+        unsafe { API::get_cached() }.plugins(self)
+    }
+
+    pub fn set_thread_count(&self, count: usize) -> i32 {
+        unsafe { API::get_cached().set_thread_count(self.ptr(), count as i32) }
+    }
+
+    /// Consumes and frees the core and core reference
+    ///
+    /// # Safety
+    ///
+    /// Must ensure that all frame requests have completed and all objects belonging to the core have been released.
+    pub unsafe fn free_core(self) {
+        API::get_cached().free_core(self.handle.as_ptr());
+    }
 }
 
 /// Contains information about a VapourSynth core.
@@ -58,4 +96,48 @@ pub struct CoreInfo {
     pub num_threads: usize,
     pub max_framebuffer_size: u64,
     pub used_framebuffer_size: u64,
+}
+
+/// An interator over the loaded plugins
+///
+/// created by [`Core::plugins()`]
+///
+/// [`Core::plugins()`]: crate::core::Core::plugins()
+#[derive(Debug, Clone, Copy)]
+pub struct Plugins<'core> {
+    plugin: Option<Plugin<'core>>,
+    core: &'core CoreRef<'core>,
+}
+
+impl<'core> Plugins<'core> {
+    pub(crate) fn new(core: &'core CoreRef<'core>) -> Self {
+        Plugins { plugin: None, core }
+    }
+}
+
+impl<'core> Iterator for Plugins<'core> {
+    type Item = Plugin<'core>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.plugin = unsafe { API::get_cached().next_plugin(self.plugin, self.core) };
+        self.plugin
+    }
+}
+
+impl fmt::Display for CoreInfo {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.version_string)?;
+        writeln!(f, "Worker threads: {}", self.num_threads)?;
+        writeln!(
+            f,
+            "Max framebuffer cache size: {}",
+            self.max_framebuffer_size
+        )?;
+        writeln!(
+            f,
+            "Current framebuffer cache size: {}",
+            self.used_framebuffer_size
+        )
+    }
 }

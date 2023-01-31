@@ -1,6 +1,6 @@
 # RustSynth
 
-Based on the work done on [vapoursynth-rs](https://github.com/YaLTeR/vapoursynth-rs)
+Pretty much a fork of [vapoursynth-rs](https://github.com/YaLTeR/vapoursynth-rs) for the newest api versions
 
 **[support and dev discord](https://discord.com/invite/5z3YhWstQr)**
 

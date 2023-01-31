@@ -11,3 +11,4 @@ keywords = ["vapoursynth"]
 
 [dependencies]
 rustsynth-sys = {version = "0.1", path = "../rustsynth-sys"}
+thiserror = "1.0"

@@ -6,7 +6,7 @@ use std::{
     ptr::{self, NonNull},
 };
 
-use crate::{api::API, core::CoreRef, prelude::Map};
+use crate::api::API;
 
 /// A VapourSynth plugin.
 ///
@@ -95,8 +95,8 @@ impl<'core> Plugin<'core> {
     }
 
     /// Creates an iterator over all the functions of the plugin in an arbitrary order
-    pub fn function_iter(&'core self) -> PluginFunctionIter {
-        PluginFunctionIter {
+    pub fn functions(&'core self) -> PluginFunctions {
+        PluginFunctions {
             function: None,
             plugin: self,
         }
@@ -126,21 +126,12 @@ impl<'core> Plugin<'core> {
 ///
 /// created by [Plugin::function_iter()]
 #[derive(Debug, Clone, Copy)]
-pub struct PluginFunctionIter<'core> {
+pub struct PluginFunctions<'core> {
     function: Option<PluginFunction<'core>>,
     plugin: &'core Plugin<'core>,
 }
 
-impl<'core> PluginFunctionIter<'core> {
-    fn new(plugin: &'core Plugin<'core>) -> Self {
-        PluginFunctionIter {
-            function: None,
-            plugin,
-        }
-    }
-}
-
-impl<'core> Iterator for PluginFunctionIter<'core> {
+impl<'core> Iterator for PluginFunctions<'core> {
     type Item = PluginFunction<'core>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -196,12 +187,12 @@ impl<'core> PluginFunction<'core> {
     /// # Safety
     ///
     /// Result maybe null
-    pub unsafe fn invoke(&self, args: *mut VSMap) -> *mut VSMap {
+    unsafe fn invoke(&self, args: *mut VSMap) -> *mut VSMap {
         let name = CString::new(self.name().unwrap()).unwrap();
-        unsafe { API::get_cached().invoke(self.plugin.ptr(), name.as_ptr(), args) }
+        API::get_cached().invoke(self.plugin.ptr(), name.as_ptr(), args)
     }
 
-    pub fn call(&self, args: Map) -> Map {
-        unsafe { Map::from_ptr(self.invoke(args.ptr())) }
+    fn call() {
+        todo!()
     }
 }

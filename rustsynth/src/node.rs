@@ -1,12 +1,7 @@
 use rustsynth_sys as ffi;
-use std::ptr::NonNull;
+use std::{marker::PhantomData, ptr::NonNull};
 
-use crate::{prelude::API, MediaType, VideoInfo};
-
-#[derive(Debug, Copy, Clone)]
-pub struct Node {
-    handle: NonNull<ffi::VSNode>,
-}
+use crate::{frame::Frame, prelude::API, MediaType, VideoInfo};
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum CacheMode {
@@ -15,11 +10,20 @@ pub enum CacheMode {
     ForceDisable,
 }
 
-pub struct NodeRef<'a> {
-    owner: &'a Node,
+#[derive(Debug, Clone, Copy)]
+pub struct Node<'elem> {
+    handle: NonNull<ffi::VSNode>,
+    _elem: PhantomData<&'elem ()>,
 }
 
-impl Node {
+impl<'elem> Node<'elem> {
+    pub(crate) fn from_ptr(ptr: *mut ffi::VSNode) -> Self {
+        Self {
+            handle: unsafe { NonNull::new_unchecked(ptr) },
+            _elem: PhantomData,
+        }
+    }
+
     pub fn get_type(&self) -> MediaType {
         let result = unsafe { API::get_cached().get_node_type(self.ptr()) };
         match result {
@@ -35,14 +39,26 @@ impl Node {
             return None;
         }
         let info = unsafe { API::get_cached().get_video_info(self.ptr()).read() };
-        Some(VideoInfo::from(info))
+        Some(info.into())
     }
 
     pub fn set_cache_mode(&self, mode: CacheMode) {
+        unsafe { API::get_cached().set_cache_mode(self.ptr(), mode as i32) }
+    }
+
+    pub fn set_cache_options(&self) {
         todo!()
     }
 
-    pub(crate) fn ptr(&self) -> *mut ffi::VSNode {
+    pub(crate) fn ptr(self) -> *mut ffi::VSNode {
         self.handle.as_ptr()
     }
+
+    pub fn get_frame(&self, n: i32) -> Option<Frame> {
+        todo!()
+    }
 }
+
+pub struct AudioNode {}
+
+pub struct VideoNode {}
