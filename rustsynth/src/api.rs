@@ -127,6 +127,10 @@ impl API {
         self.handle.as_ref().freeCore.unwrap()(core)
     }
 
+    pub(crate) unsafe fn free_func(&self, function: *mut ffi::VSFunction) {
+        self.handle.as_ref().freeFunction.unwrap()(function)
+    }
+
     pub(crate) fn plugins<'core>(&self, core: &'core CoreRef<'core>) -> Plugins<'core> {
         Plugins::new(core)
     }
@@ -248,7 +252,7 @@ impl API {
         &self,
         plugin: *mut ffi::VSPlugin,
         name: *const c_char,
-        args: *mut ffi::VSMap,
+        args: *const ffi::VSMap,
     ) -> *mut ffi::VSMap {
         self.handle.as_ref().invoke.unwrap()(plugin, name, args)
     }
@@ -329,8 +333,30 @@ impl API {
         self.handle.as_ref().getVideoInfo.unwrap()(node)
     }
 
+    pub(crate) unsafe fn get_audio_info(&self, node: *mut ffi::VSNode) -> *const ffi::VSAudioInfo {
+        self.handle.as_ref().getAudioInfo.unwrap()(node)
+    }
+
     pub(crate) unsafe fn set_cache_mode(&self, node: *mut ffi::VSNode, mode: i32) {
         self.handle.as_ref().setCacheMode.unwrap()(node, mode)
+    }
+
+    pub(crate) unsafe fn node_get_frame(
+        &self,
+        node: *mut ffi::VSNode,
+        n: i32,
+        error: *mut c_char,
+        size: i32,
+    ) -> *const ffi::VSFrame {
+        self.handle.as_ref().getFrame.unwrap()(n, node, error, size)
+    }
+
+    pub(crate) unsafe fn free_node(&self, node: *mut ffi::VSNode) {
+        self.handle.as_ref().freeNode.unwrap()(node)
+    }
+
+    pub(crate) unsafe fn free_frame(&self, frame: *mut ffi::VSFrame) {
+        self.handle.as_ref().freeFrame.unwrap()(frame)
     }
 
     pub(crate) unsafe fn map_get_data_type_hint(
@@ -393,6 +419,18 @@ impl API {
             data_type as i32,
             append as i32,
         )
+    }
+
+    pub(crate) unsafe fn get_frame_width(&self, frame: *const ffi::VSFrame, plane: i32) -> i32 {
+        self.handle.as_ref().getFrameWidth.unwrap()(frame, plane)
+    }
+
+    pub(crate) unsafe fn get_frame_height(&self, frame: *const ffi::VSFrame, plane: i32) -> i32 {
+        self.handle.as_ref().getFrameHeight.unwrap()(frame, plane)
+    }
+
+    pub(crate) unsafe fn get_frame_length(&self, frame: *const ffi::VSFrame) -> i32 {
+        self.handle.as_ref().getFrameLength.unwrap()(frame)
     }
 
     map_get_something!(map_get_int, mapGetInt, i64);
