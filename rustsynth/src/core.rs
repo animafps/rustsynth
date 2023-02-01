@@ -100,9 +100,9 @@ pub struct CoreInfo {
 
 /// An interator over the loaded plugins
 ///
-/// created by [`Core::plugins()`]
+/// created by [`CoreRef::plugins()`]
 ///
-/// [`Core::plugins()`]: crate::core::Core::plugins()
+/// [`CoreRef::plugins()`]: crate::core::CoreRef::plugins()
 #[derive(Debug, Clone, Copy)]
 pub struct Plugins<'core> {
     plugin: Option<Plugin<'core>>,

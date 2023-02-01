@@ -1,6 +1,6 @@
 # RustSynth
 
-Pretty much a fork of [vapoursynth-rs](https://github.com/YaLTeR/vapoursynth-rs) for the newest api versions
+Fork of [vapoursynth-rs](https://github.com/YaLTeR/vapoursynth-rs) for the latest api versions
 
 **[support and dev discord](https://discord.com/invite/5z3YhWstQr)**
 
@@ -14,7 +14,7 @@ Pretty much a fork of [vapoursynth-rs](https://github.com/YaLTeR/vapoursynth-rs)
 
 [![crates.io](https://img.shields.io/crates/v/rustsynth.svg)](https://crates.io/crates/rustsynth)
 
-Safe rust vapoursynth wrapper
+Safe wrapper for VapourSynth, written in Rust
 
 [Documentation](https://docs.rs/rustsynth)
 
@@ -24,7 +24,7 @@ see [rustsynth/README.md](./rustsynth/README.md) for more details
 
 [![crates.io](https://img.shields.io/crates/v/rustsynth-sys.svg)](https://crates.io/crates/rustsynth-sys)
 
-Low level VapourSynth bindings to rust
+Low level VapourSynth bindings to Rust
 
 [Documentation](https://docs.rs/rustsynth-sys)
 
