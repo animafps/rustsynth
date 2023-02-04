@@ -48,7 +48,7 @@ impl<'elem> Node<'elem> {
     }
 
     /// Returns the `VideoInfo` struct if the node is a video node
-    fn video_info(&self) -> Option<VideoInfo> {
+    pub fn video_info(&self) -> Option<VideoInfo> {
         if self.get_type() == MediaType::Audio {
             return None;
         }
@@ -60,7 +60,7 @@ impl<'elem> Node<'elem> {
         Some(VideoInfo::from(info))
     }
 
-    fn audio_info(&self) -> Option<AudioInfo> {
+    pub fn audio_info(&self) -> Option<AudioInfo> {
         if self.get_type() == MediaType::Video {
             return None;
         }

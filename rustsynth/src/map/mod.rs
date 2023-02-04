@@ -195,6 +195,7 @@ fn handle_get_prop_error(error: i32) -> Result<()> {
             x if x == ffi::VSMapPropertyError::peUnset as i32 => Error::KeyNotFound,
             x if x == ffi::VSMapPropertyError::peType as i32 => Error::WrongValueType,
             x if x == ffi::VSMapPropertyError::peIndex as i32 => Error::IndexOutOfBounds,
+            x if x == ffi::VSMapPropertyError::peError as i32 => Error::Error,
             _ => unreachable!(),
         })
     }

@@ -52,8 +52,9 @@ pub enum SampleType {
     Float,
 }
 
-impl From<ffi::VSVideoFormat> for VideoFormat {
-    fn from(from: ffi::VSVideoFormat) -> Self {
+impl From<*const ffi::VSVideoFormat> for VideoFormat {
+    fn from(from: *const ffi::VSVideoFormat) -> Self {
+        let from = unsafe {*from};
         let sample_type = if from.sampleType == 0 {
             SampleType::Integer
         } else if from.sampleType == 1 {
@@ -62,12 +63,12 @@ impl From<ffi::VSVideoFormat> for VideoFormat {
             panic!("Sample type not valid")
         };
 
-        let color_family = if from.colorFamily == 0 {
-            ColorFamily::Undefined
-        } else if from.colorFamily == 1 {
-            ColorFamily::Gray
-        } else {
-            panic!("Color family not valid")
+        let color_family = match from.colorFamily {
+            x if x == ffi::VSColorFamily::cfUndefined as i32 => ColorFamily::Undefined,
+            x if x == ffi::VSColorFamily::cfGray as i32 => ColorFamily::Gray,
+            x if x == ffi::VSColorFamily::cfRGB as i32 => ColorFamily::RGB,
+            x if x == ffi::VSColorFamily::cfYUV as i32 => ColorFamily::YUV,
+            _ => unreachable!()
         };
         Self {
             color_family,
@@ -114,7 +115,7 @@ impl From<ffi::VSAudioFormat> for AudioFormat {
 impl<'elem> From<ffi::VSVideoInfo> for VideoInfo {
     fn from(from: ffi::VSVideoInfo) -> Self {
         Self {
-            format: from.format.into(),
+            format: (&from.format as *const ffi::VSVideoFormat).into(),
             fps_num: from.fpsNum,
             fps_den: from.fpsDen,
             width: from.width,

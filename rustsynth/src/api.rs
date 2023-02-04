@@ -453,6 +453,10 @@ impl API {
         self.handle.as_ref().getStride.unwrap()(frame, plane)
     }
 
+    pub(crate) unsafe fn get_video_frame_format(&self, frame: *const ffi::VSFrame) -> *const ffi::VSVideoFormat {
+        self.handle.as_ref().getVideoFrameFormat.unwrap()(frame)
+    }
+
     map_get_something!(map_get_int, mapGetInt, i64);
     map_get_something!(map_get_float, mapGetFloat, f64);
     map_get_something!(map_get_data, mapGetData, *const c_char);
