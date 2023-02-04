@@ -351,6 +351,22 @@ impl API {
         self.handle.as_ref().getFrame.unwrap()(n, node, error, size)
     }
 
+    pub(crate) unsafe fn node_get_frame_async(
+        &self,
+        node: *mut ffi::VSNode,
+        n: i32,
+        callback: unsafe extern "C" fn(
+            userData: *mut ::std::os::raw::c_void,
+            f: *const ffi::VSFrame,
+            n: ::std::os::raw::c_int,
+            node: *mut ffi::VSNode,
+            errorMsg: *const ::std::os::raw::c_char,
+        ),
+        user_data: *mut ::std::os::raw::c_void,
+    ) {
+        self.handle.as_ref().getFrameAsync.unwrap()(n, node, Some(callback), user_data)
+    }
+
     pub(crate) unsafe fn free_node(&self, node: *mut ffi::VSNode) {
         self.handle.as_ref().freeNode.unwrap()(node)
     }
@@ -431,6 +447,10 @@ impl API {
 
     pub(crate) unsafe fn get_frame_length(&self, frame: *const ffi::VSFrame) -> i32 {
         self.handle.as_ref().getFrameLength.unwrap()(frame)
+    }
+
+    pub(crate) unsafe fn get_frame_stride(&self, frame: *const ffi::VSFrame, plane: i32) -> isize {
+        self.handle.as_ref().getStride.unwrap()(frame, plane)
     }
 
     map_get_something!(map_get_int, mapGetInt, i64);

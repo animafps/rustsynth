@@ -1,12 +1,13 @@
 use ffi::{VSMap, VSPluginFunction};
 use rustsynth_sys as ffi;
 use std::{
-    ffi::{CStr, CString},
+    ffi::{CStr, CString, NulError},
     marker::PhantomData,
+    ops::Deref,
     ptr::{self, NonNull},
 };
 
-use crate::api::API;
+use crate::{api::API, map::OwnedMap, prelude::Map};
 
 /// A VapourSynth plugin.
 ///
@@ -124,7 +125,7 @@ impl<'core> Plugin<'core> {
 
 /// The iterator over the functions found in a plugin
 ///
-/// created by [Plugin::function_iter()]
+/// created by [Plugin::functions()]
 #[derive(Debug, Clone, Copy)]
 pub struct PluginFunctions<'core> {
     function: Option<PluginFunction<'core>>,
@@ -184,15 +185,15 @@ impl<'core> PluginFunction<'core> {
         }
     }
 
-    /// # Safety
-    ///
-    /// Result maybe null
-    unsafe fn invoke(&self, args: *mut VSMap) -> *mut VSMap {
+    /// Invokes the plugin function
+    pub fn invoke(&self, args: &Map<'core>) -> OwnedMap<'core> {
         let name = CString::new(self.name().unwrap()).unwrap();
-        API::get_cached().invoke(self.plugin.ptr(), name.as_ptr(), args)
-    }
-
-    fn call() {
-        todo!()
+        unsafe {
+            OwnedMap::from_ptr(API::get_cached().invoke(
+                self.plugin.handle.as_ptr(),
+                name.as_ptr(),
+                args.deref(),
+            ))
+        }
     }
 }

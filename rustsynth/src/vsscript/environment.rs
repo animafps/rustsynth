@@ -7,10 +7,8 @@ use std::path::Path;
 use std::ptr;
 use std::ptr::NonNull;
 
-use crate::api::API;
 use crate::core::CoreRef;
 use crate::map::Map;
-use crate::node::Node;
 use crate::vsscript::errors::Result;
 use crate::vsscript::*;
 

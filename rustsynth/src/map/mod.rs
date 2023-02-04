@@ -14,6 +14,7 @@ use crate::function::Function;
 use crate::node::Node;
 
 mod errors;
+use self::data::{handle_data_hint, Data, DataType};
 pub use self::errors::{Error, InvalidKeyError, Result};
 
 mod iterators;
@@ -21,6 +22,8 @@ pub use self::iterators::{Keys, ValueIter};
 
 mod value;
 pub use self::value::{Value, ValueType};
+
+mod data;
 
 /// A VapourSynth map.
 ///
@@ -182,7 +185,7 @@ impl<'owner, 'elem> MapRefMut<'owner, 'elem> {
     }
 }
 
-/// Turns a `prop_get_something()` error into a `Result`.
+/// Turns a `map_get_something()` error into a `Result`.
 #[inline]
 fn handle_get_prop_error(error: i32) -> Result<()> {
     if error == 0 {
@@ -197,7 +200,7 @@ fn handle_get_prop_error(error: i32) -> Result<()> {
     }
 }
 
-/// Turns a `prop_set_something(paAppend)` error into a `Result`.
+/// Turns a `map_set_something(maAppend)` error into a `Result`.
 #[inline]
 fn handle_append_prop_error(error: i32) -> Result<()> {
     if error != 0 {
@@ -459,7 +462,7 @@ impl<'elem> Map<'elem> {
     ///
     /// This function retrieves the first value associated with the key.
     #[inline]
-    pub fn get_data(&self, key: &str) -> Result<&[u8]> {
+    pub fn get_data(&self, key: &str) -> Result<Data<'elem>> {
         let key = Map::make_raw_key(key)?;
         unsafe { self.get_data_raw_unchecked(&key, 0) }
     }
@@ -469,9 +472,9 @@ impl<'elem> Map<'elem> {
     pub fn get_data_iter<'map>(
         &'map self,
         key: &str,
-    ) -> Result<ValueIter<'map, 'elem, &'map [u8]>> {
+    ) -> Result<ValueIter<'map, 'elem, Data<'elem>>> {
         let key = Map::make_raw_key(key)?;
-        unsafe { ValueIter::<&[u8]>::new(self, key) }
+        unsafe { ValueIter::<Data>::new(self, key) }
     }
 
     /// Retrieves a node from a map.
@@ -562,7 +565,11 @@ impl<'elem> Map<'elem> {
     /// # Safety
     /// The caller must ensure `key` is valid.
     #[inline]
-    pub(crate) unsafe fn get_data_raw_unchecked(&self, key: &CStr, index: i32) -> Result<&[u8]> {
+    pub(crate) unsafe fn get_data_raw_unchecked(
+        &self,
+        key: &CStr,
+        index: i32,
+    ) -> Result<Data<'elem>> {
         let mut error = 0;
         let value = API::get_cached().map_get_data(self, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;
@@ -572,7 +579,17 @@ impl<'elem> Map<'elem> {
         debug_assert!(error == 0);
         debug_assert!(length >= 0);
 
-        Ok(slice::from_raw_parts(value as *const u8, length as usize))
+        let slice = slice::from_raw_parts(value as *const u8, length as usize);
+        let hint = self.data_type_hint(key, index);
+
+        Ok(Data::from_slice(slice, hint))
+    }
+
+    pub(crate) fn data_type_hint(&self, key: &CStr, index: i32) -> DataType {
+        let hint = unsafe {
+            API::get_cached().map_get_data_type_hint(self.handle.as_ptr(), key.as_ptr(), index)
+        };
+        handle_data_hint(hint)
     }
 
     /// Retrieves a node from a map.

@@ -3,6 +3,8 @@ use crate::function::Function;
 use crate::map::{Map, Result, ValueIter};
 use crate::node::Node;
 
+use super::data::Data;
+
 /// An enumeration of all possible value types.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum ValueType {
@@ -72,9 +74,9 @@ impl<'map, 'elem: 'map> Value<'map, 'elem> for f64 {
     }
 }
 
-impl<'map, 'elem: 'map> Value<'map, 'elem> for &'map [u8] {
+impl<'map, 'elem: 'map> Value<'map, 'elem> for Data<'elem> {
     #[inline]
-    fn get_from_map(map: &'map Map, key: &str) -> Result<Self> {
+    fn get_from_map(map: &'map Map<'elem>, key: &str) -> Result<Self> {
         map.get_data(key)
     }
 

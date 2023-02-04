@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     format::{AudioInfo, MediaType, VideoInfo},
-    frame::{AudioFrame, Frame, VideoFrame},
+    frame::Frame,
     prelude::API,
 };
 
@@ -38,7 +38,7 @@ impl<'elem> Node<'elem> {
         }
     }
 
-    pub(crate) fn get_type(&self) -> MediaType {
+    pub fn get_type(&self) -> MediaType {
         let result = unsafe { API::get_cached().get_node_type(self.handle.as_ptr()) };
         match result {
             1 => MediaType::Video,
@@ -84,7 +84,7 @@ impl<'elem> Node<'elem> {
         self.handle.as_ptr()
     }
 
-    fn get_frame(&self, n: i32) -> Option<Frame> {
+    pub fn get_frame(&self, n: i32) -> Option<Frame> {
         let ptr = unsafe {
             API::get_cached().node_get_frame(self.handle.as_ptr(), n, ptr::null_mut(), 0)
         };
@@ -94,70 +94,19 @@ impl<'elem> Node<'elem> {
             Some(Frame::from_ptr(ptr))
         }
     }
-}
 
-pub struct AudioNode<'elem> {
-    inner: Node<'elem>,
-}
-
-impl<'elem> AudioNode<'elem> {
-    pub(crate) fn new(node: Node<'elem>) -> Option<Self> {
-        if node.get_type() == MediaType::Video {
-            None
-        } else {
-            Some(Self { inner: node })
-        }
-    }
-
-    pub fn info(&self) -> AudioInfo {
-        self.inner.audio_info().unwrap()
-    }
-
-    pub fn get_frame(&self, n: i32) -> Option<AudioFrame> {
-        let inner_frame = self.inner.get_frame(n);
-        match inner_frame {
-            Some(frame) => Some(AudioFrame::new(frame, self.info().format)),
-            None => None,
-        }
-    }
-}
-
-impl<'elem> Deref for AudioNode<'elem> {
-    type Target = Node<'elem>;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-pub struct VideoNode<'elem> {
-    pub(crate) inner: Node<'elem>,
-}
-
-impl<'elem> VideoNode<'elem> {
-    pub(crate) fn new(node: Node<'elem>) -> Option<Self> {
-        if node.get_type() == MediaType::Audio {
-            None
-        } else {
-            Some(Self { inner: node })
-        }
-    }
-
-    pub fn info(&self) -> VideoInfo {
-        self.inner.video_info().unwrap()
-    }
-
-    pub fn get_frame(&self, n: i32) -> Option<VideoFrame> {
-        let inner_frame = self.inner.get_frame(n);
-        match inner_frame {
-            Some(frame) => Some(VideoFrame::new(frame, self.info().format)),
-            None => None,
-        }
-    }
-}
-
-impl<'elem> Deref for VideoNode<'elem> {
-    type Target = Node<'elem>;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
+    pub fn get_frame_async(
+        &self,
+        n: i32,
+        callback: unsafe extern "C" fn(
+            userData: *mut ::std::os::raw::c_void,
+            f: *const ffi::VSFrame,
+            n: ::std::os::raw::c_int,
+            node: *mut ffi::VSNode,
+            errorMsg: *const ::std::os::raw::c_char,
+        ),
+        user_data: *mut ::std::os::raw::c_void,
+    ) {
+        unsafe { API::get_cached().node_get_frame_async(self.ptr(), n, callback, user_data) }
     }
 }
