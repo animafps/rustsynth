@@ -7,13 +7,14 @@ jobs:
   build-test-lint-linux:
     name: Linux - build, test and lint
     runs-on: ubuntu-latest
+    env: 
+      VAPOURSYNTH_LIB_DIR: /usr/local/lib
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: recursive
       - name: Build vapoursynth
         run: |
-          sudo ldconfig -v -n /usr/lib
           sudo apt-get update
           sudo apt-get install g++ make autoconf automake libtool pkg-config nasm git
           git clone --branch release-3.0.4 --depth 1 https://github.com/sekrit-twc/zimg.git
