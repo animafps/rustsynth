@@ -1,5 +1,4 @@
 //! Module for interacting with the VapourSynth API
-use ffi::VSFunction;
 use rustsynth_sys as ffi;
 use std::{
     ffi::{c_char, c_int, c_void, CString},
@@ -64,7 +63,7 @@ impl API {
     /// Creates and retrieves the VapourSynth API.
     ///
     /// Returns `None` on error
-    // If we're linking to VSScript anyway, use the VSScript function.
+    #[cfg(all(feature = "vapoursynth-functions"))]
     #[inline]
     pub fn get() -> Option<Self> {
         // Check if we already have the API.
@@ -253,7 +252,7 @@ impl API {
         &self,
         plugin: *mut ffi::VSPlugin,
         name: *const c_char,
-        args: *const ffi::VSMap,
+        args: &ffi::VSMap,
     ) -> *mut ffi::VSMap {
         self.handle.as_ref().invoke.unwrap()(plugin, name, args)
     }
@@ -340,32 +339,6 @@ impl API {
 
     pub(crate) unsafe fn set_cache_mode(&self, node: *mut ffi::VSNode, mode: i32) {
         self.handle.as_ref().setCacheMode.unwrap()(node, mode)
-    }
-
-    pub(crate) unsafe fn node_get_frame(
-        &self,
-        node: *mut ffi::VSNode,
-        n: i32,
-        error: *mut c_char,
-        size: i32,
-    ) -> *const ffi::VSFrame {
-        self.handle.as_ref().getFrame.unwrap()(n, node, error, size)
-    }
-
-    pub(crate) unsafe fn node_get_frame_async(
-        &self,
-        node: *mut ffi::VSNode,
-        n: i32,
-        callback: unsafe extern "C" fn(
-            userData: *mut ::std::os::raw::c_void,
-            f: *const ffi::VSFrame,
-            n: ::std::os::raw::c_int,
-            node: *mut ffi::VSNode,
-            errorMsg: *const ::std::os::raw::c_char,
-        ),
-        user_data: *mut ::std::os::raw::c_void,
-    ) {
-        self.handle.as_ref().getFrameAsync.unwrap()(n, node, Some(callback), user_data)
     }
 
     pub(crate) unsafe fn free_node(&self, node: *mut ffi::VSNode) {

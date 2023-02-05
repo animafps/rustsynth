@@ -3,8 +3,8 @@
 use rustsynth_sys as ffi;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use std::ptr::{self, NonNull};
-use std::{mem, slice};
+use std::ptr::NonNull;
+use std::slice;
 
 use thiserror::Error;
 
@@ -234,6 +234,10 @@ impl<'core> Frame<'core> {
         assert!(plane < self.video_format().unwrap().num_planes);
 
         unsafe { API::get_cached().get_frame_stride(self, plane) }
+    }
+
+    pub fn length(&self) -> i32 {
+        unsafe { API::get_cached().get_frame_length(self) }
     }
 
     /// Returns a slice of a plane's pixel row.

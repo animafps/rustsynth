@@ -1,7 +1,7 @@
-use ffi::{VSMap, VSPluginFunction};
+use ffi::VSPluginFunction;
 use rustsynth_sys as ffi;
 use std::{
-    ffi::{CStr, CString, NulError},
+    ffi::{CStr, CString},
     marker::PhantomData,
     ops::Deref,
     ptr::{self, NonNull},
@@ -80,7 +80,7 @@ impl<'core> Plugin<'core> {
         unsafe { API::get_cached().get_plugin_version(self.ptr()) }
     }
 
-    /// Get function associated with the name
+    /// Get function struct associated with the name
     ///
     /// returns `None` if no function is found
     pub fn function(&self, name: &str) -> Option<PluginFunction<'core>> {
@@ -119,9 +119,21 @@ impl<'core> Plugin<'core> {
         }
     }
 
+    /// Invokes the plugin function with the name provided
+    ///
+    /// # Panics
+    ///
+    /// Will panic if there is no function with that name
     pub fn invoke(&self, name: &str, args: &Map<'core>) -> OwnedMap<'core> {
-        let function = self.function(name).unwrap();
-        function.invoke(self, args)
+        self.function(name).unwrap();
+        let name = CString::new(name).unwrap();
+        unsafe {
+            OwnedMap::from_ptr(API::get_cached().invoke(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                args.deref(),
+            ))
+        }
     }
 }
 
@@ -146,51 +158,34 @@ impl<'core> Iterator for PluginFunctions<'core> {
 /// A function of a plugin
 #[derive(Debug, Clone, Copy)]
 pub struct PluginFunction<'core> {
-    handle: NonNull<ffi::VSPluginFunction>,
-    _owner: PhantomData<&'core ()>,
+    ptr: NonNull<ffi::VSPluginFunction>,
+    pub name: Option<&'core str>,
+    pub arguments: Option<&'core str>,
 }
 
 impl<'core> PluginFunction<'core> {
     pub(crate) unsafe fn from_ptr(ptr: *mut VSPluginFunction) -> Self {
+        let name_ptr = unsafe { API::get_cached().get_plugin_function_name(ptr) };
+        let name = if name_ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { CStr::from_ptr(name_ptr).to_str().unwrap() })
+        };
+
+        let arg_ptr = unsafe { API::get_cached().get_plugin_function_arguments(ptr) };
+        let arguments = if arg_ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { CStr::from_ptr(arg_ptr).to_str().unwrap() })
+        };
         PluginFunction {
-            handle: NonNull::new_unchecked(ptr),
-            _owner: PhantomData,
+            ptr: NonNull::new_unchecked(ptr),
+            name,
+            arguments,
         }
     }
 
-    /// Returns the underlying pointer.
-    #[inline]
-    pub(crate) fn ptr(&self) -> *mut ffi::VSPluginFunction {
-        self.handle.as_ptr()
-    }
-
-    pub fn name(&self) -> Option<&'core str> {
-        let ptr = unsafe { API::get_cached().get_plugin_function_name(self.ptr()) };
-        if ptr.is_null() {
-            None
-        } else {
-            Some(unsafe { CStr::from_ptr(ptr).to_str().unwrap() })
-        }
-    }
-
-    pub fn arguments(&self) -> Option<&'core str> {
-        let ptr = unsafe { API::get_cached().get_plugin_function_arguments(self.ptr()) };
-        if ptr.is_null() {
-            None
-        } else {
-            Some(unsafe { CStr::from_ptr(ptr).to_str().unwrap() })
-        }
-    }
-
-    /// Invokes the plugin function
-    fn invoke(&self, plugin: &Plugin, args: &Map<'core>) -> OwnedMap<'core> {
-        let name = CString::new(self.name().unwrap()).unwrap();
-        unsafe {
-            OwnedMap::from_ptr(API::get_cached().invoke(
-                plugin.handle.as_ptr(),
-                name.as_ptr(),
-                args.deref(),
-            ))
-        }
+    fn ptr(&self) -> *mut ffi::VSPluginFunction {
+        self.ptr.as_ptr()
     }
 }

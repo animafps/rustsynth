@@ -25,6 +25,7 @@ fn main() {
         }
     }
 
+    #[cfg(feature = "vapoursynth-functions")]
     println!("cargo:rustc-link-lib=vapoursynth");
 
     let vsscript_lib_name = if windows {
@@ -33,6 +34,7 @@ fn main() {
         "vapoursynth-script"
     };
 
+    #[cfg(feature = "vsscript-functions")]
     println!("cargo:rustc-link-lib={}", vsscript_lib_name);
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes

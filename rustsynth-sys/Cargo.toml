@@ -9,3 +9,8 @@ repository = "https://github.com/animafps/rustsynth"
 
 [build-dependencies]
 bindgen = "0.59"
+
+[features]
+
+vapoursynth-functions = []
+vsscript-functions = []

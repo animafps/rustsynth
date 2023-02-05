@@ -19,7 +19,6 @@ pub fn handle_data_hint(hint: i32) -> DataType {
 
 pub struct Data<'elem> {
     inner: &'elem [u8],
-    hint: DataType,
 }
 
 impl<'elem> Deref for Data<'elem> {
@@ -30,11 +29,20 @@ impl<'elem> Deref for Data<'elem> {
 }
 
 impl<'elem> Data<'elem> {
-    pub fn type_hint(&self) -> DataType {
-        self.hint
+    pub(crate) fn from_slice(slice: &'elem [u8]) -> Self {
+        Self { inner: slice }
     }
+}
 
-    pub(crate) fn from_slice(slice: &'elem [u8], hint: DataType) -> Self {
-        Self { inner: slice, hint }
+impl<'elem> From<&'elem [u8]> for Data<'elem> {
+    fn from(value: &'elem [u8]) -> Self {
+        Self::from_slice(value)
+    }
+}
+
+impl<'elem> From<&'elem str> for Data<'elem> {
+    fn from(value: &'elem str) -> Self {
+        let slice = value.as_bytes();
+        Self::from_slice(slice)
     }
 }

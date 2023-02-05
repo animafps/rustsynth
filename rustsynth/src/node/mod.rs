@@ -10,7 +10,7 @@ use std::ptr::NonNull;
 use std::{mem, panic};
 
 use crate::api::API;
-use crate::format::{AudioInfo, VideoInfo};
+use crate::format::{AudioInfo, MediaType, VideoInfo};
 use crate::frame::{FrameContext, FrameRef};
 
 mod errors;
@@ -115,7 +115,7 @@ impl<'core> Node<'core> {
         // Kinda arbitrary. Same value as used in vsvfw.
         const ERROR_BUF_CAPACITY: usize = 32 * 1024;
 
-        let mut err_buf = vec![0; ERROR_BUF_CAPACITY];
+        let err_buf = vec![0; ERROR_BUF_CAPACITY];
         let mut err_buf = err_buf.into_boxed_slice();
 
         let handle =
@@ -274,6 +274,15 @@ impl<'core> Node<'core> {
             None
         } else {
             Some(unsafe { FrameRef::from_ptr(ptr) })
+        }
+    }
+
+    pub fn media_type(&self) -> MediaType {
+        let int = unsafe { API::get_cached().get_node_type(self.ptr()) };
+        match int {
+            x if x == ffi::VSMediaType::mtAudio as i32 => MediaType::Audio,
+            x if x == ffi::VSMediaType::mtVideo as i32 => MediaType::Video,
+            _ => unreachable!(),
         }
     }
 }

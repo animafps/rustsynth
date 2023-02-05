@@ -4,7 +4,7 @@ use rustsynth_sys as ffi;
 use std::borrow::Cow;
 use std::ffi::{c_int, CStr, CString};
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut, Index, IndexMut};
+use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::{result, slice};
 
@@ -14,16 +14,16 @@ use crate::function::Function;
 use crate::node::Node;
 
 mod errors;
-use self::data::{handle_data_hint, Data, DataType};
+pub use self::data::{handle_data_hint, Data, DataType};
 pub use self::errors::{Error, InvalidKeyError, Result};
 
 mod iterators;
 pub use self::iterators::{Keys, ValueIter};
 
 mod value;
-pub use self::value::{Value, ValueType};
+pub use self::value::{Value, ValueNotArray, ValueType};
 
-mod data;
+pub mod data;
 
 /// A simple macro to create an owned map
 ///
@@ -435,7 +435,7 @@ impl<'elem> Map<'elem> {
 
     /// Retrieves an iterator over the map values.
     #[inline]
-    pub fn get_iter<'map, T: Value<'map, 'elem>>(
+    pub fn get_iter<'map, T: ValueNotArray<'map, 'elem>>(
         &'map self,
         key: &str,
     ) -> Result<ValueIter<'map, 'elem, T>> {
@@ -450,7 +450,11 @@ impl<'elem> Map<'elem> {
 
     /// Appends a property value.
     #[inline]
-    pub fn append<'map, T: Value<'map, 'elem>>(&'map mut self, key: &str, x: &T) -> Result<()> {
+    pub fn append<'map, T: ValueNotArray<'map, 'elem>>(
+        &'map mut self,
+        key: &str,
+        x: &T,
+    ) -> Result<()> {
         T::append_to_map(self, key, x)
     }
 
@@ -503,6 +507,33 @@ impl<'elem> Map<'elem> {
     ) -> Result<ValueIter<'map, 'elem, Data<'elem>>> {
         let key = Map::make_raw_key(key)?;
         unsafe { ValueIter::<Data>::new(self, key) }
+    }
+
+    /// Retrieves data from a map.
+    #[inline]
+    pub fn get_string_iter<'map>(&'map self, key: &str) -> Result<ValueIter<'map, 'elem, String>> {
+        let key = Map::make_raw_key(key)?;
+        unsafe { ValueIter::<String>::new(self, key) }
+    }
+
+    /// Retrieves data from a map.
+    ///
+    /// # Safety
+    /// The caller must ensure `key` is valid.
+    #[inline]
+    pub(crate) unsafe fn get_string_raw_unchecked(&self, key: &CStr, index: i32) -> Result<String> {
+        let mut error = 0;
+        let value = API::get_cached().map_get_data(self, key.as_ptr(), index, &mut error);
+        handle_get_prop_error(error)?;
+
+        let mut error = 0;
+        let length = API::get_cached().map_get_data_size(self, key.as_ptr(), index, &mut error);
+        debug_assert!(error == 0);
+        debug_assert!(length >= 0);
+
+        let slice = slice::from_raw_parts(value as *const u8, length as usize);
+
+        Ok(String::from_utf8(slice.to_vec()).unwrap())
     }
 
     /// Retrieves a node from a map.
@@ -622,12 +653,11 @@ impl<'elem> Map<'elem> {
         debug_assert!(length >= 0);
 
         let slice = slice::from_raw_parts(value as *const u8, length as usize);
-        let hint = self.data_type_hint(key, index);
 
-        Ok(Data::from_slice(slice, hint))
+        Ok(Data::from_slice(slice))
     }
 
-    pub(crate) fn data_type_hint(&self, key: &CStr, index: i32) -> DataType {
+    pub fn data_type_hint(&self, key: &CStr, index: i32) -> DataType {
         let hint = unsafe {
             API::get_cached().map_get_data_type_hint(self.handle.as_ptr(), key.as_ptr(), index)
         };

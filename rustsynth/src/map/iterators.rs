@@ -109,6 +109,7 @@ impl_value_iter!(ValueType::Float, f64, get_float_raw_unchecked);
 impl_value_iter!(ValueType::Data, Data<'elem>, get_data_raw_unchecked);
 impl_value_iter!(ValueType::Node, Node<'elem>, get_node_raw_unchecked);
 impl_value_iter!(ValueType::Frame, Frame<'elem>, get_frame_raw_unchecked);
+impl_value_iter!(ValueType::Data, String, get_string_raw_unchecked);
 impl_value_iter!(
     ValueType::Function,
     Function<'elem>,
