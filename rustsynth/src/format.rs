@@ -86,10 +86,11 @@ impl VideoFormat {
     }
 }
 
-impl<'elem> From<ffi::VSAudioInfo> for AudioInfo {
-    fn from(from: ffi::VSAudioInfo) -> Self {
+impl AudioInfo {
+    pub(crate) unsafe fn from_ptr(from: *const ffi::VSAudioInfo) -> Self {
+        let from = &*from;
         Self {
-            format: from.format.into(),
+            format: AudioFormat::from_ptr(&from.format as *const ffi::VSAudioFormat),
             sample_rate: from.sampleRate,
             num_samples: from.numSamples,
             num_frames: from.numFrames,
@@ -97,8 +98,9 @@ impl<'elem> From<ffi::VSAudioInfo> for AudioInfo {
     }
 }
 
-impl From<ffi::VSAudioFormat> for AudioFormat {
-    fn from(from: ffi::VSAudioFormat) -> Self {
+impl AudioFormat {
+    pub(crate) unsafe fn from_ptr(from: *const ffi::VSAudioFormat) -> Self {
+        let from = &*from;
         let sample_type = if from.sampleType == 0 {
             SampleType::Integer
         } else if from.sampleType == 1 {

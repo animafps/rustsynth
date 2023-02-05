@@ -10,7 +10,7 @@ use std::ptr::NonNull;
 use std::{mem, panic};
 
 use crate::api::API;
-use crate::format::VideoInfo;
+use crate::format::{VideoInfo, AudioInfo};
 use crate::frame::{FrameContext, FrameRef};
 
 mod errors;
@@ -69,10 +69,29 @@ impl<'core> Node<'core> {
     // Since we don't store the pointer to the actual `ffi::VSVideoInfo` and the lifetime is that
     // of the `ffi::VSFormat`, this returns `VideoInfo<'core>` rather than `VideoInfo<'a>`.
     #[inline]
-    pub fn info(&self) -> VideoInfo {
+    pub fn video_info(&self) -> Option<VideoInfo> {
         unsafe {
             let ptr = API::get_cached().get_video_info(self.handle.as_ptr());
-            VideoInfo::from_ptr(ptr)
+            if ptr.is_null() {
+                None
+            } else {
+                Some(VideoInfo::from_ptr(ptr))
+            }
+        }
+    }
+
+     /// Returns the audio info associated with this `Node`.
+    // Since we don't store the pointer to the actual `ffi::VSVideoInfo` and the lifetime is that
+    // of the `ffi::VSFormat`, this returns `VideoInfo<'core>` rather than `VideoInfo<'a>`.
+    #[inline]
+    pub fn audio_info(&self) -> Option<AudioInfo> {
+        unsafe {
+            let ptr = API::get_cached().get_audio_info(self.handle.as_ptr());
+            if ptr.is_null() {
+                None
+            } else {
+                Some(AudioInfo::from_ptr(ptr))
+            }
         }
     }
 
@@ -85,7 +104,7 @@ impl<'core> Node<'core> {
     pub fn get_frame<'error>(&self, n: usize) -> Result<FrameRef<'core>, GetFrameError<'error>> {
         assert!(n <= i32::max_value() as usize);
 
-        let vi = &self.info();
+        let vi = &self.video_info().unwrap();
 
         let total = vi.num_frames;
         if n >= total as usize {
