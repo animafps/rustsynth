@@ -10,7 +10,7 @@ use std::ptr::NonNull;
 use std::{mem, panic};
 
 use crate::api::API;
-use crate::format::{VideoInfo, AudioInfo};
+use crate::format::{AudioInfo, VideoInfo};
 use crate::frame::{FrameContext, FrameRef};
 
 mod errors;
@@ -80,7 +80,7 @@ impl<'core> Node<'core> {
         }
     }
 
-     /// Returns the audio info associated with this `Node`.
+    /// Returns the audio info associated with this `Node`.
     // Since we don't store the pointer to the actual `ffi::VSVideoInfo` and the lifetime is that
     // of the `ffi::VSFormat`, this returns `VideoInfo<'core>` rather than `VideoInfo<'a>`.
     #[inline]
@@ -119,7 +119,7 @@ impl<'core> Node<'core> {
         let mut err_buf = err_buf.into_boxed_slice();
 
         let handle =
-            unsafe { API::get_cached().get_frame(n as i32, self.handle.as_ptr(), &mut *err_buf) };
+            unsafe { API::get_cached().get_frame(n as i32, self.handle.as_ptr(), &mut err_buf) };
 
         if handle.is_null() {
             // TODO: remove this extra allocation by reusing `Box<[c_char]>`.

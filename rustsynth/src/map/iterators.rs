@@ -44,7 +44,7 @@ impl<'map, 'elem> ExactSizeIterator for Keys<'map, 'elem> {}
 
 /// An iterator over the values associated with a certain key of a map.
 #[derive(Debug, Clone)]
-pub struct ValueIter<'map, 'elem: 'map, T> {
+pub struct ValueIter<'map, 'elem: 'map, T: ?Sized> {
     map: &'map Map<'elem>,
     key: CString,
     count: i32,

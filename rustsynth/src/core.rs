@@ -57,7 +57,7 @@ impl<'core> CoreRef<'core> {
     /// Returns an instance of `Some(Plugin)` if there exists a plugin loaded associated with the namespace
     ///
     /// None if no plugin is found
-    pub fn plugin_by_namespace(&self, namespace: &str) -> Option<Plugin<'_>> {
+    pub fn plugin_by_namespace(&self, namespace: &str) -> Option<Plugin<'core>> {
         unsafe { API::get_cached() }.plugin_by_namespace(namespace, self)
     }
 

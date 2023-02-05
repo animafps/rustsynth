@@ -220,7 +220,7 @@ impl<'core> Frame<'core> {
     /// Panics if `plane >= format().plane_count()`.
     #[inline]
     pub fn height(&self, plane: i32) -> i32 {
-        assert!(plane < self.video_format().unwrap().num_planes.try_into().unwrap());
+        assert!(plane < self.video_format().unwrap().num_planes);
 
         unsafe { API::get_cached().get_frame_height(self, plane) }
     }
@@ -231,7 +231,7 @@ impl<'core> Frame<'core> {
     /// Panics if `plane >= format().plane_count()`.
     #[inline]
     pub fn stride(&self, plane: i32) -> isize {
-        assert!(plane < self.video_format().unwrap().num_planes.try_into().unwrap());
+        assert!(plane < self.video_format().unwrap().num_planes);
 
         unsafe { API::get_cached().get_frame_stride(self, plane) }
     }
@@ -242,7 +242,7 @@ impl<'core> Frame<'core> {
     /// Panics if the requested plane, row or component type is invalid.
     #[inline]
     pub fn plane_row<T: Component>(&self, plane: i32, row: i32) -> &[T] {
-        assert!(plane < self.video_format().unwrap().num_planes.try_into().unwrap());
+        assert!(plane < self.video_format().unwrap().num_planes);
         assert!(row < self.height(plane));
         assert!(T::is_valid(self.video_format().unwrap()));
 
@@ -251,7 +251,7 @@ impl<'core> Frame<'core> {
 
         let offset = stride * row as isize;
         assert!(offset <= isize::max_value());
-        let offset = offset as isize;
+        let offset = offset;
 
         let row_ptr = unsafe { ptr.offset(offset) };
         let width = self.width(plane);
@@ -265,7 +265,7 @@ impl<'core> Frame<'core> {
     /// Panics if the requested plane, row or component type is invalid.
     #[inline]
     pub fn plane_row_mut<T: Component>(&mut self, plane: i32, row: i32) -> &mut [T] {
-        assert!(plane < self.video_format().unwrap().num_planes.try_into().unwrap());
+        assert!(plane < self.video_format().unwrap().num_planes);
         assert!(row < self.height(plane));
         assert!(T::is_valid(self.video_format().unwrap()));
 
@@ -274,7 +274,7 @@ impl<'core> Frame<'core> {
 
         let offset = stride * row as isize;
         assert!(offset <= isize::max_value());
-        let offset = offset as isize;
+        let offset = offset;
 
         let row_ptr = unsafe { ptr.offset(offset) };
         let width = self.width(plane);
@@ -358,7 +358,7 @@ impl<'core> Frame<'core> {
     pub fn data_ptr_mut(&mut self, plane: i32) -> *mut u8 {
         assert!(plane < self.video_format().unwrap().num_planes);
 
-        unsafe { API::get_cached().get_frame_write_ptr(self.handle.as_mut(), plane as i32) }
+        unsafe { API::get_cached().get_frame_write_ptr(self.handle.as_mut(), plane) }
     }
 
     /// Returns a slice of a plane's pixel row.
@@ -376,7 +376,7 @@ impl<'core> Frame<'core> {
 
         let offset = stride * row as isize;
         assert!(offset <= isize::max_value());
-        let offset = offset as isize;
+        let offset = offset;
 
         let row_ptr = unsafe { ptr.offset(offset) };
         let width = self.width(plane) * self.video_format().unwrap().bytes_per_sample;
@@ -399,7 +399,7 @@ impl<'core> Frame<'core> {
 
         let offset = stride * row as isize;
         assert!(offset <= isize::max_value());
-        let offset = offset as isize;
+        let offset = offset;
 
         let row_ptr = unsafe { ptr.offset(offset) };
         let width = self.width(plane) * self.video_format().unwrap().bytes_per_sample;

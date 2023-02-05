@@ -4,7 +4,7 @@ use rustsynth_sys as ffi;
 use std::borrow::Cow;
 use std::ffi::{c_int, CStr, CString};
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::ptr::NonNull;
 use std::{result, slice};
 
@@ -402,7 +402,7 @@ impl<'elem> Map<'elem> {
 
     /// Retrieves a property value.
     #[inline]
-    pub fn get<'map, T: Value<'map, 'elem>>(&'map self, key: &str) -> Result<T> {
+    pub fn get<'map, T: Value<'map, 'elem> + Sized>(&'map self, key: &str) -> Result<T> {
         T::get_from_map(self, key)
     }
 
@@ -535,6 +535,20 @@ impl<'elem> Map<'elem> {
         unsafe { ValueIter::<Function>::new(self, key) }
     }
 
+    /// Retrieves int array from a map.
+    #[inline]
+    pub fn get_int_array(&self, key: &str) -> Result<Vec<i64>> {
+        let key = Map::make_raw_key(key)?;
+        unsafe { self.get_int_array_raw_unchecked(&key) }
+    }
+
+    /// Retrieves float array from a map.
+    #[inline]
+    pub fn get_float_array(&self, key: &str) -> Result<Vec<f64>> {
+        let key = Map::make_raw_key(key)?;
+        unsafe { self.get_float_array_raw_unchecked(&key) }
+    }
+
     /// Retrieves an integer from a map.
     ///
     /// # Safety
@@ -608,6 +622,24 @@ impl<'elem> Map<'elem> {
         handle_get_prop_error(error)?;
 
         Ok(Node::from_ptr(value))
+    }
+
+    #[inline]
+    pub(crate) unsafe fn get_int_array_raw_unchecked(&self, key: &CStr) -> Result<Vec<i64>> {
+        let mut error = 0;
+        let value = API::get_cached().map_get_int_array(self, key.as_ptr(), &mut error);
+        handle_get_prop_error(error)?;
+
+        Ok(slice::from_raw_parts(value, self.value_count_raw_unchecked(key).unwrap()).to_vec())
+    }
+
+    #[inline]
+    pub(crate) unsafe fn get_float_array_raw_unchecked(&self, key: &CStr) -> Result<Vec<f64>> {
+        let mut error = 0;
+        let value = API::get_cached().map_get_float_array(self, key.as_ptr(), &mut error);
+        handle_get_prop_error(error)?;
+
+        Ok(slice::from_raw_parts(value, self.value_count_raw_unchecked(key).unwrap()).to_vec())
     }
 
     /// Retrieves a frame from a map.
@@ -845,6 +877,46 @@ impl<'elem> Map<'elem> {
             self.set_function_raw_unchecked(&key, x);
         }
         Ok(())
+    }
+
+    pub fn set_int_array(&mut self, key: &str, x: Vec<i64>) -> Result<()> {
+        let key = Map::make_raw_key(key)?;
+        unsafe {
+            self.set_int_array_raw_unchecked(&key, x);
+        }
+        Ok(())
+    }
+
+    pub fn set_float_array(&mut self, key: &str, x: Vec<f64>) -> Result<()> {
+        let key = Map::make_raw_key(key)?;
+        unsafe {
+            self.set_float_array_raw_unchecked(&key, x);
+        }
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) unsafe fn set_int_array_raw_unchecked(&mut self, key: &CStr, x: Vec<i64>) {
+        let error = API::get_cached().map_set_int_array(
+            self.handle.as_mut(),
+            key.as_ptr(),
+            x.as_ptr(),
+            x.len().try_into().unwrap(),
+        );
+
+        debug_assert!(error == 0);
+    }
+
+    #[inline]
+    pub(crate) unsafe fn set_float_array_raw_unchecked(&mut self, key: &CStr, x: Vec<f64>) {
+        let error = API::get_cached().map_set_float_array(
+            self.handle.as_mut(),
+            key.as_ptr(),
+            x.as_ptr(),
+            x.len().try_into().unwrap(),
+        );
+
+        debug_assert!(error == 0);
     }
 
     /// Sets a property value to an integer.
