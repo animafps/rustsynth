@@ -83,14 +83,14 @@ impl<'core> Plugin<'core> {
     /// Get function associated with the name
     ///
     /// returns `None` if no function is found
-    pub fn function(&'core self, name: &str) -> Option<PluginFunction<'core>> {
+    pub fn function(&self, name: &str) -> Option<PluginFunction<'core>> {
         let name_ptr = CString::new(name).unwrap();
         unsafe {
             let ptr = API::get_cached().get_plugin_function_by_name(name_ptr.as_ptr(), self.ptr());
             if ptr.is_null() {
                 None
             } else {
-                Some(PluginFunction::from_ptr(ptr, self))
+                Some(PluginFunction::from_ptr(ptr))
             }
         }
     }
@@ -103,10 +103,7 @@ impl<'core> Plugin<'core> {
         }
     }
 
-    fn next_function(
-        &'core self,
-        function: Option<PluginFunction>,
-    ) -> Option<PluginFunction<'core>> {
+    fn next_function(&self, function: Option<PluginFunction>) -> Option<PluginFunction<'core>> {
         unsafe {
             let function = if let Some(value) = function {
                 value.ptr()
@@ -117,9 +114,14 @@ impl<'core> Plugin<'core> {
             if ptr.is_null() {
                 None
             } else {
-                Some(PluginFunction::from_ptr(ptr, self))
+                Some(PluginFunction::from_ptr(ptr))
             }
         }
+    }
+
+    pub fn invoke(&self, name: &str, args: &Map<'core>) -> OwnedMap<'core> {
+        let function = self.function(name).unwrap();
+        function.invoke(self, args)
     }
 }
 
@@ -146,18 +148,13 @@ impl<'core> Iterator for PluginFunctions<'core> {
 pub struct PluginFunction<'core> {
     handle: NonNull<ffi::VSPluginFunction>,
     _owner: PhantomData<&'core ()>,
-    plugin: &'core Plugin<'core>,
 }
 
 impl<'core> PluginFunction<'core> {
-    pub(crate) unsafe fn from_ptr(
-        ptr: *mut VSPluginFunction,
-        plugin: &'core Plugin<'core>,
-    ) -> Self {
+    pub(crate) unsafe fn from_ptr(ptr: *mut VSPluginFunction) -> Self {
         PluginFunction {
             handle: NonNull::new_unchecked(ptr),
             _owner: PhantomData,
-            plugin,
         }
     }
 
@@ -186,11 +183,11 @@ impl<'core> PluginFunction<'core> {
     }
 
     /// Invokes the plugin function
-    pub fn invoke(&self, args: &Map<'core>) -> OwnedMap<'core> {
+    fn invoke(&self, plugin: &Plugin, args: &Map<'core>) -> OwnedMap<'core> {
         let name = CString::new(self.name().unwrap()).unwrap();
         unsafe {
             OwnedMap::from_ptr(API::get_cached().invoke(
-                self.plugin.handle.as_ptr(),
+                plugin.handle.as_ptr(),
                 name.as_ptr(),
                 args.deref(),
             ))

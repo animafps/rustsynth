@@ -35,9 +35,9 @@ mod data;
 /// let api = API::get().unwrap();
 /// let map = owned_map!(api, {"int": &0});
 /// ```
-/// 
+///
 /// # Panics
-/// 
+///
 #[macro_export]
 macro_rules! owned_map {
     ($api:expr, $({$key:tt:$x:expr }),*) => {
