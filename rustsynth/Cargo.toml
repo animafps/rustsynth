@@ -16,7 +16,7 @@ half = {version = "2.0", optional = true }
 
 [features]
 # Enable the half::f16 type to be used for frame pixel data.
-f16-pixel-type = ["half"]
+f16-pixel-type = ["dep:half"]
 
 # Features for linking to certain functions.
 vapoursynth-functions = ["rustsynth-sys/vapoursynth-functions"]

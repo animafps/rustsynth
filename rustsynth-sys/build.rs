@@ -25,17 +25,19 @@ fn main() {
         }
     }
 
-    #[cfg(feature = "vapoursynth-functions")]
-    println!("cargo:rustc-link-lib=vapoursynth");
+    
+    if env::var("CARGO_FEATURE_VAPOURSYNTH_FUNCTIONS").is_ok() {
+        println!("cargo:rustc-link-lib=vapoursynth");
+    }
 
-    let vsscript_lib_name = if windows {
-        "vsscript"
-    } else {
-        "vapoursynth-script"
-    };
-
-    #[cfg(feature = "vsscript-functions")]
-    println!("cargo:rustc-link-lib={}", vsscript_lib_name);
+    if env::var("CARGO_FEATURE_VSSCRIPT_FUNCTIONS").is_ok() {
+        let vsscript_lib_name = if windows {
+            "vsscript"
+        } else {
+            "vapoursynth-script"
+        };
+        println!("cargo:rustc-link-lib={}", vsscript_lib_name);
+    }
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=wrapper.h");
