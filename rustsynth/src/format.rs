@@ -1,5 +1,8 @@
 use rustsynth_sys as ffi;
 
+#[cfg(feature = "f16-pixel-type")]
+use half::f16;
+
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum MediaType {
     Video,
@@ -52,32 +55,33 @@ pub enum SampleType {
     Float,
 }
 
-impl From<*const ffi::VSVideoFormat> for VideoFormat {
-    fn from(from: *const ffi::VSVideoFormat) -> Self {
-        let from = unsafe {*from};
-        let sample_type = if from.sampleType == 0 {
+impl VideoFormat {
+    pub(crate) fn from_ptr(from: *const ffi::VSVideoFormat) -> Self {
+        let info = unsafe { &*from };
+
+        let sample_type = if info.sampleType == 0 {
             SampleType::Integer
-        } else if from.sampleType == 1 {
+        } else if info.sampleType == 1 {
             SampleType::Float
         } else {
             panic!("Sample type not valid")
         };
 
-        let color_family = match from.colorFamily {
+        let color_family = match info.colorFamily {
             x if x == ffi::VSColorFamily::cfUndefined as i32 => ColorFamily::Undefined,
             x if x == ffi::VSColorFamily::cfGray as i32 => ColorFamily::Gray,
             x if x == ffi::VSColorFamily::cfRGB as i32 => ColorFamily::RGB,
             x if x == ffi::VSColorFamily::cfYUV as i32 => ColorFamily::YUV,
-            _ => unreachable!()
+            _ => unreachable!(),
         };
         Self {
             color_family,
             sample_type,
-            bits_per_sample: from.bitsPerSample,
-            bytes_per_sample: from.bytesPerSample,
-            sub_sampling_w: from.subSamplingW,
-            sub_sampling_h: from.subSamplingH,
-            num_planes: from.numPlanes,
+            bits_per_sample: info.bitsPerSample,
+            bytes_per_sample: info.bytesPerSample,
+            sub_sampling_w: info.subSamplingW,
+            sub_sampling_h: info.subSamplingH,
+            num_planes: info.numPlanes,
         }
     }
 }
@@ -112,15 +116,63 @@ impl From<ffi::VSAudioFormat> for AudioFormat {
     }
 }
 
-impl<'elem> From<ffi::VSVideoInfo> for VideoInfo {
-    fn from(from: ffi::VSVideoInfo) -> Self {
+impl VideoInfo {
+    pub(crate) unsafe fn from_ptr(from: *const ffi::VSVideoInfo) -> Self {
+        let from = &*from;
+
         Self {
-            format: (&from.format as *const ffi::VSVideoFormat).into(),
+            format: VideoFormat::from_ptr(&from.format as *const ffi::VSVideoFormat),
             fps_num: from.fpsNum,
             fps_den: from.fpsDen,
             width: from.width,
             height: from.height,
             num_frames: from.numFrames,
         }
+    }
+}
+
+/// A trait for possible pixel components.
+///
+/// # Safety
+/// Implementing this trait allows retrieving slices of pixel data from the frame for the target
+/// type, so the target type must be valid for the given format.
+pub unsafe trait Component {
+    /// Returns whether this component is valid for this format.
+    fn is_valid(format: VideoFormat) -> bool;
+}
+
+unsafe impl Component for u8 {
+    #[inline]
+    fn is_valid(format: VideoFormat) -> bool {
+        format.sample_type == SampleType::Integer && format.bytes_per_sample == 1
+    }
+}
+
+unsafe impl Component for u16 {
+    #[inline]
+    fn is_valid(format: VideoFormat) -> bool {
+        format.sample_type == SampleType::Integer && format.bytes_per_sample == 2
+    }
+}
+
+unsafe impl Component for u32 {
+    #[inline]
+    fn is_valid(format: VideoFormat) -> bool {
+        format.sample_type == SampleType::Integer && format.bytes_per_sample == 4
+    }
+}
+
+#[cfg(feature = "f16-pixel-type")]
+unsafe impl Component for f16 {
+    #[inline]
+    fn is_valid(format: Format) -> bool {
+        format.sample_type == SampleType::Float && format.bytes_per_sample == 2
+    }
+}
+
+unsafe impl Component for f32 {
+    #[inline]
+    fn is_valid(format: VideoFormat) -> bool {
+        format.sample_type == SampleType::Float && format.bytes_per_sample == 4
     }
 }

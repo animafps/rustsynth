@@ -1,7 +1,7 @@
 //! Module for interacting with the VapourSynth API
 use rustsynth_sys as ffi;
 use std::{
-    ffi::{c_char, c_int, CString},
+    ffi::{c_char, c_int, c_void, CString},
     ptr::{self, NonNull},
     sync::atomic::{AtomicPtr, Ordering},
 };
@@ -371,8 +371,16 @@ impl API {
         self.handle.as_ref().freeNode.unwrap()(node)
     }
 
-    pub(crate) unsafe fn free_frame(&self, frame: *mut ffi::VSFrame) {
+    pub(crate) unsafe fn free_frame(&self, frame: &ffi::VSFrame) {
         self.handle.as_ref().freeFrame.unwrap()(frame)
+    }
+
+    pub(crate) unsafe fn copy_frame(
+        &self,
+        frame: &ffi::VSFrame,
+        core: *mut ffi::VSCore,
+    ) -> *const ffi::VSFrame {
+        self.handle.as_ref().copyFrame.unwrap()(frame, core)
     }
 
     pub(crate) unsafe fn map_get_data_type_hint(
@@ -437,26 +445,118 @@ impl API {
         )
     }
 
-    pub(crate) unsafe fn get_frame_width(&self, frame: *const ffi::VSFrame, plane: i32) -> i32 {
+    pub(crate) unsafe fn get_frame_width(&self, frame: &ffi::VSFrame, plane: i32) -> i32 {
         self.handle.as_ref().getFrameWidth.unwrap()(frame, plane)
     }
 
-    pub(crate) unsafe fn get_frame_height(&self, frame: *const ffi::VSFrame, plane: i32) -> i32 {
+    pub(crate) unsafe fn get_frame_height(&self, frame: &ffi::VSFrame, plane: i32) -> i32 {
         self.handle.as_ref().getFrameHeight.unwrap()(frame, plane)
     }
 
-    pub(crate) unsafe fn get_frame_length(&self, frame: *const ffi::VSFrame) -> i32 {
+    pub(crate) unsafe fn get_frame_length(&self, frame: &ffi::VSFrame) -> i32 {
         self.handle.as_ref().getFrameLength.unwrap()(frame)
     }
 
-    pub(crate) unsafe fn get_frame_stride(&self, frame: *const ffi::VSFrame, plane: i32) -> isize {
+    pub(crate) unsafe fn get_frame_stride(&self, frame: &ffi::VSFrame, plane: i32) -> isize {
         self.handle.as_ref().getStride.unwrap()(frame, plane)
     }
 
-    pub(crate) unsafe fn get_video_frame_format(&self, frame: *const ffi::VSFrame) -> *const ffi::VSVideoFormat {
+    pub(crate) unsafe fn get_video_frame_format(
+        &self,
+        frame: &ffi::VSFrame,
+    ) -> *const ffi::VSVideoFormat {
         self.handle.as_ref().getVideoFrameFormat.unwrap()(frame)
     }
 
+    /// Creates a new frame, optionally copying the properties attached to another frame. The new
+    /// frame contains uninitialised memory.
+    ///
+    /// # Safety
+    /// The caller must ensure all pointers are valid and that the uninitialized plane data of the
+    /// returned frame is handled carefully.
+    #[inline]
+    pub(crate) unsafe fn new_video_frame(
+        self,
+        format: &ffi::VSVideoFormat,
+        width: i32,
+        height: i32,
+        prop_src: *const ffi::VSFrame,
+        core: *mut ffi::VSCore,
+    ) -> *mut ffi::VSFrame {
+        self.handle.as_ref().newVideoFrame.unwrap()(format, width, height, prop_src, core)
+    }
+
+    pub(crate) unsafe fn clone_node(&self, node: *mut ffi::VSNode) -> *mut ffi::VSNode {
+        self.handle.as_ref().addNodeRef.unwrap()(node)
+    }
+
+    pub(crate) unsafe fn get_frame_write_ptr(
+        &self,
+        frame: *mut ffi::VSFrame,
+        plane: i32,
+    ) -> *mut u8 {
+        self.handle.as_ref().getWritePtr.unwrap()(frame, plane)
+    }
+
+    pub(crate) unsafe fn get_frame_read_ptr(&self, frame: &ffi::VSFrame, plane: i32) -> *const u8 {
+        self.handle.as_ref().getReadPtr.unwrap()(frame, plane)
+    }
+
+    pub(crate) unsafe fn get_frame(
+        &self,
+        n: i32,
+        node: *mut ffi::VSNode,
+        err_msg: &mut [c_char],
+    ) -> *const ffi::VSFrame {
+        let len = err_msg.len();
+        assert!(len <= i32::max_value() as usize);
+        let len = len as i32;
+        self.handle.as_ref().getFrame.unwrap()(n, node, err_msg.as_mut_ptr(), len)
+    }
+
+    pub(crate) unsafe fn get_frame_props_ro(&self, frame: &ffi::VSFrame) -> *const ffi::VSMap {
+        self.handle.as_ref().getFramePropertiesRO.unwrap()(frame)
+    }
+
+    pub(crate) unsafe fn get_frame_props_rw(&self, frame: *mut ffi::VSFrame) -> *mut ffi::VSMap {
+        self.handle.as_ref().getFramePropertiesRW.unwrap()(frame)
+    }
+
+    pub(crate) unsafe fn get_frame_async(
+        &self,
+        n: i32,
+        node: *mut ffi::VSNode,
+        callback: Option<
+            unsafe extern "C" fn(
+                userData: *mut c_void,
+                f: *const ffi::VSFrame,
+                n: c_int,
+                node: *mut ffi::VSNode,
+                errorMsg: *const c_char,
+            ),
+        >,
+        user_data: *mut c_void,
+    ) {
+        self.handle.as_ref().getFrameAsync.unwrap()(n, node, callback, user_data)
+    }
+
+    pub(crate) unsafe fn request_frame_filter(
+        &self,
+        n: i32,
+        node: *mut ffi::VSNode,
+        frame_ctx: *mut ffi::VSFrameContext,
+    ) {
+        self.handle.as_ref().requestFrameFilter.unwrap()(n, node, frame_ctx)
+    }
+
+    pub(crate) unsafe fn get_frame_filter(
+        &self,
+        n: i32,
+        node: *mut ffi::VSNode,
+        frame_ctx: *mut ffi::VSFrameContext,
+    ) -> *const ffi::VSFrame {
+        self.handle.as_ref().getFrameFilter.unwrap()(n, node, frame_ctx)
+    }
     map_get_something!(map_get_int, mapGetInt, i64);
     map_get_something!(map_get_float, mapGetFloat, f64);
     map_get_something!(map_get_data, mapGetData, *const c_char);
