@@ -1,4 +1,5 @@
 //! Module for interacting with the VapourSynth API
+use ffi::VSFunction;
 use rustsynth_sys as ffi;
 use std::{
     ffi::{c_char, c_int, c_void, CString},
@@ -557,6 +558,38 @@ impl API {
     ) -> *const ffi::VSFrame {
         self.handle.as_ref().getFrameFilter.unwrap()(n, node, frame_ctx)
     }
+
+    pub(crate) unsafe fn clone_func(&self, func: *mut ffi::VSFunction) -> *mut ffi::VSFunction {
+        self.handle.as_ref().addFunctionRef.unwrap()(func)
+    }
+
+    pub(crate) unsafe fn create_func(
+        &self,
+        func: Option<
+            unsafe extern "C" fn(
+                *const ffi::VSMap,
+                *mut ffi::VSMap,
+                *mut c_void,
+                *mut ffi::VSCore,
+                *const ffi::VSAPI,
+            ),
+        >,
+        user_data: *mut c_void,
+        free_callback: Option<unsafe extern "C" fn(*mut c_void)>,
+        core: *mut ffi::VSCore,
+    ) -> *mut ffi::VSFunction {
+        self.handle.as_ref().createFunction.unwrap()(func, user_data, free_callback, core)
+    }
+
+    pub(crate) unsafe fn call_func(
+        &self,
+        function: *mut ffi::VSFunction,
+        in_map: &ffi::VSMap,
+        out_map: &mut ffi::VSMap,
+    ) {
+        self.handle.as_ref().callFunction.unwrap()(function, in_map, out_map)
+    }
+
     map_get_something!(map_get_int, mapGetInt, i64);
     map_get_something!(map_get_float, mapGetFloat, f64);
     map_get_something!(map_get_data, mapGetData, *const c_char);
