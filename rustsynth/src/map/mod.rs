@@ -25,6 +25,30 @@ pub use self::value::{Value, ValueType};
 
 mod data;
 
+/// A simple macro to create an owned map
+/// 
+/// # Example
+/// 
+/// ```
+/// use rustsynth::{api::API,owned_map};
+/// 
+/// let api = API::get().unwrap();
+/// let map = owned_map!(api, ("int", &0));
+/// ```
+#[macro_export]
+macro_rules! owned_map {
+    ($api:expr, $( ($key:expr, $x:expr )),* ) => {
+        {
+            use rustsynth::map::OwnedMap;
+            let mut temp_map = OwnedMap::new($api);
+            $(
+                temp_map.set($key, $x).unwrap();
+            )*
+            temp_map
+        }
+    };
+}
+
 /// A VapourSynth map.
 ///
 /// A map contains key-value pairs where the value is zero or more elements of a certain type.
