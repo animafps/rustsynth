@@ -26,18 +26,21 @@ pub use self::value::{Value, ValueType};
 mod data;
 
 /// A simple macro to create an owned map
-/// 
+///
 /// # Example
-/// 
+///
 /// ```
 /// use rustsynth::{api::API,owned_map};
-/// 
+///
 /// let api = API::get().unwrap();
-/// let map = owned_map!(api, ("int", &0));
+/// let map = owned_map!(api, {"int": &0});
 /// ```
+/// 
+/// # Panics
+/// 
 #[macro_export]
 macro_rules! owned_map {
-    ($api:expr, $( ($key:expr, $x:expr )),* ) => {
+    ($api:expr, $({$key:tt:$x:expr }),*) => {
         {
             use rustsynth::map::OwnedMap;
             let mut temp_map = OwnedMap::new($api);
