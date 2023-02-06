@@ -2,7 +2,6 @@ use crate::{api::API, plugin::Plugin};
 use core::fmt;
 use rustsynth_sys as ffi;
 use std::{ffi::CStr, marker::PhantomData, ptr::NonNull};
-
 /// A reference to a VapourSynth core.
 #[derive(Debug, Clone, Copy)]
 pub struct CoreRef<'core> {

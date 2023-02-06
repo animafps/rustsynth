@@ -11,7 +11,18 @@ use crate::{
     plugin::Plugin,
 };
 
+use bitflags::bitflags;
+
 use std::mem::MaybeUninit;
+
+bitflags! {
+    pub struct CoreCreationFlags: u32 {
+        const NONE = 0b00000000;
+        const ENABLE_GRAPH_INSPECTION = 0b00000001;
+        const DISABLE_AUTO_LOADING = 0b00000010;
+        const DISABLE_LIBRARY_UNLOADING = 0b00000100;
+    }
+}
 
 /// A wrapper for the VapourSynth API.
 ///
@@ -72,7 +83,7 @@ impl API {
         let handle = if handle.is_null() {
             // Attempt retrieving it otherwise.
             let handle =
-                unsafe { ffi::getVapourSynthAPI(ffi::VAPOURSYNTH_API_MAJOR.try_into().unwrap()) }
+                unsafe { ffi::getVapourSynthAPI(ffi::VAPOURSYNTH_API_VERSION.try_into().unwrap()) }
                     as *mut ffi::VSAPI;
 
             if !handle.is_null() {
@@ -110,10 +121,18 @@ impl API {
     /// unbounded, because it can live for an arbitrary long time. You may use the (unsafe)
     /// `rustsynth_sys::VSAPI::freeCore()` after ensuring that all frame requests have completed
     /// and all objects belonging to the core have been released.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rustsynth::{api::API, core::CoreFlags};
+    /// let api = API::get().unwrap();
+    /// let core = api.create_core(CoreFlags::ENABLE_GRAPH_INSPECTION | CoreFlags::DISABLE_AUTO_LOADING)
+    /// ```
     #[inline]
-    pub fn create_core<'core>(&self, flags: i32) -> CoreRef<'core> {
+    pub fn create_core<'core>(&self, flags: CoreCreationFlags) -> CoreRef<'core> {
         unsafe {
-            let handle = (self.handle.as_ref().createCore).unwrap()(flags);
+            let handle = (self.handle.as_ref().createCore).unwrap()(flags.bits() as i32);
             CoreRef::from_ptr(handle)
         }
     }
