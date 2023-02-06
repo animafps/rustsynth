@@ -8,7 +8,7 @@ jobs:
     name: Linux - build, test and lint
     runs-on: ubuntu-latest
     env: 
-      VAPOURSYNTH_LIB_DIR: /usr/local/lib
+      LD_LIBRARY_PATH: /usr/local/lib
     steps:
       - uses: actions/checkout@v2
         with:
@@ -22,14 +22,14 @@ jobs:
           ./autogen.sh
           ./configure
           make
-          sudo make install
+          make install
           cd ..
           sudo apt-get install cython3
           cd rustsynth-sys/vapoursynth
           ./autogen.sh
           ./configure
           make
-          sudo make install
+          make install
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
