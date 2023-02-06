@@ -102,6 +102,21 @@ impl ScriptAPI {
     ) -> i32 {
         self.handle.as_ref().setVariables.unwrap()(script, map)
     }
+
+    pub(crate) unsafe fn get_output(
+        &self,
+        script: *mut ffi::VSScript,
+        index: i32,
+    ) -> *mut ffi::VSNode {
+        self.handle.as_ref().getOutputNode.unwrap()(script, index)
+    }
+    pub(crate) unsafe fn get_output_alpha(
+        &self,
+        script: *mut ffi::VSScript,
+        index: i32,
+    ) -> *mut ffi::VSNode {
+        self.handle.as_ref().getOutputAlphaNode.unwrap()(script, index)
+    }
 }
 
 mod errors;

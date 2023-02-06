@@ -125,7 +125,7 @@ impl<'core> Plugin<'core> {
     ///
     /// Will panic if there is no function with that name
     pub fn invoke(&self, name: &str, args: &Map<'core>) -> OwnedMap<'core> {
-        self.function(name).unwrap();
+        self.function(name).expect("No Plugin found");
         let name = CString::new(name).unwrap();
         unsafe {
             OwnedMap::from_ptr(API::get_cached().invoke(

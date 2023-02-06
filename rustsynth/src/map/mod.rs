@@ -9,12 +9,11 @@ use std::ptr::NonNull;
 use std::{result, slice};
 
 use crate::api::API;
-use crate::frame::Frame;
+use crate::frame::{Frame, FrameRef};
 use crate::function::Function;
 use crate::node::Node;
 
 mod errors;
-pub use self::data::{handle_data_hint, Data, DataType};
 pub use self::errors::{Error, InvalidKeyError, Result};
 
 mod iterators;
@@ -24,33 +23,7 @@ mod value;
 pub use self::value::{Value, ValueNotArray, ValueType};
 
 pub mod data;
-
-/// A simple macro to create an owned map
-///
-/// # Example
-///
-/// ```
-/// use rustsynth::{api::API,owned_map};
-///
-/// let api = API::get().unwrap();
-/// let map = owned_map!(api, {"int": &0});
-/// ```
-///
-/// # Panics
-///
-#[macro_export]
-macro_rules! owned_map {
-    ($api:expr, $({$key:tt:$x:expr }),*) => {
-        {
-            use rustsynth::map::OwnedMap;
-            let mut temp_map = OwnedMap::new($api);
-            $(
-                temp_map.set($key, $x).unwrap();
-            )*
-            temp_map
-        }
-    };
-}
+pub use self::data::{handle_data_hint, Data, DataType};
 
 /// A VapourSynth map.
 ///
@@ -559,7 +532,7 @@ impl<'elem> Map<'elem> {
     ///
     /// This function retrieves the first value associated with the key.
     #[inline]
-    pub fn get_frame(&self, key: &str) -> Result<Frame<'elem>> {
+    pub fn get_frame(&self, key: &str) -> Result<FrameRef<'elem>> {
         let key = Map::make_raw_key(key)?;
         unsafe { self.get_frame_raw_unchecked(&key, 0) }
     }
@@ -569,9 +542,9 @@ impl<'elem> Map<'elem> {
     pub fn get_frame_iter<'map>(
         &'map self,
         key: &str,
-    ) -> Result<ValueIter<'map, 'elem, Frame<'elem>>> {
+    ) -> Result<ValueIter<'map, 'elem, FrameRef<'elem>>> {
         let key = Map::make_raw_key(key)?;
-        unsafe { ValueIter::<Frame>::new(self, key) }
+        unsafe { ValueIter::<FrameRef>::new(self, key) }
     }
 
     /// Retrieves a function from a map.
@@ -708,12 +681,12 @@ impl<'elem> Map<'elem> {
         &self,
         key: &CStr,
         index: i32,
-    ) -> Result<Frame<'elem>> {
+    ) -> Result<FrameRef<'elem>> {
         let mut error = 0;
         let value = API::get_cached().map_get_frame(self, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;
 
-        Ok(Frame::from_ptr(value))
+        Ok(FrameRef::from_ptr(value))
     }
 
     /// Retrieves a function from a map.
