@@ -13,7 +13,6 @@ pub use rustsynth_sys as ffi;
 
 pub mod api;
 pub mod core;
-pub mod filter;
 pub mod format;
 pub mod frame;
 pub mod function;
@@ -32,4 +31,33 @@ pub mod prelude {
 
     #[cfg(feature = "vsscript-functions")]
     pub use super::vsscript::Environment;
+}
+
+/// A simple macro to create an owned map
+///
+/// its syntax is `owned_map!(api, {"key": value}, ... , {"key": value})`
+///
+/// # Example
+///
+/// ```
+/// use rustsynth::{api::API,owned_map};
+///
+/// let api = API::get().unwrap();
+/// let map = owned_map!(api, {"int": &0});
+/// ```
+///
+/// # Panics
+///
+#[macro_export(local_inner_macros)]
+macro_rules! owned_map {
+    ($api:expr, $({$key:tt:$x:expr }),*) => {
+        {
+            use rustsynth::map::OwnedMap;
+            let mut temp_map = OwnedMap::new($api);
+            $(
+                temp_map.set($key, $x).unwrap();
+            )*
+            temp_map
+        }
+    };
 }

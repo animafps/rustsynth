@@ -471,13 +471,3 @@ impl<'core> Frame<'core> {
         unsafe { MapRefMut::from_ptr(API::get_cached().get_frame_props_rw(self.deref_mut())) }
     }
 }
-
-pub struct FrameContext {
-    handle: NonNull<ffi::VSFrameContext>,
-}
-
-impl FrameContext {
-    pub(crate) fn ptr(&self) -> *mut ffi::VSFrameContext {
-        self.handle.as_ptr()
-    }
-}

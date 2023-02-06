@@ -9,6 +9,7 @@ use std::ptr::NonNull;
 
 use crate::core::CoreRef;
 use crate::map::Map;
+use crate::node::Node;
 use crate::vsscript::errors::Result;
 use crate::vsscript::*;
 
@@ -163,5 +164,28 @@ impl Environment {
         } else {
             Ok(())
         }
+    }
+
+    pub fn get_output(&self, index: usize) -> Option<Node<'_>> {
+        let ptr = unsafe { ScriptAPI::get_cached().get_output(self.handle.as_ptr(), index as i32) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { Node::from_ptr(ptr) })
+        }
+    }
+
+    pub fn get_output_alpha(&self, index: usize) -> Option<Node<'_>> {
+        let ptr =
+            unsafe { ScriptAPI::get_cached().get_output_alpha(self.handle.as_ptr(), index as i32) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { Node::from_ptr(ptr) })
+        }
+    }
+
+    pub fn clear_output(&self, index: usize) -> Result<()> {
+        todo!()
     }
 }
