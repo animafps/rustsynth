@@ -25,7 +25,6 @@ fn main() {
         }
     }
 
-    
     if env::var("CARGO_FEATURE_VAPOURSYNTH_FUNCTIONS").is_ok() {
         println!("cargo:rustc-link-lib=vapoursynth");
     }
@@ -55,7 +54,28 @@ fn main() {
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
-        .rustified_enum("*")
+        .rustified_enum("VSPropertyType")
+        .rustified_enum("VSColorFamily")
+        .rustified_enum("VSDataTypeHint")
+        .rustified_enum("VSMapAppendMode")
+        .rustified_enum("VSCacheMode")
+        .rustified_enum("VSColorPrimaries")
+        .rustified_enum("VSAudioChannels")
+        .rustified_enum("VSActivationReason")
+        .rustified_enum("VSColorRange")
+        .rustified_enum("VSFilterMode")
+        .rustified_enum("VSChromaLocation")
+        .rustified_enum("VSFieldBased")
+        .rustified_enum("VSMatrixCoefficients")
+        .rustified_enum("VSMediaType")
+        .rustified_enum("VSMessageType")
+        .rustified_enum("VSSampleType")
+        .rustified_enum("VSPresetFormat")
+        .rustified_enum("VSMapPropertyError")
+        .rustified_enum("VSRequestPattern")
+        .rustified_enum("VSTransferCharacteristics")
+        .bitfield_enum("VSCoreCreationFlags")
+        .bitfield_enum("VSPluginConfigFlags")
         .prepend_enum_name(false)
         .derive_eq(true)
         .size_t_is_usize(true)
