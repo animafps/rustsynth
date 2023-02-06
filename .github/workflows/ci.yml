@@ -22,14 +22,14 @@ jobs:
           ./autogen.sh
           ./configure
           make
-          make install
+          sudo make install
           cd ..
           sudo apt-get install cython3
           cd rustsynth-sys/vapoursynth
           ./autogen.sh
           ./configure
           make
-          make install
+          sudo make install
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
