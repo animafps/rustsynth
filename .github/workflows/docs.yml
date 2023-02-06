@@ -1,0 +1,40 @@
+name: Build and Release Docs
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: Build and Release Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Run doc
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --verbose
+      - name: Deploy documentation
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: target/doc
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
