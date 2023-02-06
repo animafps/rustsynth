@@ -17,7 +17,7 @@ jobs:
         uses: animafps/install-vapoursynth-action@master
         with:
           version: 61
-          cache: true
+          cache: false
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
