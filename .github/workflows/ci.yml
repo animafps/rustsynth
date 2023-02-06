@@ -13,11 +13,23 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: recursive
-      - name: Install VapourSynth
-        uses: animafps/install-vapoursynth-action@master
-        with:
-          version: 61
-          cache: false
+      - name: Build vapoursynth
+        run: |
+          sudo apt-get update
+          sudo apt-get install g++ make autoconf automake libtool pkg-config nasm git
+          git clone --branch release-3.0.4 --depth 1 https://github.com/sekrit-twc/zimg.git
+          cd zimg   
+          ./autogen.sh
+          ./configure
+          make
+          sudo make install
+          cd ..
+          sudo apt-get install cython3
+          cd rustsynth-sys/vapoursynth
+          ./autogen.sh
+          ./configure
+          make
+          sudo make install
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
