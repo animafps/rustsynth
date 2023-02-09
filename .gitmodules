@@ -1,3 +1,0 @@
-[submodule "rustsynth-sys/vapoursynth"]
-	path = rustsynth-sys/vapoursynth
-	url = https://github.com/vapoursynth/vapoursynth.git
