@@ -3,8 +3,18 @@ use rustsynth_sys as ffi;
 #[cfg(feature = "f16-pixel-type")]
 use half::f16;
 
-const fn make_video_id(color_family: ColorFamily, sample_type: SampleType, bits_per_sample: i32, sub_sampling_w: i32, sub_sampling_h: i32) -> i32 {
-    ((color_family as i32) << 28) | ((sample_type as i32) << 24) | (bits_per_sample << 16) | (sub_sampling_w << 8) | (sub_sampling_h << 0)
+const fn make_video_id(
+    color_family: ColorFamily,
+    sample_type: SampleType,
+    bits_per_sample: i32,
+    sub_sampling_w: i32,
+    sub_sampling_h: i32,
+) -> i32 {
+    ((color_family as i32) << 28)
+        | ((sample_type as i32) << 24)
+        | (bits_per_sample << 16)
+        | (sub_sampling_w << 8)
+        | (sub_sampling_h << 0)
 }
 
 // Preset VapourSynth formats.
