@@ -135,8 +135,13 @@ impl<'elem> DerefMut for OwnedMap<'elem> {
 
 impl<'elem> OwnedMap<'elem> {
     /// Creates a new map.
+    ///
+    /// # Panics
+    ///
+    /// If API error
     #[inline]
-    pub fn new(api: API) -> Self {
+    pub fn new() -> Self {
+        let api = API::get().unwrap();
         Self {
             map: unsafe { Map::from_ptr(api.create_map()) },
         }
@@ -209,6 +214,12 @@ fn handle_append_prop_error(error: i32) -> Result<()> {
         Err(Error::WrongValueType)
     } else {
         Ok(())
+    }
+}
+
+impl<'elem> Default for OwnedMap<'elem> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

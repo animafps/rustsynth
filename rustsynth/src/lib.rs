@@ -35,29 +35,23 @@ pub mod prelude {
 
 /// A simple macro to create an owned map
 ///
-/// its syntax is `owned_map!(api, {"key": value}, ... , {"key": value})`
+/// its syntax is `owned_map!({"key": value}, ... , {"key": value})`
 ///
 /// # Example
 ///
 /// ```
-/// use rustsynth::{api::API,owned_map};
-///
-/// let api = API::get().unwrap();
-/// let map = owned_map!(api, {"int": &0});
+/// use rustsynth::{owned_map};
+/// let map = owned_map!({"int": &0});
 /// ```
-///
-/// # Panics
-///
 #[macro_export(local_inner_macros)]
 macro_rules! owned_map {
-    ($api:expr, $({$key:tt:$x:expr }),*) => {
-        {
+    ($({$key:tt:$x:expr }),*) => {
             use rustsynth::map::OwnedMap;
-            let mut temp_map = OwnedMap::new($api);
+
+            let mut temp_map = OwnedMap::new();
             $(
                 temp_map.set($key, $x).unwrap();
             )*
             temp_map
-        }
     };
 }

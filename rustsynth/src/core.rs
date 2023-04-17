@@ -1,7 +1,18 @@
 use crate::{api::API, plugin::Plugin};
+use bitflags::bitflags;
 use core::fmt;
 use rustsynth_sys as ffi;
 use std::{ffi::CStr, marker::PhantomData, ptr::NonNull};
+
+bitflags! {
+    pub struct CoreCreationFlags: u32 {
+        const NONE = 0b00000000;
+        const ENABLE_GRAPH_INSPECTION = 0b00000001;
+        const DISABLE_AUTO_LOADING = 0b00000010;
+        const DISABLE_LIBRARY_UNLOADING = 0b00000100;
+    }
+}
+
 /// A reference to a VapourSynth core.
 #[derive(Debug, Clone, Copy)]
 pub struct CoreRef<'core> {
@@ -13,6 +24,27 @@ unsafe impl<'core> Send for CoreRef<'core> {}
 unsafe impl<'core> Sync for CoreRef<'core> {}
 
 impl<'core> CoreRef<'core> {
+    /// Creates and returns a new core.
+    ///
+    /// Note that there's currently no safe way of freeing the returned core, and the lifetime is
+    /// unbounded, because it can live for an arbitrary long time. You may use the (unsafe)
+    /// `rustsynth_sys::VSAPI::freeCore()` after ensuring that all frame requests have completed
+    /// and all objects belonging to the core have been released.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rustsynth::core::{CoreFlags, CoreRef};
+    /// let core = CoreRef::new(CoreFlags::ENABLE_GRAPH_INSPECTION | CoreFlags::DISABLE_AUTO_LOADING)
+    /// ```
+    #[inline]
+    pub fn new(&self, flags: CoreCreationFlags) -> CoreRef<'core> {
+        let api = API::get().unwrap();
+        unsafe {
+            let handle = api.create_core(flags.bits() as i32);
+            CoreRef::from_ptr(handle)
+        }
+    }
     /// Wraps `handle` in a `CoreRef`.
     ///
     /// # Safety
