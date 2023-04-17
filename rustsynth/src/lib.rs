@@ -9,6 +9,7 @@
 
 pub extern crate rustsynth_sys;
 
+use api::API;
 pub use rustsynth_sys as ffi;
 
 pub mod api;
@@ -26,11 +27,14 @@ pub mod prelude {
     //! The VapourSynth prelude.
     //!
     //! Contains the types you most likely want to import anyway.
-    pub use super::api::API;
     pub use super::map::Map;
 
     #[cfg(feature = "vsscript-functions")]
     pub use super::vsscript::Environment;
+}
+
+pub fn api_version() -> i32 {
+    API::get().unwrap().version()
 }
 
 /// A simple macro to create an owned map
@@ -40,7 +44,7 @@ pub mod prelude {
 /// # Example
 ///
 /// ```
-/// use rustsynth::{owned_map};
+/// use rustsynth::owned_map;
 /// let map = owned_map!({"int": &0});
 /// ```
 #[macro_export(local_inner_macros)]
@@ -55,3 +59,9 @@ macro_rules! owned_map {
             temp_map
     };
 }
+
+// Dev notes
+//
+// There is one API so if something is created or executed through the API then can get it once then use cached version everytime afterwards
+// so things that are at the front: Core, Ownedmaps
+//

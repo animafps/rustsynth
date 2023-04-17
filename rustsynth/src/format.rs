@@ -14,7 +14,7 @@ const fn make_video_id(
         | ((sample_type as i32) << 24)
         | (bits_per_sample << 16)
         | (sub_sampling_w << 8)
-        | (sub_sampling_h << 0)
+        | sub_sampling_h
 }
 
 // Preset VapourSynth formats.

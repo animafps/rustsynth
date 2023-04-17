@@ -66,7 +66,7 @@ impl<'core> Function<'core> {
     #[inline]
     pub fn new<F>(core: CoreRef<'core>, callback: F) -> Self
     where
-        F: Fn(API, CoreRef<'core>, &Map<'core>, &mut Map<'core>) + Send + Sync + 'core,
+        F: Fn(CoreRef<'core>, &Map<'core>, &mut Map<'core>) + Send + Sync + 'core,
     {
         unsafe extern "C" fn c_callback<'core, F>(
             in_: *const ffi::VSMap,
@@ -75,16 +75,15 @@ impl<'core> Function<'core> {
             core: *mut ffi::VSCore,
             _vsapi: *const ffi::VSAPI,
         ) where
-            F: Fn(API, CoreRef<'core>, &Map<'core>, &mut Map<'core>) + Send + Sync + 'core,
+            F: Fn(CoreRef<'core>, &Map<'core>, &mut Map<'core>) + Send + Sync + 'core,
         {
             let closure = move || {
-                let api = API::get_cached();
                 let core = CoreRef::from_ptr(core);
                 let in_ = MapRef::from_ptr(in_);
                 let mut out = MapRefMut::from_ptr(out);
                 let callback = Box::from_raw(user_data as *mut F);
 
-                callback(api, core, &in_, &mut out);
+                callback(core, &in_, &mut out);
 
                 mem::forget(callback);
             };

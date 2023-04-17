@@ -62,9 +62,9 @@ impl Environment {
     /// Useful if it is necessary to set some variable in the script environment before evaluating
     /// any scripts.
     pub fn new(core: &CoreRef) -> Result<Self> {
-        ScriptAPI::get();
+        let api = ScriptAPI::get().unwrap();
 
-        let handle = unsafe { ScriptAPI::get_cached().create_script(core.ptr()) };
+        let handle = unsafe { api.create_script(core.ptr()) };
         let environment = Self {
             handle: unsafe { NonNull::new_unchecked(handle) },
         };

@@ -17,7 +17,7 @@ use std::mem::MaybeUninit;
 ///
 ///
 #[derive(Debug, Clone, Copy)]
-pub struct API {
+pub(crate) struct API {
     // Note that this is *const, not *mut.
     handle: NonNull<ffi::VSAPI>,
 }
@@ -65,7 +65,7 @@ impl API {
     /// Returns `None` on error
     #[cfg(all(feature = "vapoursynth-functions"))]
     #[inline]
-    pub fn get() -> Option<Self> {
+    pub(crate) fn get() -> Option<Self> {
         // Check if we already have the API.
         let handle = RAW_API.load(Ordering::Relaxed);
 
@@ -178,7 +178,7 @@ impl API {
         }
     }
 
-    pub fn version(&self) -> i32 {
+    pub(crate) fn version(&self) -> i32 {
         unsafe { self.handle.as_ref().getAPIVersion.unwrap()() }
     }
 
