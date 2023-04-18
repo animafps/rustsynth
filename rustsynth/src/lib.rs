@@ -64,7 +64,7 @@ macro_rules! owned_map {
 
 /// A trait for a struct that can make a `map::OwnedMap`
 pub trait OwnedMap {
-    fn to_map(&self) -> map::OwnedMap;
+    fn to_map<'elem>(self) -> map::OwnedMap<'elem>;
 }
 
 // Dev notes
