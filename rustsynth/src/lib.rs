@@ -49,7 +49,8 @@ pub fn api_version() -> i32 {
 /// ```
 #[macro_export(local_inner_macros)]
 macro_rules! owned_map {
-    ($({$key:tt:$x:expr }),*) => {
+    ($({$key:literal: $x:expr }),*) => {
+        {
             use rustsynth::map::OwnedMap;
 
             let mut temp_map = OwnedMap::new();
@@ -57,6 +58,7 @@ macro_rules! owned_map {
                 temp_map.set($key, $x).unwrap();
             )*
             temp_map
+        }
     };
 }
 
