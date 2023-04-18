@@ -8,11 +8,9 @@
 //! [vapoursynth-rs]: https://github.com/YaLTeR/vapoursynth-rs
 
 pub extern crate rustsynth_sys;
-
-use api::API;
 pub use rustsynth_sys as ffi;
 
-pub mod api;
+mod api;
 pub mod core;
 pub mod format;
 pub mod frame;
@@ -34,7 +32,7 @@ pub mod prelude {
 }
 
 pub fn api_version() -> i32 {
-    API::get().unwrap().version()
+    api::API::get().unwrap().version()
 }
 
 /// A simple macro to create an owned map

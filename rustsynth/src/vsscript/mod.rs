@@ -11,7 +11,7 @@ use std::{
 ///
 ///
 #[derive(Debug, Clone, Copy)]
-pub struct ScriptAPI {
+pub(crate) struct ScriptAPI {
     handle: NonNull<ffi::VSSCRIPTAPI>,
 }
 
@@ -27,7 +27,7 @@ impl ScriptAPI {
     /// Returns `None` on error
     // If we're linking to VSScript anyway, use the VSScript function.
     #[inline]
-    pub fn get() -> Option<Self> {
+    pub(crate) fn get() -> Option<Self> {
         // Check if we already have the API.
         let handle = RAW_SCRIPTAPI.load(Ordering::Relaxed);
 
