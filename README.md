@@ -32,6 +32,16 @@ Low level VapourSynth bindings to Rust
 
 see [rustsynth-sys/README.md](./rustsynth-sys/README.md) for more details
 
+## rustsynth-derive
+
+[![crates.io](https://img.shields.io/crates/v/rustsynth-derive.svg)](https://crates.io/crates/rustsynth-derive)
+
+Procedual macro helpers for rustsynth
+
+[Documentation](https://docs.rs/rustsynth-derive)
+
+see [rustsynth-derive/README.md](./rustsynth-derive/README.md) for more details
+
 ## License
 
 This repository and associated libraries are licensed under LGPL-2.1 see [LICENSE](./LICENSE) for details

@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "rustsynth",
-    "rustsynth-sys"
+    "rustsynth-sys",
+    "rustsynth-derive"
 ]

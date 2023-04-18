@@ -199,8 +199,17 @@ version = "0.3.0"
 dependencies = [
  "bitflags",
  "half",
+ "rustsynth-derive",
  "rustsynth-sys",
  "thiserror",
+]
+
+[[package]]
+name = "rustsynth-derive"
+version = "0.3.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]

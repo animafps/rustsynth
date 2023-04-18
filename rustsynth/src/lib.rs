@@ -9,6 +9,8 @@
 
 pub extern crate rustsynth_sys;
 pub use rustsynth_sys as ffi;
+pub extern crate rustsynth_derive;
+pub use rustsynth_derive::OwnedMap as OwnedMap;
 
 mod api;
 pub mod core;
@@ -58,6 +60,11 @@ macro_rules! owned_map {
             temp_map
         }
     };
+}
+
+/// A trait for a struct that can make a `map::OwnedMap`
+pub trait OwnedMap {
+    fn to_map(&self) -> map::OwnedMap;
 }
 
 // Dev notes
