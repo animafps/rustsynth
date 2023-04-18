@@ -2,7 +2,6 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{self, Ident};
 
-
 /// A consuming procedual macro to provide a method to turn a struct to a OwnedMap
 #[proc_macro_derive(OwnedMap)]
 pub fn owned_map_derive(input: TokenStream) -> TokenStream {
@@ -17,13 +16,13 @@ pub fn owned_map_derive(input: TokenStream) -> TokenStream {
 fn impl_map_macro(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
     let fields: Vec<Ident> = match &ast.data {
-        syn::Data::Struct(ds) => {
-            match &ds.fields {
-                syn::Fields::Named(named) => {
-                    named.named.iter().map(|x| x.ident.clone().unwrap()).collect()
-                },
-                _ => unreachable!()
-            }
+        syn::Data::Struct(ds) => match &ds.fields {
+            syn::Fields::Named(named) => named
+                .named
+                .iter()
+                .map(|x| x.ident.clone().unwrap())
+                .collect(),
+            _ => unreachable!(),
         },
         _ => unreachable!(),
     };

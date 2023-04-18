@@ -10,7 +10,7 @@
 pub extern crate rustsynth_sys;
 pub use rustsynth_sys as ffi;
 pub extern crate rustsynth_derive;
-pub use rustsynth_derive::OwnedMap as OwnedMap;
+pub use rustsynth_derive::OwnedMap;
 
 mod api;
 pub mod core;
