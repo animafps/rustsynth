@@ -195,7 +195,7 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustsynth"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bitflags",
  "half",
@@ -206,7 +206,7 @@ dependencies = [
 
 [[package]]
 name = "rustsynth-derive"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "quote",
  "syn",
@@ -214,7 +214,7 @@ dependencies = [
 
 [[package]]
 name = "rustsynth-sys"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bindgen",
 ]
