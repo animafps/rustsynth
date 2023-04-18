@@ -38,11 +38,11 @@ impl<'core> CoreRef<'core> {
     /// let core = CoreRef::new(CoreFlags::ENABLE_GRAPH_INSPECTION | CoreFlags::DISABLE_AUTO_LOADING)
     /// ```
     #[inline]
-    pub fn new(&self, flags: CoreCreationFlags) -> CoreRef<'core> {
+    pub fn new(flags: CoreCreationFlags) -> Self {
         let api = API::get().unwrap();
         unsafe {
             let handle = api.create_core(flags.bits() as i32);
-            CoreRef::from_ptr(handle)
+            Self::from_ptr(handle)
         }
     }
     /// Wraps `handle` in a `CoreRef`.
