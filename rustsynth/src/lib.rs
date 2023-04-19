@@ -9,8 +9,6 @@
 
 pub extern crate rustsynth_sys;
 pub use rustsynth_sys as ffi;
-pub extern crate rustsynth_derive;
-pub use rustsynth_derive::OwnedMap;
 
 mod api;
 pub mod core;
@@ -51,9 +49,7 @@ pub fn api_version() -> i32 {
 macro_rules! owned_map {
     ($({$key:literal: $x:expr }),*) => {
         {
-            use rustsynth::map::OwnedMap;
-
-            let mut temp_map = OwnedMap::new();
+            let mut temp_map = $crate::map::OwnedMap::new();
             $(
                 temp_map.set($key, $x).unwrap();
             )*
@@ -62,7 +58,7 @@ macro_rules! owned_map {
     };
 }
 
-/// A trait for a struct that can make a `map::OwnedMap`
+/// A trait to provide a method to consume a struct and output an `map::OwnedMap`
 pub trait OwnedMap {
     fn to_map<'elem>(self) -> map::OwnedMap<'elem>;
 }

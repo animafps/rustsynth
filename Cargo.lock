@@ -199,7 +199,6 @@ version = "0.4.0"
 dependencies = [
  "bitflags",
  "half",
- "rustsynth-derive",
  "rustsynth-sys",
  "thiserror",
 ]
@@ -208,7 +207,9 @@ dependencies = [
 name = "rustsynth-derive"
 version = "0.4.0"
 dependencies = [
+ "proc-macro2",
  "quote",
+ "rustsynth",
  "syn",
 ]
 
