@@ -43,12 +43,12 @@ fn impl_map_macro(ast: &syn::DeriveInput) -> TokenStream {
 }
 
 /// Initilizes the autoloaded plugins
-/// 
-/// # Example 
-/// 
+///
+/// # Example
+///
 /// ```
 /// init_plugins!();
-/// 
+///
 /// let clip = Plugins::ffms2::Source(&mycore, "./demo.mp4".to_owned()).get_node("clip").unwrap();
 /// ```
 #[proc_macro]
@@ -107,26 +107,27 @@ pub fn init_plugins(_input: TokenStream) -> TokenStream {
 }
 
 fn parse_arguments(input: &Vec<Vec<&str>>) -> Vec<proc_macro2::TokenStream> {
-    input.iter().filter(|x| {
-        x.len() == 2
-    }).map(|x| {
+    input
+        .iter()
+        .filter(|x| x.len() == 2)
+        .map(|x| {
             let x0 = Ident::new(x[0], Span::call_site());
             match x[1] {
                 "vnode" => {
                     quote! {
                         #x0: rustsynth::node::Node<'core>
                     }
-                },
+                }
                 "int" => {
                     quote! {
                         #x0: i64
                     }
-                },
+                }
                 "data" => {
                     quote! {
                         #x0: String
                     }
-                },
+                }
                 //y => {
                 //    quote! {
                 //        #x0: #y
@@ -137,6 +138,7 @@ fn parse_arguments(input: &Vec<Vec<&str>>) -> Vec<proc_macro2::TokenStream> {
                         #x0: i64
                     }
                 }
-        } 
-    }).collect()
+            }
+        })
+        .collect()
 }
