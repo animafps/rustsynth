@@ -21,14 +21,6 @@ pub mod plugin;
 #[cfg(feature = "vsscript-functions")]
 pub mod vsscript;
 
-#[cfg(feature = "macros")]
-#[allow(unused_imprts)]
-#[macro_use]
-extern crate rustsynth_derive;
-#[cfg(feature = "macros")]
-#[doc(hidden)]
-pub use rustsynth_derive::*;
-
 pub mod prelude {
     //! The VapourSynth prelude.
     //!

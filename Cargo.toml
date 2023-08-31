@@ -1,6 +1,2 @@
 [workspace]
-members = [
-    "rustsynth",
-    "rustsynth-sys",
-    "rustsynth-derive"
-]
+members = ["rustsynth", "rustsynth-sys", "rustsynth-derive"]
