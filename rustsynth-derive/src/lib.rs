@@ -61,7 +61,7 @@ pub fn init_plugins(_input: TokenStream) -> TokenStream {
             let func_vec: Vec<proc_macro2::TokenStream> = x
                 .functions()
                 .map(|y| {
-                    let name = Ident::new(y.name.unwrap(), Span::call_site());
+                    let name = syn::parse_str::<Ident>(y.name.unwrap()).unwrap_or_else(|_| syn::parse_str::<Ident>(&(y.name.unwrap().to_owned() + "_")).expect("error"));
 
                     let args = y
                         .arguments
@@ -72,7 +72,9 @@ pub fn init_plugins(_input: TokenStream) -> TokenStream {
                         .collect();
                     let args_vec = parse_arguments(&args_split);
                     let arg_names: Vec<Ident> = args_split.iter().filter(|x| x.len() == 2).map(|x| {
-                        Ident::new(x[0], Span::call_site())
+                        syn::parse_str::<Ident>(x[0]).unwrap_or_else(|_| {
+                            syn::parse_str::<Ident>(&(x[0].to_owned() + "_")).expect("error")
+                        })
                     }).collect();
                     quote! {
                         pub fn #name<'core>(core: &'core rustsynth::core::CoreRef<'core>, #(#args_vec),*) -> rustsynth::map::OwnedMap<'core> {
@@ -96,6 +98,7 @@ pub fn init_plugins(_input: TokenStream) -> TokenStream {
         })
         .collect();
     let gen = quote! {
+        #[allow(non_snake_case)]
         pub mod Plugins {
             #(
                 #token_vec
@@ -111,7 +114,9 @@ fn parse_arguments(input: &Vec<Vec<&str>>) -> Vec<proc_macro2::TokenStream> {
         .iter()
         .filter(|x| x.len() == 2)
         .map(|x| {
-            let x0 = Ident::new(x[0], Span::call_site());
+            let x0 = syn::parse_str::<Ident>(x[0]).unwrap_or_else(|_| {
+                syn::parse_str::<Ident>(&(x[0].to_owned() + "_")).expect("error")
+            });
             match x[1] {
                 "vnode" => {
                     quote! {
