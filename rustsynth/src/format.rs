@@ -3,6 +3,11 @@ use rustsynth_sys as ffi;
 #[cfg(feature = "f16-pixel-type")]
 use half::f16;
 
+use crate::api::API;
+
+#[cfg(test)]
+mod tests;
+
 const fn make_video_id(
     color_family: ColorFamily,
     sample_type: SampleType,
@@ -165,6 +170,18 @@ impl VideoFormat {
             num_planes: info.numPlanes,
         }
     }
+
+    pub(crate) fn as_ptr(&self) -> *const ffi::VSVideoFormat {
+        &ffi::VSVideoFormat {
+            colorFamily: self.color_family as i32,
+            sampleType: self.sample_type as i32,
+            bitsPerSample: self.bits_per_sample,
+            bytesPerSample: self.bytes_per_sample,
+            subSamplingW: self.sub_sampling_w,
+            subSamplingH: self.sub_sampling_h,
+            numPlanes: self.num_planes,
+        } as *const ffi::VSVideoFormat
+    }
 }
 
 impl AudioInfo {
@@ -176,6 +193,24 @@ impl AudioInfo {
             num_samples: from.numSamples,
             num_frames: from.numFrames,
         }
+    }
+
+
+    #[allow(unused)]
+    pub(crate) fn as_ptr(&self) -> *const ffi::VSAudioInfo {
+        let info = ffi::VSAudioInfo {
+            format: ffi::VSAudioFormat {
+                sampleType: self.format.sample_type as i32,
+                bitsPerSample: self.format.bits_per_sample,
+                bytesPerSample: self.format.bytes_per_sample,
+                numChannels: self.format.num_channels,
+                channelLayout: self.format.channel_layout,
+            },
+            sampleRate: self.sample_rate,
+            numSamples: self.num_samples,
+            numFrames: self.num_frames,
+        };
+        &info as *const ffi::VSAudioInfo
     }
 }
 
@@ -197,6 +232,20 @@ impl AudioFormat {
             channel_layout: from.channelLayout,
         }
     }
+
+    pub(crate) fn as_ptr(&self) -> *const ffi::VSAudioFormat {
+        &ffi::VSAudioFormat {
+            sampleType: self.sample_type as i32,
+            bitsPerSample: self.bits_per_sample,
+            bytesPerSample: self.bytes_per_sample,
+            numChannels: self.num_channels,
+            channelLayout: self.channel_layout
+        } as *const ffi::VSAudioFormat
+    }
+
+    pub fn get_name(&self) -> Option<String> {
+        unsafe { API::get_cached().get_audio_format_name(self.as_ptr()) }
+    }
 }
 
 impl VideoInfo {
@@ -211,6 +260,28 @@ impl VideoInfo {
             height: from.height,
             num_frames: from.numFrames,
         }
+    }
+
+
+    #[allow(unused)]
+    pub(crate) fn as_ptr(&self) -> *const ffi::VSVideoInfo {
+        let info = ffi::VSVideoInfo {
+            format: ffi::VSVideoFormat {
+                colorFamily: self.format.color_family as i32,
+                sampleType: self.format.sample_type as i32,
+                bitsPerSample: self.format.bits_per_sample,
+                bytesPerSample: self.format.bytes_per_sample,
+                subSamplingW: self.format.sub_sampling_w,
+                subSamplingH: self.format.sub_sampling_h,
+                numPlanes: self.format.num_planes,
+            },
+            fpsNum: self.fps_num,
+            fpsDen: self.fps_den,
+            width: self.width,
+            height: self.height,
+            numFrames: self.num_frames,
+        };
+        &info as *const ffi::VSVideoInfo
     }
 }
 

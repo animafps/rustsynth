@@ -12,6 +12,7 @@ pub use rustsynth_sys as ffi;
 
 mod api;
 pub mod core;
+pub mod filter;
 pub mod format;
 pub mod frame;
 pub mod function;

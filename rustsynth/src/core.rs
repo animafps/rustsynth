@@ -4,6 +4,9 @@ use core::fmt;
 use rustsynth_sys as ffi;
 use std::{ffi::CStr, marker::PhantomData, ptr::NonNull};
 
+#[cfg(test)]
+mod tests;
+
 bitflags! {
     pub struct CoreCreationFlags: u32 {
         const NONE = 0b00000000;
@@ -34,8 +37,8 @@ impl<'core> CoreRef<'core> {
     /// # Example
     ///
     /// ```
-    /// use rustsynth::core::{CoreFlags, CoreRef};
-    /// let core = CoreRef::new(CoreFlags::ENABLE_GRAPH_INSPECTION | CoreFlags::DISABLE_AUTO_LOADING)
+    /// use rustsynth::core::{CoreCreationFlags, CoreRef};
+    /// let core = CoreRef::new(CoreCreationFlags::ENABLE_GRAPH_INSPECTION | CoreCreationFlags::DISABLE_AUTO_LOADING);
     /// ```
     #[inline]
     pub fn new(flags: CoreCreationFlags) -> Self {
@@ -85,16 +88,16 @@ impl<'core> CoreRef<'core> {
         }
     }
 
-    /// Returns an instance of `Some(Plugin)` if there exists a plugin loaded associated with the namespace
+    /// Returns an instance of Some<[Plugin]> if there exists a plugin loaded associated with the namespace
     ///
-    /// None if no plugin is found
+    /// [None] if no plugin is found
     pub fn plugin_by_namespace(&self, namespace: &str) -> Option<Plugin<'core>> {
         unsafe { API::get_cached() }.plugin_by_namespace(namespace, self)
     }
 
-    /// Returns an instance of `Some(Plugin)` if there exists a plugin loaded associated with the id
+    /// Returns an instance of Some<[Plugin]> if there exists a plugin loaded associated with the id
     ///
-    /// None if no plugin is found
+    /// [None] if no plugin is found
     pub fn plugin_by_id(&self, id: &str) -> Option<Plugin<'_>> {
         unsafe { API::get_cached() }.plugin_by_id(id, self)
     }
@@ -104,6 +107,7 @@ impl<'core> CoreRef<'core> {
         unsafe { API::get_cached() }.plugins(self)
     }
 
+    #[inline]
     pub fn set_thread_count(&self, count: usize) -> i32 {
         unsafe { API::get_cached().set_thread_count(self.ptr(), count as i32) }
     }
@@ -132,8 +136,6 @@ pub struct CoreInfo {
 /// An interator over the loaded plugins
 ///
 /// created by [`CoreRef::plugins()`]
-///
-/// [`CoreRef::plugins()`]: crate::core::CoreRef::plugins()
 #[derive(Debug, Clone, Copy)]
 pub struct Plugins<'core> {
     plugin: Option<Plugin<'core>>,
@@ -141,6 +143,7 @@ pub struct Plugins<'core> {
 }
 
 impl<'core> Plugins<'core> {
+    #[inline]
     pub(crate) fn new(core: &'core CoreRef<'core>) -> Self {
         Plugins { plugin: None, core }
     }

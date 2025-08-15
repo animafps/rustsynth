@@ -47,6 +47,10 @@ fn impl_map_macro(ast: &syn::DeriveInput) -> TokenStream {
 /// # Example
 ///
 /// ```
+/// use rustsynth_derive::init_plugins;
+/// use rustsynth::{core::{CoreRef,CoreCreationFlags},plugin::Plugin};
+/// 
+/// let mycore = CoreRef::new(CoreCreationFlags::NONE);
 /// init_plugins!();
 ///
 /// let clip = Plugins::ffms2::Source(&mycore, "./demo.mp4".to_owned()).get_node("clip").unwrap();
@@ -57,7 +61,7 @@ pub fn init_plugins(_input: TokenStream) -> TokenStream {
     let plugins = core.plugins();
     let token_vec: Vec<proc_macro2::TokenStream> = plugins
         .map(|x| {
-            let namespace = Ident::new(x.namespace().unwrap(), Span::call_site());
+            let namespace = Ident::new(&x.namespace().unwrap(), Span::call_site());
             let func_vec: Vec<proc_macro2::TokenStream> = x
                 .functions()
                 .map(|y| {
@@ -120,7 +124,7 @@ fn parse_arguments(input: &Vec<Vec<&str>>) -> Vec<proc_macro2::TokenStream> {
             match x[1] {
                 "vnode" => {
                     quote! {
-                        #x0: rustsynth::node::Node<'core>
+                        #x0: rustsynth::node::Node
                     }
                 }
                 "int" => {

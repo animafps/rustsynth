@@ -166,7 +166,7 @@ impl Environment {
         }
     }
 
-    pub fn get_output(&self, index: usize) -> Option<Node<'_>> {
+    pub fn get_output(&self, index: i32) -> Option<Node> {
         let ptr = unsafe { ScriptAPI::get_cached().get_output(self.handle.as_ptr(), index as i32) };
         if ptr.is_null() {
             None
@@ -175,7 +175,7 @@ impl Environment {
         }
     }
 
-    pub fn get_output_alpha(&self, index: usize) -> Option<Node<'_>> {
+    pub fn get_output_alpha(&self, index: i32) -> Option<Node> {
         let ptr =
             unsafe { ScriptAPI::get_cached().get_output_alpha(self.handle.as_ptr(), index as i32) };
         if ptr.is_null() {
@@ -185,7 +185,11 @@ impl Environment {
         }
     }
 
-    pub fn clear_output(&self, index: usize) -> Result<()> {
-        todo!()
+    pub fn get_alt_output_mode(&self, index: i32) -> i32 {
+        unsafe { ScriptAPI::get_cached().get_alt_output_mode(self.handle.as_ptr(), index as i32) }
+    }
+
+    pub fn eval_set_working_dir(&self, set_cwd: i32) {
+        unsafe { ScriptAPI::get_cached().eval_set_working_dir(self.handle.as_ptr(), set_cwd) };
     }
 }

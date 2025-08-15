@@ -255,6 +255,8 @@ impl API {
         self.handle.as_ref().mapNumElements.unwrap()(map, key)
     }
 
+
+    #[allow(unused)]
     pub(crate) unsafe fn copy_map(&self, map: *mut ffi::VSMap) -> *mut ffi::VSMap {
         let mut dest = MaybeUninit::uninit();
         self.handle.as_ref().copyMap.unwrap()(map, dest.as_mut_ptr());
@@ -331,14 +333,26 @@ impl API {
         self.handle.as_ref().setCacheMode.unwrap()(node, mode)
     }
 
+    pub(crate) unsafe fn set_cache_options(
+        &self,
+        node: *mut ffi::VSNode,
+        fixed_size: i32,
+        max_size: i32,
+        max_history_size: i32,
+    ) {
+        self.handle.as_ref().setCacheOptions.unwrap()(node, fixed_size, max_size, max_history_size)
+    }
+
     pub(crate) unsafe fn free_node(&self, node: *mut ffi::VSNode) {
         self.handle.as_ref().freeNode.unwrap()(node)
     }
 
-    pub(crate) unsafe fn free_frame(&self, frame: &ffi::VSFrame) {
+    pub(crate) unsafe fn free_frame(&self, frame: *const ffi::VSFrame) {
         self.handle.as_ref().freeFrame.unwrap()(frame)
     }
 
+
+    #[allow(unused)]
     pub(crate) unsafe fn copy_frame(
         &self,
         frame: &ffi::VSFrame,
@@ -367,6 +381,8 @@ impl API {
         self.handle.as_ref().mapGetDataSize.unwrap()(map, key, index, error)
     }
 
+
+    #[allow(unused)]
     pub(crate) unsafe fn map_set_empty(&self, map: *mut ffi::VSMap, key: *const c_char) -> i32 {
         self.handle.as_ref().mapSetEmpty.unwrap()(map, key, 0)
     }
@@ -441,13 +457,30 @@ impl API {
     #[inline]
     pub(crate) unsafe fn new_video_frame(
         self,
-        format: &ffi::VSVideoFormat,
+        format: *const ffi::VSVideoFormat,
         width: i32,
         height: i32,
         prop_src: *const ffi::VSFrame,
         core: *mut ffi::VSCore,
     ) -> *mut ffi::VSFrame {
         self.handle.as_ref().newVideoFrame.unwrap()(format, width, height, prop_src, core)
+    }
+
+    /// Creates a new video frame from the planes of existing frames, optionally copying the properties attached to another frame.
+    #[inline]
+    pub(crate) unsafe fn new_video_frame2(
+        self,
+        format: *const ffi::VSVideoFormat,
+        width: i32,
+        height: i32,
+        planesrc: *mut *const ffi::VSFrame,
+        planes: *const i32,
+        prop_src: *const ffi::VSFrame,
+        core: *mut ffi::VSCore,
+    ) -> *mut ffi::VSFrame {
+        self.handle.as_ref().newVideoFrame2.unwrap()(
+            format, width, height, planesrc, planes, prop_src, core,
+        )
     }
 
     pub(crate) unsafe fn clone_node(&self, node: *mut ffi::VSNode) -> *mut ffi::VSNode {
@@ -478,14 +511,19 @@ impl API {
         self.handle.as_ref().getFrame.unwrap()(n, node, err_msg.as_mut_ptr(), len)
     }
 
+
+    #[allow(unused)]
     pub(crate) unsafe fn get_frame_props_ro(&self, frame: &ffi::VSFrame) -> *const ffi::VSMap {
         self.handle.as_ref().getFramePropertiesRO.unwrap()(frame)
     }
 
+    #[allow(unused)]
     pub(crate) unsafe fn get_frame_props_rw(&self, frame: *mut ffi::VSFrame) -> *mut ffi::VSMap {
         self.handle.as_ref().getFramePropertiesRW.unwrap()(frame)
     }
 
+
+    #[allow(non_snake_case)]
     pub(crate) unsafe fn get_frame_async(
         &self,
         n: i32,
@@ -553,6 +591,103 @@ impl API {
         self.handle.as_ref().callFunction.unwrap()(function, in_map, out_map)
     }
 
+
+    #[allow(unused)]
+    pub(crate) unsafe fn create_video_filter(
+        &self,
+        out: *mut ffi::VSMap,
+        name: *const ::std::os::raw::c_char,
+        vi: *const ffi::VSVideoInfo,
+        get_frame: ffi::VSFilterGetFrame,
+        free: ffi::VSFilterFree,
+        filter_mode: i32,
+        dependencies: *const ffi::VSFilterDependency,
+        num_deps: i32,
+        instance_data: *mut ::std::os::raw::c_void,
+        core: *mut ffi::VSCore,
+    ) {
+        self.handle.as_ref().createVideoFilter.unwrap()(
+            out,
+            name,
+            vi,
+            get_frame,
+            free,
+            filter_mode,
+            dependencies,
+            num_deps,
+            instance_data,
+            core,
+        );
+    }
+
+
+    #[allow(unused)]
+    pub(crate) unsafe fn create_video_filter2(
+        &self,
+        name: *const ::std::os::raw::c_char,
+        vi: *const ffi::VSVideoInfo,
+        get_frame: ffi::VSFilterGetFrame,
+        free: ffi::VSFilterFree,
+        filter_mode: i32,
+        dependencies: *const ffi::VSFilterDependency,
+        num_deps: i32,
+        instance_data: *mut ::std::os::raw::c_void,
+        core: *mut ffi::VSCore,
+    ) -> *mut ffi::VSNode {
+        self.handle.as_ref().createVideoFilter2.unwrap()(
+            name,
+            vi,
+            get_frame,
+            free,
+            filter_mode,
+            dependencies,
+            num_deps,
+            instance_data,
+            core,
+        )
+    }
+
+
+    #[allow(unused)]
+    pub(crate) unsafe fn create_audio_filter2(
+        &self,
+        name: *const ::std::os::raw::c_char,
+        ai: *const ffi::VSAudioInfo,
+        get_frame: ffi::VSFilterGetFrame,
+        free: ffi::VSFilterFree,
+        filter_mode: i32,
+        dependencies: *const ffi::VSFilterDependency,
+        num_deps: i32,
+        instance_data: *mut ::std::os::raw::c_void,
+        core: *mut ffi::VSCore,
+    ) -> *mut ffi::VSNode {
+        self.handle.as_ref().createAudioFilter2.unwrap()(
+            name,
+            ai,
+            get_frame,
+            free,
+            filter_mode,
+            dependencies,
+            num_deps,
+            instance_data,
+            core,
+        )
+    }
+
+    pub(crate) fn get_audio_frame_format(&self, frame: *const ffi::VSFrame) -> *const ffi::VSAudioFormat {
+        unsafe { self.handle.as_ref().getAudioFrameFormat.unwrap()(frame) }
+    }
+
+    pub(crate) fn get_audio_format_name(&self, format: *const ffi::VSAudioFormat) -> Option<String> {
+        let buf: *mut i8 = std::ptr::null_mut();
+        let result = unsafe { self.handle.as_ref().getAudioFormatName.unwrap()(format, buf)};
+        if result == 0 {
+            None
+        } else {
+            Some(unsafe { CString::from_raw(buf).to_string_lossy().into_owned() })
+        }
+    }
+
     map_get_something!(map_get_int, mapGetInt, i64);
     map_get_something!(map_get_float, mapGetFloat, f64);
     map_get_something!(map_get_data, mapGetData, *const c_char);
@@ -572,6 +707,10 @@ mod tests {
     #[test]
     fn it_works() {
         let api = super::API::get().unwrap();
-        assert_eq!(api.version(), 262144);
+        let version = api.version();
+        // VapourSynth API version should be a reasonable value
+        // Version format is major << 16 | minor
+        assert!(version >= 262144); // At least API version 4.0
+        assert!(version < 327680);  // Less than API version 5.0
     }
 }

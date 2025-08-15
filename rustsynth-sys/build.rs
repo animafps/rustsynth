@@ -51,6 +51,16 @@ fn main() {
         // https://github.com/rust-lang/rust-bindgen/issues/550
         .blocklist_type("max_align_t")
         .blocklist_function("_.*")
+        // Block duplicate floating-point classification constants
+        .blocklist_item("FP_NAN")
+        .blocklist_item("FP_INFINITE")
+        .blocklist_item("FP_ZERO")
+        .blocklist_item("FP_SUBNORMAL")
+        .blocklist_item("FP_NORMAL")
+        // Block long double math functions that use u128 (not FFI-safe)
+        .blocklist_function("nexttoward.*")
+        .blocklist_function(".*l$") // Functions ending in 'l' (long double variants)
+        .blocklist_type(".*128.*") // Any types containing 128
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
@@ -77,7 +87,7 @@ fn main() {
         .bitfield_enum("VSCoreCreationFlags")
         .bitfield_enum("VSPluginConfigFlags")
         .prepend_enum_name(false)
-        .derive_eq(true)
+        .derive_eq(false)
         .size_t_is_usize(true)
         // Finish the builder and generate the bindings.
         .generate()

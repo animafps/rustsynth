@@ -33,7 +33,7 @@ impl ScriptAPI {
 
         let handle = if handle.is_null() {
             // Attempt retrieving it otherwise.
-            let handle = unsafe { ffi::getVSScriptAPI(ffi::VSSCRIPT_API_MAJOR.try_into().unwrap()) }
+            let handle = unsafe { ffi::getVSScriptAPI(ffi::VSSCRIPT_API_VERSION) }
                 as *mut ffi::VSSCRIPTAPI;
 
             if !handle.is_null() {
@@ -63,6 +63,10 @@ impl ScriptAPI {
         Self {
             handle: NonNull::new_unchecked(RAW_SCRIPTAPI.load(Ordering::Relaxed)),
         }
+    }
+
+    pub(crate) fn get_api_version(&self) -> i32 {
+        unsafe { self.handle.as_ref().getAPIVersion.unwrap()() }
     }
 
     pub(crate) unsafe fn free_script(&self, script: *mut ffi::VSScript) {
@@ -117,6 +121,14 @@ impl ScriptAPI {
     ) -> *mut ffi::VSNode {
         self.handle.as_ref().getOutputAlphaNode.unwrap()(script, index)
     }
+
+    pub(crate) unsafe fn get_alt_output_mode(&self, script: *mut ffi::VSScript, index: i32) -> i32 {
+        self.handle.as_ref().getAltOutputMode.unwrap()(script,index)
+    }
+
+    pub(crate) unsafe fn eval_set_working_dir(&self, script: *mut ffi::VSScript, set_cwd: i32) {
+        self.handle.as_ref().evalSetWorkingDir.unwrap()(script, set_cwd)
+    }
 }
 
 mod errors;
@@ -124,3 +136,5 @@ pub use self::errors::{Error, VSScriptError};
 
 mod environment;
 pub use self::environment::Environment;
+
+pub mod tests;

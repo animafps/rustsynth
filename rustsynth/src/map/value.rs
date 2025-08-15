@@ -104,7 +104,7 @@ impl<'map, 'elem: 'map> ValueNotArray<'map, 'elem> for Data<'elem> {
     }
 }
 
-impl<'map, 'elem: 'map> Value<'map, 'elem> for Node<'elem> {
+impl<'map, 'elem: 'map> Value<'map, 'elem> for Node {
     #[inline]
     fn get_from_map(map: &Map<'elem>, key: &str) -> Result<Self> {
         map.get_node(key)
@@ -116,7 +116,7 @@ impl<'map, 'elem: 'map> Value<'map, 'elem> for Node<'elem> {
     }
 }
 
-impl<'map, 'elem: 'map> ValueNotArray<'map, 'elem> for Node<'elem> {
+impl<'map, 'elem: 'map> ValueNotArray<'map, 'elem> for Node {
     #[inline]
     fn get_iter_from_map(map: &'map Map<'elem>, key: &str) -> Result<ValueIter<'map, 'elem, Self>> {
         map.get_node_iter(key)
