@@ -65,6 +65,7 @@ impl ScriptAPI {
         }
     }
 
+    #[allow(unused)]
     pub(crate) fn get_api_version(&self) -> i32 {
         unsafe { self.handle.as_ref().getAPIVersion.unwrap()() }
     }

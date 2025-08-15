@@ -98,7 +98,7 @@ impl FilterMode {
 
 /// A filter’s “getframe” function. It is called by the core when it needs the filter to generate a frame.
 /// It is possible to allocate local data, persistent during the multiple calls requesting the output frame.
-/// In case of error, call [setFilterError] and return [None].
+/// In case of error, call setFilterError and return [None].
 /// Depending on the [FilterMode] set for the filter, multiple output frames could be requested concurrently.
 /// It is never called concurrently for the same frame number.
 /// 
