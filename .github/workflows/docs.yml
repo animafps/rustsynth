@@ -22,17 +22,15 @@ jobs:
         with:
           submodules: recursive
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
           override: true
       - name: Run doc
-        uses: actions-rs/cargo@v1
-        with:
-          command: doc
-          args: --verbose
+        run: |
+          cargo doc --workspace --no-deps
       - name: Deploy documentation
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: target/doc
       - name: Deploy to GitHub Pages
