@@ -32,8 +32,8 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Ensure libclang
         run: |
-          apt update
-          apt install --yes libclang-dev
+          sudo apt update
+          sudo apt install --yes libclang-dev
       - name: Run doc
         run: |
           cargo doc --workspace --no-deps
