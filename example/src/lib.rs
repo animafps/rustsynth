@@ -1,9 +1,6 @@
 use rustsynth::{
     core::CoreRef,
-    filter::{
-        traits::{Filter},
-        FilterDependency, FilterMode, RequestPattern,
-    },
+    filter::{traits::Filter, FilterDependency, FilterMode, RequestPattern},
     frame::{Frame, FrameContext},
     map::Map,
     node::Node,
@@ -17,7 +14,7 @@ mod plugin {
     const NAMESPACE: &'static str = "example";
     const ID: &'static str = "com.example.invert";
     const NAME: &'static str = "Example Plugin";
-    const PLUGIN_VER: i32 = MakeVersion!(1,0);
+    const PLUGIN_VER: i32 = MakeVersion!(1, 0);
     const API_VER: i32 = ffi::VAPOURSYNTH_API_VERSION;
     const FLAGS: i32 = PluginConfigFlags::NONE.bits();
 
@@ -56,7 +53,7 @@ mod plugin {
             n: i32,
             _frame_data: &[u8; 4],
             frame_ctx: FrameContext,
-            core: CoreRef<'core>,
+            _core: CoreRef<'core>,
         ) -> Result<Frame<'core>, String> {
             let src = self.input_node.get_frame_filter(n, &frame_ctx).unwrap();
             // simple pass through

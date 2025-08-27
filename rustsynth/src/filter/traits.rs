@@ -1,7 +1,11 @@
 use crate::{
-    core::CoreRef, ffi, filter::{FilterDependency, FilterMode}, format::VideoInfo, frame::{Frame, FrameContext}, map::Map
+    core::CoreRef,
+    ffi,
+    filter::{FilterDependency, FilterMode},
+    format::VideoInfo,
+    frame::{Frame, FrameContext},
+    map::Map,
 };
-
 
 pub enum FilterType {
     Video,

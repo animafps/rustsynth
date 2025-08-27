@@ -21,7 +21,7 @@ pub mod node;
 pub mod plugin;
 #[cfg(feature = "vsscript-functions")]
 pub mod vsscript;
-pub use api::init_api as init_api;
+pub use api::init_api;
 
 pub mod prelude {
     //! The VapourSynth prelude.

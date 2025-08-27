@@ -270,7 +270,7 @@ impl Node {
         async move { receiver.await.unwrap() }
     }
 
-    /// Request a frame from a node (used in filter's get_frame function)
+    /// Request a frame from a node (used in filter's request_frame function)
     #[inline]
     pub fn request_frame_filter(&self, n: i32, frame_ctx: &FrameContext) {
         unsafe {
@@ -278,7 +278,7 @@ impl Node {
         }
     }
 
-    /// Get a frame from a node (should be called after request_frame)
+    /// Get a frame from a node (used in filter's get_frame function)
     #[inline]
     pub fn get_frame_filter<'core>(
         &self,

@@ -10,9 +10,8 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-
-/// Makes a VS compatible version integer 
-/// 
+/// Makes a VS compatible version integer
+///
 /// # Example
 /// If wanting to represent the version with major 2 and minor 1
 /// ```
