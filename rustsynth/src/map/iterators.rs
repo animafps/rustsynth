@@ -113,12 +113,7 @@ impl_value_iter!(
     get_data_raw_unchecked,
     new_data
 );
-impl_value_iter!(
-    ValueType::Node,
-    Node,
-    get_node_raw_unchecked,
-    new_node
-);
+impl_value_iter!(ValueType::Node, Node, get_node_raw_unchecked, new_node);
 impl_value_iter!(
     ValueType::Frame,
     FrameRef<'elem>,

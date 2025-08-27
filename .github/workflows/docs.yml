@@ -18,9 +18,22 @@ jobs:
     name: Build and Release Docs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Ensure libclang
+        run: |
+          apt update
+          apt install --yes libclang-dev
       - name: Run doc
         run: |
           cargo doc --workspace --no-deps

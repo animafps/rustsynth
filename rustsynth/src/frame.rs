@@ -6,7 +6,47 @@ use crate::{
     api::API,
     core::CoreRef,
     format::{AudioFormat, VideoFormat},
+    map::{MapRef, MapRefMut},
 };
+
+/// Chroma sample position in YUV formats
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChromaLocation {
+    Left = 0,
+    Center = 1,
+    TopLeft = 2,
+    Top = 3,
+    BottomLeft = 4,
+    Bottom = 5,
+}
+
+/// Full or limited range (PC/TV range)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColorRange {
+    Full = 0,
+    Limited = 1,
+}
+
+/// If the frame is composed of two independent fields (interlaced)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FieldBased {
+    Progressive = 0,
+    BottomFieldFirst = 1,
+    TopFieldFirst = 2,
+}
+
+/// Which field was used to generate this frame
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Field {
+    Bottom = 0,
+    Top = 1,
+}
+
+///
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Transfer {
+    Unknown(u32),
+}
 
 // One frame of a clip.
 // This type is intended to be publicly used only in reference form.
@@ -51,16 +91,17 @@ impl<'core> FrameRef<'core> {
             frame: Frame::from_ptr(ptr),
         }
     }
-    
+
     #[inline]
     #[allow(unused)]
-    pub(crate) fn into_ptr(self) -> *const ffi::VSFrame {
+    pub fn into_ptr(self) -> *const ffi::VSFrame {
         let ptr = self.frame.handle.as_ptr();
         std::mem::forget(self); // Don't drop the frame, transfer ownership to C
         ptr
     }
 }
 
+/// Represents a reference to the obscure object
 #[derive(Debug)]
 pub struct FrameContext {
     handle: *mut ffi::VSFrameContext,
@@ -69,10 +110,8 @@ pub struct FrameContext {
 impl FrameContext {
     #[inline]
     #[allow(unused)]
-    pub(crate) fn from_ptr(ptr: *mut ffi::VSFrameContext) -> Self {
-        Self {
-            handle: ptr
-        }
+    pub fn from_ptr(ptr: *mut ffi::VSFrameContext) -> Self {
+        Self { handle: ptr }
     }
 
     #[inline]
@@ -83,7 +122,7 @@ impl FrameContext {
 
 impl<'core> Frame<'core> {
     #[inline]
-    pub(crate) fn from_ptr(ptr: *const ffi::VSFrame) -> Self {
+    pub fn from_ptr(ptr: *const ffi::VSFrame) -> Self {
         Self {
             handle: unsafe { NonNull::new_unchecked(ptr as *mut ffi::VSFrame) },
             _owner: PhantomData,
@@ -91,7 +130,7 @@ impl<'core> Frame<'core> {
     }
 
     #[inline]
-    pub(crate) fn ptr(&self) -> *const ffi::VSFrame {
+    pub fn as_ptr(&self) -> *const ffi::VSFrame {
         self.handle.as_ptr()
     }
 
@@ -131,7 +170,7 @@ impl<'core> Frame<'core> {
     }
 
     pub fn get_audio_format(&self) -> Option<AudioFormat> {
-        let ptr = unsafe { API::get_cached().get_audio_frame_format(self.handle.as_ptr())};
+        let ptr = unsafe { API::get_cached().get_audio_frame_format(self.handle.as_ptr()) };
         if ptr.is_null() {
             None
         } else {
@@ -139,21 +178,20 @@ impl<'core> Frame<'core> {
         }
     }
 
-
     /// Creates a new video frame, optionally copying the properties attached to another frame.
     pub fn new_video_frame(
         core: &CoreRef,
         width: i32,
         height: i32,
         format: &VideoFormat,
-        prop_src: Option<&FrameRef<'_>>,
+        prop_src: Option<&Frame<'_>>,
     ) -> Self {
         let ptr = unsafe {
             API::get_cached().new_video_frame(
                 format.as_ptr(),
                 width,
                 height,
-                prop_src.map_or(std::ptr::null(), |f| f.ptr()),
+                prop_src.map_or(std::ptr::null(), |f| f.as_ptr()),
                 core.ptr(),
             )
         };
@@ -174,14 +212,14 @@ impl<'core> Frame<'core> {
         propsrc: Option<&FrameRef<'_>>,
     ) -> Self {
         let ptr = unsafe {
-            let mut planesrcptr: Vec<_> = planesrc.iter().map(|f| f.ptr()).collect();
+            let mut planesrcptr: Vec<_> = planesrc.iter().map(|f| f.as_ptr()).collect();
             API::get_cached().new_video_frame2(
                 format.as_ptr(),
                 width,
                 height,
                 planesrcptr.as_mut_ptr(),
                 planes.as_ptr(),
-                propsrc.map_or(std::ptr::null(), |f| f.ptr()),
+                propsrc.map_or(std::ptr::null(), |f| f.as_ptr()),
                 core.ptr(),
             )
         };
@@ -202,7 +240,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get mutable access to plane data (only for owned frames)
-    #[inline] 
+    #[inline]
     pub fn get_write_slice(&mut self, plane: i32) -> &mut [u8] {
         let ptr = unsafe { API::get_cached().get_frame_write_ptr(self.handle.as_ptr(), plane) };
         let height = self.get_height(plane);
@@ -214,9 +252,234 @@ impl<'core> Frame<'core> {
     /// Convert owned frame to FrameRef
     #[inline]
     pub fn into_frame_ref(self) -> FrameRef<'core> {
-        let ptr = self.ptr();
+        let ptr = self.as_ptr();
         std::mem::forget(self); // Don't drop the frame, transfer ownership
         FrameRef::from_ptr(ptr)
+    }
+
+    /// Get read-only access to frame properties
+    #[inline]
+    pub fn properties(&self) -> MapRef<'_, 'core> {
+        let map_ptr = unsafe { API::get_cached().get_frame_props_ro(self.handle.as_ref()) };
+        unsafe { MapRef::from_ptr(map_ptr) }
+    }
+
+    /// Get read-write access to frame properties (only for owned frames)
+    #[inline]
+    pub fn properties_mut(&mut self) -> MapRefMut<'_, 'core> {
+        let map_ptr = unsafe { API::get_cached().get_frame_props_rw(self.handle.as_ptr()) };
+        unsafe { MapRefMut::from_ptr(map_ptr) }
+    }
+
+    // Standard frame property getters
+
+    /// Get chroma sample position in YUV formats
+    pub fn chroma_location(&self) -> Option<ChromaLocation> {
+        self.properties()
+            .get_int("_ChromaLocation")
+            .ok()
+            .and_then(|val| match val {
+                0 => Some(ChromaLocation::Left),
+                1 => Some(ChromaLocation::Center),
+                2 => Some(ChromaLocation::TopLeft),
+                3 => Some(ChromaLocation::Top),
+                4 => Some(ChromaLocation::BottomLeft),
+                5 => Some(ChromaLocation::Bottom),
+                _ => None,
+            })
+    }
+
+    /// Get color range (full or limited)
+    pub fn color_range(&self) -> Option<ColorRange> {
+        self.properties()
+            .get_int("_ColorRange")
+            .ok()
+            .and_then(|val| match val {
+                0 => Some(ColorRange::Full),
+                1 => Some(ColorRange::Limited),
+                _ => None,
+            })
+    }
+
+    /// Get color primaries as specified in ITU-T H.273 Table 2
+    pub fn primaries(&self) -> Option<i64> {
+        self.properties().get_int("_Primaries").ok()
+    }
+
+    /// Get matrix coefficients as specified in ITU-T H.273 Table 4
+    pub fn matrix(&self) -> Option<i64> {
+        self.properties().get_int("_Matrix").ok()
+    }
+
+    /// Get transfer characteristics as specified in ITU-T H.273 Table 3
+    pub fn transfer(&self) -> Option<i64> {
+        self.properties().get_int("_Transfer").ok()
+    }
+
+    /// Get field based information (interlaced)
+    pub fn field_based(&self) -> Option<FieldBased> {
+        self.properties()
+            .get_int("_FieldBased")
+            .ok()
+            .and_then(|val| match val {
+                0 => Some(FieldBased::Progressive),
+                1 => Some(FieldBased::BottomFieldFirst),
+                2 => Some(FieldBased::TopFieldFirst),
+                _ => None,
+            })
+    }
+
+    /// Get absolute timestamp in seconds
+    pub fn absolute_time(&self) -> Option<f64> {
+        self.properties().get_float("_AbsoluteTime").ok()
+    }
+
+    /// Get frame duration as a rational number (numerator, denominator)
+    pub fn duration(&self) -> Option<(i64, i64)> {
+        let num = self.properties().get_int("_DurationNum").ok()?;
+        let den = self.properties().get_int("_DurationDen").ok()?;
+        Some((num, den))
+    }
+
+    /// Get whether the frame needs postprocessing
+    pub fn combed(&self) -> Option<bool> {
+        self.properties()
+            .get_int("_Combed")
+            .ok()
+            .map(|val| val != 0)
+    }
+
+    /// Get which field was used to generate this frame
+    pub fn field(&self) -> Option<Field> {
+        self.properties()
+            .get_int("_Field")
+            .ok()
+            .and_then(|val| match val {
+                0 => Some(Field::Bottom),
+                1 => Some(Field::Top),
+                _ => None,
+            })
+    }
+
+    /// Get picture type (single character describing frame type)
+    pub fn picture_type(&self) -> Option<String> {
+        self.properties().get_string("_PictType").ok()
+    }
+
+    /// Get pixel (sample) aspect ratio as a rational number (numerator, denominator)
+    pub fn sample_aspect_ratio(&self) -> Option<(i64, i64)> {
+        let num = self.properties().get_int("_SARNum").ok()?;
+        let den = self.properties().get_int("_SARDen").ok()?;
+        Some((num, den))
+    }
+
+    /// Get whether this frame is the last frame of the current scene
+    pub fn scene_change_next(&self) -> Option<bool> {
+        self.properties()
+            .get_int("_SceneChangeNext")
+            .ok()
+            .map(|val| val != 0)
+    }
+
+    /// Get whether this frame starts a new scene
+    pub fn scene_change_prev(&self) -> Option<bool> {
+        self.properties()
+            .get_int("_SceneChangePrev")
+            .ok()
+            .map(|val| val != 0)
+    }
+
+    /// Get alpha channel frame attached to this frame
+    pub fn alpha(&self) -> Option<FrameRef<'core>> {
+        self.properties().get_frame("_Alpha").ok()
+    }
+
+    // Standard frame property setters (for owned frames only)
+
+    /// Set chroma sample position in YUV formats
+    pub fn set_chroma_location(
+        &mut self,
+        location: ChromaLocation,
+    ) -> Result<(), crate::map::Error> {
+        self.properties_mut()
+            .set_int("_ChromaLocation", location as i64)
+    }
+
+    /// Set color range (full or limited)
+    pub fn set_color_range(&mut self, range: ColorRange) -> Result<(), crate::map::Error> {
+        self.properties_mut().set_int("_ColorRange", range as i64)
+    }
+
+    /// Set color primaries as specified in ITU-T H.273 Table 2
+    pub fn set_primaries(&mut self, primaries: i64) -> Result<(), crate::map::Error> {
+        self.properties_mut().set_int("_Primaries", primaries)
+    }
+
+    /// Set matrix coefficients as specified in ITU-T H.273 Table 4
+    pub fn set_matrix(&mut self, matrix: i64) -> Result<(), crate::map::Error> {
+        self.properties_mut().set_int("_Matrix", matrix)
+    }
+
+    /// Set transfer characteristics as specified in ITU-T H.273 Table 3
+    pub fn set_transfer(&mut self, transfer: i64) -> Result<(), crate::map::Error> {
+        self.properties_mut().set_int("_Transfer", transfer)
+    }
+
+    /// Set field based information (interlaced)
+    pub fn set_field_based(&mut self, field_based: FieldBased) -> Result<(), crate::map::Error> {
+        self.properties_mut()
+            .set_int("_FieldBased", field_based as i64)
+    }
+
+    /// Set absolute timestamp in seconds (should only be set by source filter)
+    pub fn set_absolute_time(&mut self, time: f64) -> Result<(), crate::map::Error> {
+        self.properties_mut().set_float("_AbsoluteTime", time)
+    }
+
+    /// Set frame duration as a rational number (numerator, denominator)
+    pub fn set_duration(&mut self, num: i64, den: i64) -> Result<(), crate::map::Error> {
+        self.properties_mut().set_int("_DurationNum", num)?;
+        self.properties_mut().set_int("_DurationDen", den)
+    }
+
+    /// Set whether the frame needs postprocessing
+    pub fn set_combed(&mut self, combed: bool) -> Result<(), crate::map::Error> {
+        self.properties_mut()
+            .set_int("_Combed", if combed { 1 } else { 0 })
+    }
+
+    /// Set which field was used to generate this frame
+    pub fn set_field(&mut self, field: Field) -> Result<(), crate::map::Error> {
+        self.properties_mut().set_int("_Field", field as i64)
+    }
+
+    /// Set picture type (single character describing frame type)
+    pub fn set_picture_type(&mut self, pic_type: &str) -> Result<(), crate::map::Error> {
+        self.properties_mut()
+            .set_string(&"_PictType".to_string(), pic_type)
+    }
+
+    /// Set pixel (sample) aspect ratio as a rational number (numerator, denominator)
+    pub fn set_sample_aspect_ratio(&mut self, num: i64, den: i64) -> Result<(), crate::map::Error> {
+        self.properties_mut().set_int("_SARNum", num)?;
+        self.properties_mut().set_int("_SARDen", den)
+    }
+
+    /// Set whether this frame is the last frame of the current scene
+    pub fn set_scene_change_next(&mut self, scene_change: bool) -> Result<(), crate::map::Error> {
+        self.properties_mut()
+            .set_int("_SceneChangeNext", if scene_change { 1 } else { 0 })
+    }
+
+    /// Set whether this frame starts a new scene
+    pub fn set_scene_change_prev(&mut self, scene_change: bool) -> Result<(), crate::map::Error> {
+        self.properties_mut()
+            .set_int("_SceneChangePrev", if scene_change { 1 } else { 0 })
+    }
+
+    /// Set alpha channel frame for this frame
+    pub fn set_alpha(&mut self, alpha_frame: &Frame<'core>) -> Result<(), crate::map::Error> {
+        self.properties_mut().set_frame("_Alpha", alpha_frame)
     }
 }
 

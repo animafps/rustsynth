@@ -64,7 +64,6 @@ fn main() {
         .blocklist_type("__int128_t") // Often problematic alongside __uint128_t
         .blocklist_type("__int128")
         .blocklist_type("__uint128")
-    
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
@@ -90,14 +89,14 @@ fn main() {
         .rustified_enum("VSTransferCharacteristics")
         .bitfield_enum("VSCoreCreationFlags")
         .bitfield_enum("VSPluginConfigFlags")
-        .use_core() 
+        .use_core()
         .prepend_enum_name(false)
         .derive_eq(false)
-        .derive_default(true)                   // Add Default derives where possible
-        .derive_debug(true)                     // Add Debug derives
-        .derive_copy(true)                      // Add Copy derives where safe
-        .derive_hash(true)                      // Add Hash derives
-        .rustfmt_bindings(true) 
+        .derive_default(true) // Add Default derives where possible
+        .derive_debug(true) // Add Debug derives
+        .derive_copy(true) // Add Copy derives where safe
+        .derive_hash(true) // Add Hash derives
+        .rustfmt_bindings(true)
         .size_t_is_usize(true)
         // Finish the builder and generate the bindings.
         .generate()

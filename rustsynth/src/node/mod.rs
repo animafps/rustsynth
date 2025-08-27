@@ -1,5 +1,6 @@
 //! VapourSynth nodes.
 
+use futures::channel::oneshot;
 use rustsynth_sys as ffi;
 use std::borrow::Cow;
 use std::ffi::{CStr, CString};
@@ -7,11 +8,10 @@ use std::os::raw::{c_char, c_void};
 use std::process;
 use std::ptr::NonNull;
 use std::{mem, panic};
-use futures::channel::oneshot;
 
 use crate::api::API;
 use crate::format::{AudioInfo, MediaType, VideoInfo};
-use crate::frame::{FrameContext, FrameRef};
+use crate::frame::{Frame, FrameContext, FrameRef};
 
 mod errors;
 pub use self::errors::GetFrameError;
@@ -39,7 +39,7 @@ impl Clone for Node {
     fn clone(&self) -> Self {
         let handle = unsafe { API::get_cached().clone_node(self.handle.as_ptr()) };
         Self {
-            handle: unsafe { NonNull::new_unchecked(handle) }
+            handle: unsafe { NonNull::new_unchecked(handle) },
         }
     }
 }
@@ -62,8 +62,6 @@ impl Node {
         self.handle.as_ptr()
     }
 
-
-
     ///Determines the strategy for frame caching. Pass a [CacheMode] constant. Mostly useful for cache debugging since the auto mode should work well in just about all cases.
     ///
     ///Resets the cache to default options when called, discarding [Node::set_cache_options] changes.
@@ -79,8 +77,10 @@ impl Node {
     /// * `max_size`: The maximum number of frames to cache. Note that this value is automatically adjusted using an internal algorithm unless fixedSize is set.
     /// * `max_history_size`: How many frames that have been recently evicted from the cache to keep track off. Used to determine if growing or shrinking the cache is beneficial. Has no effect when fixedSize is set.
     #[inline]
-    pub fn set_cache_options(&self,fixed_size: i32, max_size: i32, max_history_size: i32) {
-        unsafe { API::get_cached().set_cache_options(self.ptr(), fixed_size,max_size,max_history_size) }
+    pub fn set_cache_options(&self, fixed_size: i32, max_size: i32, max_history_size: i32) {
+        unsafe {
+            API::get_cached().set_cache_options(self.ptr(), fixed_size, max_size, max_history_size)
+        }
     }
 
     /// Returns the video info associated with this `Node`.
@@ -119,7 +119,10 @@ impl Node {
     ///
     /// # Panics
     /// Panics is `n` is greater than [i32::max_value()].
-    pub fn get_frame<'core,'error>(&self, n: usize) -> Result<FrameRef<'core>, GetFrameError<'error>> {
+    pub fn get_frame<'core, 'error>(
+        &self,
+        n: usize,
+    ) -> Result<FrameRef<'core>, GetFrameError<'error>> {
         assert!(n <= i32::max_value() as usize);
 
         let vi = &self.video_info().unwrap();
@@ -163,7 +166,7 @@ impl Node {
     ///
     /// # Panics
     /// Panics is `n` is greater than [i32::max_value()].
-    pub fn get_frame_async<'core,F>(&self, n: usize, callback: F)
+    pub fn get_frame_async<'core, F>(&self, n: usize, callback: F)
     where
         F: FnOnce(Result<FrameRef<'core>, GetFrameError>, usize, Node) + Send + 'core,
     {
@@ -253,10 +256,14 @@ impl Node {
     }
 
     /// Returns a future that resolves to the frame at the given index `n`.
-    pub fn get_frame_future<'core>(&self, n: usize) -> impl std::future::Future<Output = Result<FrameRef<'core>, String>> + 'core {
+    pub fn get_frame_future<'core>(
+        &self,
+        n: usize,
+    ) -> impl std::future::Future<Output = Result<FrameRef<'core>, String>> + 'core {
         let (sender, receiver) = oneshot::channel();
         self.get_frame_async(n, move |result, _, _| {
-            let result_static: Result<FrameRef<'core>, String> = result.map_err(|e| e.into_inner().to_string_lossy().into_owned());
+            let result_static: Result<FrameRef<'core>, String> =
+                result.map_err(|e| e.into_inner().to_string_lossy().into_owned());
             let _ = sender.send(result_static);
         });
 
@@ -273,14 +280,16 @@ impl Node {
 
     /// Get a frame from a node (should be called after request_frame)
     #[inline]
-    pub fn get_frame_filter<'core>(&self, n: i32, frame_ctx: &FrameContext) -> Option<FrameRef<'core>> {
-        let ptr = unsafe {
-            API::get_cached().get_frame_filter(n, self.ptr(), frame_ctx.ptr())
-        };
+    pub fn get_frame_filter<'core>(
+        &self,
+        n: i32,
+        frame_ctx: &FrameContext,
+    ) -> Option<Frame<'core>> {
+        let ptr = unsafe { API::get_cached().get_frame_filter(n, self.ptr(), frame_ctx.ptr()) };
         if ptr.is_null() {
             None
         } else {
-            Some(FrameRef::from_ptr(ptr))
+            Some(Frame::from_ptr(ptr))
         }
     }
 
@@ -294,7 +303,6 @@ impl Node {
         }
     }
 }
-
 
 /// Describes how the output of a node is cached.
 pub enum CacheMode {
@@ -310,8 +318,8 @@ impl CacheMode {
     pub fn to_ptr(&self) -> *const ffi::VSCacheMode {
         match self {
             CacheMode::Auto => &ffi::VSCacheMode::cmAuto,
-            CacheMode::ForceDisable => &ffi::VSCacheMode::cmForceDisable ,
+            CacheMode::ForceDisable => &ffi::VSCacheMode::cmForceDisable,
             CacheMode::ForceEnable => &ffi::VSCacheMode::cmForceEnable,
-        } 
+        }
     }
 }

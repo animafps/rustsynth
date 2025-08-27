@@ -1,7 +1,8 @@
+use bitflags::bitflags;
 use ffi::VSPluginFunction;
-use rustsynth_sys as ffi;
+use rustsynth_sys::{self as ffi, VSPluginConfigFlags};
 use std::{
-    ffi::{c_void, CStr, CString},
+    ffi::{CStr, CString},
     marker::PhantomData,
     ops::Deref,
     ptr::{self, NonNull},
@@ -138,6 +139,20 @@ impl<'core> Plugin<'core> {
     }
 }
 
+bitflags! {
+    pub struct PluginConfigFlags: i32 {
+        /// Allow functions to be added to the plugin object after the plugin loading phase. Mostly useful for Avisynth compatibility and other foreign plugin loaders.
+        const MODIFIABLE = 1;
+        const NONE  = 0;
+    }
+}
+
+impl PluginConfigFlags {
+    pub fn as_ptr(&self) -> ffi::VSPluginConfigFlags {
+        VSPluginConfigFlags(self.bits.try_into().unwrap())
+    }
+}
+
 /// The iterator over the functions found in a plugin
 ///
 /// created by [Plugin::functions()]
@@ -189,133 +204,4 @@ impl<'core> PluginFunction<'core> {
     fn ptr(&self) -> *mut ffi::VSPluginFunction {
         self.ptr.as_ptr()
     }
-}
-
-
-
-/// A plugin's entry point. It must be called `VapourSynthPluginInit2`. 
-/// This function is called after the core loads the shared library. 
-/// Its purpose is to configure the plugin and to register the filters the plugin wants to export.
-/// 
-/// # Arguments
-/// * `plugin`: The plugin object to be initialized.
-/// * `vspapi`: The VapourSynth Plugin API for configuration and registration.
-pub type InitPlugin = fn(plugin: &Plugin, vspapi: &PluginAPI);
-
-/// A wrapper for the VapourSynth Plugin API used during plugin initialization.
-#[derive(Debug, Clone, Copy)]
-pub struct PluginAPI {
-    handle: NonNull<ffi::VSPLUGINAPI>,
-}
-
-unsafe impl Send for PluginAPI {}
-unsafe impl Sync for PluginAPI {}
-
-impl PluginAPI {
-    /// Creates a PluginAPI wrapper from a raw pointer
-    #[inline]
-    pub unsafe fn from_ptr(ptr: *const ffi::VSPLUGINAPI) -> Self {
-        PluginAPI {
-            handle: NonNull::new_unchecked(ptr as *mut ffi::VSPLUGINAPI),
-        }
-    }
-
-    /// Returns the API version
-    pub fn version(&self) -> i32 {
-        unsafe { self.handle.as_ref().getAPIVersion.unwrap()() }
-    }
-
-    /// Configure the plugin with basic information
-    pub fn config_plugin(
-        &self,
-        identifier: &str,
-        plugin_namespace: &str,
-        name: &str,
-        plugin_version: i32,
-        api_version: i32,
-        flags: i32,
-        plugin: &Plugin,
-    ) -> Result<(), &'static str> {
-        let identifier = CString::new(identifier).map_err(|_| "Invalid identifier")?;
-        let namespace = CString::new(plugin_namespace).map_err(|_| "Invalid namespace")?;
-        let name = CString::new(name).map_err(|_| "Invalid name")?;
-
-        unsafe {
-            eprintln!("Calling configPlugin with params:");
-            eprintln!("  identifier: {:?}", CStr::from_ptr(identifier.as_ptr()));
-            eprintln!("  namespace: {:?}", CStr::from_ptr(namespace.as_ptr()));
-            eprintln!("  name: {:?}", CStr::from_ptr(name.as_ptr()));
-            eprintln!("  plugin_version: {}", plugin_version);
-            eprintln!("  api_version: {}", api_version);
-            eprintln!("  flags: {}", flags);
-            
-            let result = self.handle.as_ref().configPlugin.unwrap()(
-                identifier.as_ptr(),
-                namespace.as_ptr(),
-                name.as_ptr(),
-                plugin_version,
-                api_version,
-                flags,
-                plugin.ptr(),
-            );
-
-            eprintln!("configPlugin returned: {}", result);
-
-            if result == 0 {
-                Ok(())
-            } else {
-                Err("Failed to configure plugin")
-            }
-        }
-    }
-
-    /// Register a function with the plugin
-    pub fn register_function(
-        &self,
-        name: &str,
-        args: &str,
-        return_type: &str,
-        create_func: ffi::VSPublicFunction,
-        user_data: *mut c_void,
-        plugin: &Plugin,
-    ) -> Result<(), &'static str> {
-        let name_cstr = CString::new(name).map_err(|_| "Invalid function name")?;
-        let args_cstr = CString::new(args).map_err(|_| "Invalid arguments string")?;
-        let return_type_cstr = CString::new(return_type).map_err(|_| "Invalid return type string")?;
-
-        unsafe {
-            let result = self.handle.as_ref().registerFunction.unwrap()(
-                name_cstr.as_ptr(),
-                args_cstr.as_ptr(),
-                return_type_cstr.as_ptr(),
-                create_func,
-                user_data,
-                plugin.ptr(),
-            );
-
-            if result == 0 {
-                Ok(())
-            } else {
-                Err("Failed to register function")
-            }
-        }
-    }
-}
-
-/// Macro to generate the VapourSynthPluginInit2 function
-#[macro_export]
-macro_rules! vapoursynth_plugin_init {
-    ($init_func:expr) => {
-        #[no_mangle]
-        pub unsafe extern "C" fn VapourSynthPluginInit2(
-            plugin: *mut $crate::ffi::VSPlugin,
-            vspapi: *const $crate::ffi::VSPLUGINAPI,
-        ) {
-            let plugin_wrapper = $crate::plugin::Plugin::from_ptr(plugin);
-            let vspapi_wrapper = $crate::plugin::PluginAPI::from_ptr(vspapi);
-            
-            let init_fn: $crate::plugin::InitPlugin = $init_func;
-            init_fn(&plugin_wrapper, &vspapi_wrapper);
-        }
-    };
 }

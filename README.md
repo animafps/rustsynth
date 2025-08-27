@@ -4,7 +4,7 @@ Fork of [vapoursynth-rs](https://github.com/YaLTeR/vapoursynth-rs) for the lates
 
 **[support and dev discord](https://discord.com/invite/5z3YhWstQr)**
 
-[Docs for main branch](https://rustsynth.animafps.xyz/rustsynth/index.html)
+[Docs for main branch](https://animafps.github.io/rustsynth/rustsynth/index.html)
 
 ## rustsynth
 

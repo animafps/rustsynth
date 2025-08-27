@@ -255,7 +255,6 @@ impl API {
         self.handle.as_ref().mapNumElements.unwrap()(map, key)
     }
 
-
     #[allow(unused)]
     pub(crate) unsafe fn copy_map(&self, map: *mut ffi::VSMap) -> *mut ffi::VSMap {
         let mut dest = MaybeUninit::uninit();
@@ -351,7 +350,6 @@ impl API {
         self.handle.as_ref().freeFrame.unwrap()(frame)
     }
 
-
     #[allow(unused)]
     pub(crate) unsafe fn copy_frame(
         &self,
@@ -380,7 +378,6 @@ impl API {
     ) -> i32 {
         self.handle.as_ref().mapGetDataSize.unwrap()(map, key, index, error)
     }
-
 
     #[allow(unused)]
     pub(crate) unsafe fn map_set_empty(&self, map: *mut ffi::VSMap, key: *const c_char) -> i32 {
@@ -511,7 +508,6 @@ impl API {
         self.handle.as_ref().getFrame.unwrap()(n, node, err_msg.as_mut_ptr(), len)
     }
 
-
     #[allow(unused)]
     pub(crate) unsafe fn get_frame_props_ro(&self, frame: &ffi::VSFrame) -> *const ffi::VSMap {
         self.handle.as_ref().getFramePropertiesRO.unwrap()(frame)
@@ -521,7 +517,6 @@ impl API {
     pub(crate) unsafe fn get_frame_props_rw(&self, frame: *mut ffi::VSFrame) -> *mut ffi::VSMap {
         self.handle.as_ref().getFramePropertiesRW.unwrap()(frame)
     }
-
 
     #[allow(non_snake_case)]
     pub(crate) unsafe fn get_frame_async(
@@ -591,7 +586,6 @@ impl API {
         self.handle.as_ref().callFunction.unwrap()(function, in_map, out_map)
     }
 
-
     #[allow(unused)]
     pub(crate) unsafe fn create_video_filter(
         &self,
@@ -620,7 +614,6 @@ impl API {
         );
     }
 
-
     #[allow(unused)]
     pub(crate) unsafe fn create_video_filter2(
         &self,
@@ -646,7 +639,6 @@ impl API {
             core,
         )
     }
-
 
     #[allow(unused)]
     pub(crate) unsafe fn create_audio_filter2(
@@ -674,13 +666,19 @@ impl API {
         )
     }
 
-    pub(crate) fn get_audio_frame_format(&self, frame: *const ffi::VSFrame) -> *const ffi::VSAudioFormat {
+    pub(crate) fn get_audio_frame_format(
+        &self,
+        frame: *const ffi::VSFrame,
+    ) -> *const ffi::VSAudioFormat {
         unsafe { self.handle.as_ref().getAudioFrameFormat.unwrap()(frame) }
     }
 
-    pub(crate) fn get_audio_format_name(&self, format: *const ffi::VSAudioFormat) -> Option<String> {
+    pub(crate) fn get_audio_format_name(
+        &self,
+        format: *const ffi::VSAudioFormat,
+    ) -> Option<String> {
         let buf: *mut i8 = std::ptr::null_mut();
-        let result = unsafe { self.handle.as_ref().getAudioFormatName.unwrap()(format, buf)};
+        let result = unsafe { self.handle.as_ref().getAudioFormatName.unwrap()(format, buf) };
         if result == 0 {
             None
         } else {
@@ -702,6 +700,12 @@ impl API {
     map_set_something!(map_set_func, mapSetFunction, *mut ffi::VSFunction);
 }
 
+/// Initialize the global API pointer (for use in derive macros)
+#[inline]
+pub unsafe fn init_api(vsapi: *const ffi::VSAPI) {
+    RAW_API.store(vsapi as *mut ffi::VSAPI, Ordering::Relaxed);
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -711,6 +715,6 @@ mod tests {
         // VapourSynth API version should be a reasonable value
         // Version format is major << 16 | minor
         assert!(version >= 262144); // At least API version 4.0
-        assert!(version < 327680);  // Less than API version 5.0
+        assert!(version < 327680); // Less than API version 5.0
     }
 }

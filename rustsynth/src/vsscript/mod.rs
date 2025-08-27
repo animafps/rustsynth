@@ -33,9 +33,8 @@ impl ScriptAPI {
 
         let handle = if handle.is_null() {
             // Attempt retrieving it otherwise.
-            let handle = unsafe { ffi::getVSScriptAPI(ffi::VSSCRIPT_API_VERSION) }
-                as *mut ffi::VSSCRIPTAPI;
-
+            let handle =
+                unsafe { ffi::getVSScriptAPI(ffi::VSSCRIPT_API_VERSION) } as *mut ffi::VSSCRIPTAPI;
             if !handle.is_null() {
                 // If we successfully retrieved the API, cache it.
                 RAW_SCRIPTAPI.store(handle, Ordering::Relaxed);
@@ -124,7 +123,7 @@ impl ScriptAPI {
     }
 
     pub(crate) unsafe fn get_alt_output_mode(&self, script: *mut ffi::VSScript, index: i32) -> i32 {
-        self.handle.as_ref().getAltOutputMode.unwrap()(script,index)
+        self.handle.as_ref().getAltOutputMode.unwrap()(script, index)
     }
 
     pub(crate) unsafe fn eval_set_working_dir(&self, script: *mut ffi::VSScript, set_cwd: i32) {

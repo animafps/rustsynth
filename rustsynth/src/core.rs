@@ -53,7 +53,7 @@ impl<'core> CoreRef<'core> {
     /// # Safety
     /// The caller must ensure `handle` is valid and API is cached.
     #[inline]
-    pub(crate) unsafe fn from_ptr(handle: *mut ffi::VSCore) -> Self {
+    pub unsafe fn from_ptr(handle: *mut ffi::VSCore) -> Self {
         Self {
             handle: NonNull::new_unchecked(handle),
             _owner: PhantomData,

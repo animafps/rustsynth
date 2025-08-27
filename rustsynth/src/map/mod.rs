@@ -233,7 +233,7 @@ impl<'elem> Map<'elem> {
     /// The caller needs to ensure the pointer is valid, the element lifetime is valid, and that
     /// the resulting `Map` gets put into `MapRef` or `MapRefMut` or `OwnedMap` correctly.
     #[inline]
-    pub(crate) unsafe fn from_ptr(handle: *const ffi::VSMap) -> Self {
+    pub unsafe fn from_ptr(handle: *const ffi::VSMap) -> Self {
         Self {
             handle: NonNull::new_unchecked(handle as *mut ffi::VSMap),
             _elem: PhantomData,
@@ -280,7 +280,7 @@ impl<'elem> Map<'elem> {
 
     /// Returns the error message contained in the map, if any.
     #[inline]
-    pub fn error(&'_ self) -> Option<Cow<'_,str>> {
+    pub fn error(&'_ self) -> Option<Cow<'_, str>> {
         let error_message = unsafe { API::get_cached().map_get_error(self) };
         if error_message.is_null() {
             return None;
@@ -503,6 +503,12 @@ impl<'elem> Map<'elem> {
         unsafe { ValueIter::new_string(self, key) }
     }
 
+    #[inline]
+    pub fn get_string<'map>(&'map self, key: &str) -> Result<String> {
+        let key = Map::make_raw_key(key)?;
+        unsafe { self.get_string_raw_unchecked(&key, 0) }
+    }
+
     /// Retrieves data from a map.
     ///
     /// # Safety
@@ -534,10 +540,7 @@ impl<'elem> Map<'elem> {
 
     /// Retrieves nodes from a map.
     #[inline]
-    pub fn get_node_iter<'map>(
-        &'map self,
-        key: &str,
-    ) -> Result<ValueIter<'map, 'elem, Node>> {
+    pub fn get_node_iter<'map>(&'map self, key: &str) -> Result<ValueIter<'map, 'elem, Node>> {
         let key = Map::make_raw_key(key)?;
         unsafe { ValueIter::new_node(self, key) }
     }
@@ -656,11 +659,7 @@ impl<'elem> Map<'elem> {
     /// # Safety
     /// The caller must ensure `key` is valid.
     #[inline]
-    pub(crate) unsafe fn get_node_raw_unchecked(
-        &self,
-        key: &CStr,
-        index: i32,
-    ) -> Result<Node> {
+    pub(crate) unsafe fn get_node_raw_unchecked(&self, key: &CStr, index: i32) -> Result<Node> {
         let mut error = 0;
         let value = API::get_cached().map_get_node(self, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;
@@ -808,11 +807,7 @@ impl<'elem> Map<'elem> {
     /// # Safety
     /// The caller must ensure `key` is valid.
     #[inline]
-    pub(crate) unsafe fn append_node_raw_unchecked(
-        &mut self,
-        key: &CStr,
-        x: &Node,
-    ) -> Result<()> {
+    pub(crate) unsafe fn append_node_raw_unchecked(&mut self, key: &CStr, x: &Node) -> Result<()> {
         let error = API::get_cached().map_set_node(
             self,
             key.as_ptr(),
@@ -869,6 +864,14 @@ impl<'elem> Map<'elem> {
         let key = Map::make_raw_key(key)?;
         unsafe {
             self.set_int_raw_unchecked(&key, x);
+        }
+        Ok(())
+    }
+
+    pub fn set_string(&mut self, key: &str, x: &str) -> Result<()> {
+        let key = Map::make_raw_key(key)?;
+        unsafe {
+            self.set_string_raw_unchecked(&key, x);
         }
         Ok(())
     }
@@ -998,6 +1001,23 @@ impl<'elem> Map<'elem> {
             key.as_ptr(),
             x,
             ffi::VSDataTypeHint::dtUnknown,
+            ffi::VSMapAppendMode::maReplace,
+        );
+
+        debug_assert!(error == 0);
+    }
+
+    /// Sets a property value to data.
+    ///
+    /// # Safety
+    /// The caller must ensure `key` is valid.
+    #[inline]
+    pub(crate) unsafe fn set_string_raw_unchecked(&mut self, key: &CStr, x: &str) {
+        let error = API::get_cached().map_set_data(
+            self,
+            key.as_ptr(),
+            x.as_bytes(),
+            ffi::VSDataTypeHint::dtUtf8,
             ffi::VSMapAppendMode::maReplace,
         );
 

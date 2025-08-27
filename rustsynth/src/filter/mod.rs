@@ -55,10 +55,10 @@ pub enum ActivationReason {
 impl ActivationReason {
     pub fn from_ffi(reason: i32) -> Self {
         match reason {
-            val if val == VSActivationReason::arInitial as i32=> Self::Initial,
+            val if val == VSActivationReason::arInitial as i32 => Self::Initial,
             val if val == VSActivationReason::arAllFramesReady as i32 => Self::AllFramesReady,
             val if val == VSActivationReason::arError as i32 => Self::Error,
-            _ => Self::Error
+            _ => Self::Error,
         }
     }
 }
@@ -66,9 +66,9 @@ impl ActivationReason {
 /// Controls how a filter will be multithreaded, if at all.
 pub enum FilterMode {
     /// Completely parallel execution. Multiple threads will call a filter’s [FilterGetFrame] function, to fetch several frames in parallel.
-    Paralell,
+    Parallel,
     /// For filters that are serial in nature but can request in advance one or more frames they need. A filter’s [FilterGetFrame] function will be called from multiple threads at a time with activation reason [ActivationReason::Initial], but only one thread will call it with activation reason [ActivationReason::AllFramesReady] at a time.
-    ParalellRequests,
+    ParallelRequests,
     /// Only one thread can call the filter’s [FilterGetFrame] function at a time. Useful for filters that modify or examine their internal state to determine which frames to request.
     /// While the [FilterGetFrame] function will only run in one thread at a time, the calls can happen in any order. For example, it can be called with reason [ActivationReason::Initial] for frame 0, then again with reason [ActivationReason::Initial] for frame 1, then with reason [ActivationReason::AllFramesReady] for frame 0.
     Unordered,
@@ -79,8 +79,8 @@ pub enum FilterMode {
 impl FilterMode {
     pub fn from_ffi(mode: VSFilterMode) -> Self {
         match mode {
-            VSFilterMode::fmParallel => Self::Paralell,
-            VSFilterMode::fmParallelRequests => Self::ParalellRequests,
+            VSFilterMode::fmParallel => Self::Parallel,
+            VSFilterMode::fmParallelRequests => Self::ParallelRequests,
             VSFilterMode::fmUnordered => Self::Unordered,
             VSFilterMode::fmFrameState => Self::FrameState,
         }
@@ -88,8 +88,8 @@ impl FilterMode {
 
     pub fn as_ptr(&self) -> *const VSFilterMode {
         match self {
-            Self::Paralell => &VSFilterMode::fmParallel as *const VSFilterMode,
-            Self::ParalellRequests => &VSFilterMode::fmParallelRequests as *const VSFilterMode,
+            Self::Parallel => &VSFilterMode::fmParallel as *const VSFilterMode,
+            Self::ParallelRequests => &VSFilterMode::fmParallelRequests as *const VSFilterMode,
             Self::Unordered => &VSFilterMode::fmUnordered as *const VSFilterMode,
             Self::FrameState => &VSFilterMode::fmFrameState as *const VSFilterMode,
         }
@@ -101,9 +101,9 @@ impl FilterMode {
 /// In case of error, call setFilterError and return [None].
 /// Depending on the [FilterMode] set for the filter, multiple output frames could be requested concurrently.
 /// It is never called concurrently for the same frame number.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `n`: Requested frame number.
 /// * `activation_reason`: This function is first called with [ActivationReason::Initial]. At this point the function should request the input frames it needs and return [None]. When one or all of the requested frames are ready, this function is called again with [ActivationReason::AllFramesReady]. The function should only return a frame when called with [ActivationReason::AllFramesReady].
 /// If a the function is called with [ActivationReason::Error] all processing has to be aborted and any.
@@ -113,7 +113,7 @@ pub type FilterGetFrame<'a> = fn(
     n: i32,
     activation_reason: ActivationReason,
     instance_data: &mut [u8],
-    frame_data: &mut Option<&mut [u8;4]>,
+    frame_data: &mut Option<&mut [u8; 4]>,
     frame_ctx: &FrameContext,
 ) -> Option<FrameRef<'a>>;
 
@@ -123,3 +123,20 @@ pub type FilterFree = fn(instance_data: &mut [u8]);
 // TODO!
 // - Filter Traits
 // - Export macros
+
+pub mod traits;
+
+// Macro to automatically register filters
+#[macro_export]
+macro_rules! register_filters {
+    ($($filter:ty),* $(,)?) => {
+        fn __register_filters(
+            plugin: *mut rustsynth::ffi::VSPlugin,
+            vspapi: *const rustsynth::ffi::VSPLUGINAPI
+        ) {
+            $(
+                <$filter>::register_filter(plugin,vspapi);
+            )*
+        }
+    };
+}

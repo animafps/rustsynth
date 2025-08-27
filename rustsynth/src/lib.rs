@@ -21,6 +21,7 @@ pub mod node;
 pub mod plugin;
 #[cfg(feature = "vsscript-functions")]
 pub mod vsscript;
+pub use api::init_api as init_api;
 
 pub mod prelude {
     //! The VapourSynth prelude.
@@ -69,3 +70,5 @@ pub trait OwnedMap {
 // There is one API so if something is created or executed through the API then can get it once then use cached version everytime afterwards
 // so things that are at the front: Core, Ownedmaps
 //
+
+pub use ffi::version as MakeVersion;

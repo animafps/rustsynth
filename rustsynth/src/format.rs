@@ -195,7 +195,6 @@ impl AudioInfo {
         }
     }
 
-
     #[allow(unused)]
     pub(crate) fn as_ptr(&self) -> *const ffi::VSAudioInfo {
         let info = ffi::VSAudioInfo {
@@ -239,7 +238,7 @@ impl AudioFormat {
             bitsPerSample: self.bits_per_sample,
             bytesPerSample: self.bytes_per_sample,
             numChannels: self.num_channels,
-            channelLayout: self.channel_layout
+            channelLayout: self.channel_layout,
         } as *const ffi::VSAudioFormat
     }
 
@@ -262,10 +261,9 @@ impl VideoInfo {
         }
     }
 
-
     #[allow(unused)]
-    pub(crate) fn as_ptr(&self) -> *const ffi::VSVideoInfo {
-        let info = ffi::VSVideoInfo {
+    pub fn as_ptr(&self) -> ffi::VSVideoInfo {
+        ffi::VSVideoInfo {
             format: ffi::VSVideoFormat {
                 colorFamily: self.format.color_family as i32,
                 sampleType: self.format.sample_type as i32,
@@ -280,8 +278,7 @@ impl VideoInfo {
             width: self.width,
             height: self.height,
             numFrames: self.num_frames,
-        };
-        &info as *const ffi::VSVideoInfo
+        }
     }
 }
 

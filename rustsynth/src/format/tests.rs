@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::format::{ColorFamily, SampleType, PresetFormat};
+    use crate::format::{ColorFamily, PresetFormat, SampleType};
 
     #[test]
     fn test_preset_format_values() {
@@ -22,7 +22,7 @@ mod tests {
 
     #[test]
     fn test_sample_type_enum() {
-        // Test SampleType enum values  
+        // Test SampleType enum values
         assert_eq!(SampleType::Integer as i32, 0);
         assert_eq!(SampleType::Float as i32, 1);
     }
@@ -33,7 +33,7 @@ mod tests {
         assert_ne!(PresetFormat::Gray8 as i32, PresetFormat::Gray16 as i32);
         assert_ne!(PresetFormat::Gray8 as i32, PresetFormat::YUV420P8 as i32);
         assert_ne!(PresetFormat::RGB24 as i32, PresetFormat::YUV420P8 as i32);
-        
+
         // Float vs Integer formats should be different
         assert_ne!(PresetFormat::GrayS as i32, PresetFormat::Gray32 as i32);
     }

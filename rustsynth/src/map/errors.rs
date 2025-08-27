@@ -20,6 +20,12 @@ pub enum Error {
     Error,
 }
 
+impl From<Error> for String {
+    fn from(error: Error) -> String {
+        error.to_string()
+    }
+}
+
 /// A specialized `Result` type for `Map` operations.
 pub type Result<T> = result::Result<T, Error>;
 
