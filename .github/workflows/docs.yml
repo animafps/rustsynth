@@ -34,6 +34,42 @@ jobs:
         run: |
           sudo apt update
           sudo apt install --yes libclang-dev
+      - name: Cache zimg
+        uses: actions/cache@v4
+        id: cache-zimg
+        with:
+          path: /usr/local/lib/libzimg*
+          key: ${{ runner.os }}-zimg-3.0.6
+      - name: Cache vapoursynth
+        uses: actions/cache@v4
+        id: cache-vapoursynth
+        with:
+          path: |
+            /usr/local/lib/libvapoursynth*
+            /usr/local/include/vapoursynth
+          key: ${{ runner.os }}-vapoursynth-${{ hashFiles('rustsynth-sys/vapoursynth/**') }}
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get --yes install g++ make autoconf automake libtool pkg-config nasm git libclang-dev python3 python3-dev
+          pip install Cython
+      - name: Build zimg
+        if: steps.cache-zimg.outputs.cache-hit != 'true'
+        run: |
+          git clone --branch release-3.0.6 --depth 1 https://github.com/sekrit-twc/zimg.git
+          cd zimg
+          ./autogen.sh
+          ./configure
+          make
+          sudo make install
+      - name: Build vapoursynth
+        if: steps.cache-vapoursynth.outputs.cache-hit != 'true'
+        run: |
+          cd rustsynth-sys/vapoursynth
+          ./autogen.sh
+          ./configure
+          make
+          sudo make install
       - name: Run doc
         run: |
           cargo doc --workspace --no-deps
