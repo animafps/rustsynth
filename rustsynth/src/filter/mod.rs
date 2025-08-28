@@ -2,7 +2,7 @@ use rustsynth_sys::{VSActivationReason, VSFilterMode};
 
 use crate::ffi;
 use crate::ffi::VSRequestPattern;
-use crate::frame::{FrameContext, Frame};
+use crate::frame::{Frame, FrameContext};
 use crate::node::Node;
 
 pub struct FilterDependency {

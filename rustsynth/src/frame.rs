@@ -57,10 +57,8 @@ pub struct Frame<'core> {
     _owner: PhantomData<&'core ()>,
 }
 
-
 unsafe impl<'core> Send for Frame<'core> {}
 unsafe impl<'core> Sync for Frame<'core> {}
-
 
 impl<'core> Drop for Frame<'core> {
     fn drop(&mut self) {
@@ -200,7 +198,7 @@ impl<'core> Frame<'core> {
     #[inline]
     pub fn get_read_ptr(&self, plane: i32) -> *const u8 {
         unsafe { API::get_cached().get_frame_read_ptr(self.handle.as_ref(), plane) }
-        }
+    }
 
     /// Get mutable access to plane data (only for owned frames)
     #[inline]
