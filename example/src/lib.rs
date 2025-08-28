@@ -1,6 +1,9 @@
 use rustsynth::{
     core::CoreRef,
-    filter::{traits::Filter, FilterDependency, FilterMode, RequestPattern},
+    filter::{
+        traits::{Filter},
+        FilterDependency, FilterMode, RequestPattern,
+    },
     frame::{Frame, FrameContext},
     map::Map,
     node::Node,
@@ -14,7 +17,7 @@ mod plugin {
     const NAMESPACE: &'static str = "example";
     const ID: &'static str = "com.example.invert";
     const NAME: &'static str = "Example Plugin";
-    const PLUGIN_VER: i32 = MakeVersion!(1, 0);
+    const PLUGIN_VER: i32 = MakeVersion!(1,0);
     const API_VER: i32 = ffi::VAPOURSYNTH_API_VERSION;
     const FLAGS: i32 = PluginConfigFlags::NONE.bits();
 
@@ -53,11 +56,33 @@ mod plugin {
             n: i32,
             _frame_data: &[u8; 4],
             frame_ctx: FrameContext,
-            _core: CoreRef<'core>,
+            core: CoreRef<'core>,
         ) -> Result<Frame<'core>, String> {
             let src = self.input_node.get_frame_filter(n, &frame_ctx).unwrap();
-            // simple pass through
-            Ok(src)
+            let vf = src.get_video_format().unwrap();
+            let height = src.get_height(0);
+            let width = src.get_width(0);
+            let mut dst = Frame::new_video_frame(&core, width, height, &vf, Some(&src));
+            
+            // Actually do the invert operation
+            for plane in 0..vf.num_planes {
+                let srcp = src.get_read_ptr(plane);
+                let dstp = dst.get_write_ptr(plane);
+                let stride = src.get_stride(plane) as usize;
+                let h = src.get_height(plane) as usize;
+                let w = src.get_width(plane) as usize;
+                
+                for y in 0..h {
+                    for x in 0..w {
+                        unsafe {
+                            let src_pixel = *srcp.add(y * stride + x);
+                            *dstp.add(y * stride + x) = !src_pixel;
+                        }
+                    }
+                }
+            }
+            drop(src); // Free input frame ASAP
+            Ok(dst) 
         }
     }
 

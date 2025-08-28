@@ -2,7 +2,7 @@ use rustsynth_sys::{VSActivationReason, VSFilterMode};
 
 use crate::ffi;
 use crate::ffi::VSRequestPattern;
-use crate::frame::{FrameContext, FrameRef};
+use crate::frame::{FrameContext, Frame};
 use crate::node::Node;
 
 pub struct FilterDependency {
@@ -115,7 +115,7 @@ pub type FilterGetFrame<'a> = fn(
     instance_data: &mut [u8],
     frame_data: &mut Option<&mut [u8; 4]>,
     frame_ctx: &FrameContext,
-) -> Option<FrameRef<'a>>;
+) -> Option<Frame<'a>>;
 
 // Free callback signature
 pub type FilterFree = fn(instance_data: &mut [u8]);

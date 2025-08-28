@@ -171,8 +171,8 @@ impl VideoFormat {
         }
     }
 
-    pub(crate) fn as_ptr(&self) -> *const ffi::VSVideoFormat {
-        &ffi::VSVideoFormat {
+    pub(crate) fn as_ptr(&self) -> ffi::VSVideoFormat {
+        ffi::VSVideoFormat {
             colorFamily: self.color_family as i32,
             sampleType: self.sample_type as i32,
             bitsPerSample: self.bits_per_sample,
@@ -180,7 +180,7 @@ impl VideoFormat {
             subSamplingW: self.sub_sampling_w,
             subSamplingH: self.sub_sampling_h,
             numPlanes: self.num_planes,
-        } as *const ffi::VSVideoFormat
+        }
     }
 }
 

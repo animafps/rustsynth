@@ -11,7 +11,7 @@ use std::{mem, panic};
 
 use crate::api::API;
 use crate::format::{AudioInfo, MediaType, VideoInfo};
-use crate::frame::{Frame, FrameContext, FrameRef};
+use crate::frame::{Frame, FrameContext};
 
 mod errors;
 pub use self::errors::GetFrameError;
@@ -122,7 +122,7 @@ impl Node {
     pub fn get_frame<'core, 'error>(
         &self,
         n: usize,
-    ) -> Result<FrameRef<'core>, GetFrameError<'error>> {
+    ) -> Result<Frame<'core>, GetFrameError<'error>> {
         assert!(n <= i32::max_value() as usize);
 
         let vi = &self.video_info().unwrap();
@@ -147,7 +147,7 @@ impl Node {
             let error = unsafe { CStr::from_ptr(err_buf.as_ptr()) }.to_owned();
             Err(GetFrameError::new(Cow::Owned(error)))
         } else {
-            Ok(FrameRef::from_ptr(handle))
+            Ok(Frame::from_ptr(handle))
         }
     }
 
@@ -168,7 +168,7 @@ impl Node {
     /// Panics is `n` is greater than [i32::max_value()].
     pub fn get_frame_async<'core, F>(&self, n: usize, callback: F)
     where
-        F: FnOnce(Result<FrameRef<'core>, GetFrameError>, usize, Node) + Send + 'core,
+        F: FnOnce(Result<Frame<'core>, GetFrameError>, usize, Node) + Send + 'core,
     {
         struct CallbackData<'core> {
             callback: Box<dyn CallbackFn<'core> + 'core>,
@@ -178,7 +178,7 @@ impl Node {
         trait CallbackFn<'core> {
             fn call(
                 self: Box<Self>,
-                frame: Result<FrameRef<'core>, GetFrameError>,
+                frame: Result<Frame<'core>, GetFrameError>,
                 n: usize,
                 node: Node,
             );
@@ -186,12 +186,12 @@ impl Node {
 
         impl<'core, F> CallbackFn<'core> for F
         where
-            F: FnOnce(Result<FrameRef<'core>, GetFrameError>, usize, Node),
+            F: FnOnce(Result<Frame<'core>, GetFrameError>, usize, Node),
         {
             #[allow(clippy::boxed_local)]
             fn call(
                 self: Box<Self>,
-                frame: Result<FrameRef<'core>, GetFrameError>,
+                frame: Result<Frame<'core>, GetFrameError>,
                 n: usize,
                 node: Node,
             ) {
@@ -217,7 +217,7 @@ impl Node {
                     Err(GetFrameError::new(error_msg))
                 } else {
                     debug_assert!(error_msg.is_null());
-                    Ok(FrameRef::from_ptr(frame))
+                    Ok(Frame::from_ptr(frame))
                 };
 
                 let node = Node::from_ptr(node);
@@ -259,10 +259,10 @@ impl Node {
     pub fn get_frame_future<'core>(
         &self,
         n: usize,
-    ) -> impl std::future::Future<Output = Result<FrameRef<'core>, String>> + 'core {
+    ) -> impl std::future::Future<Output = Result<Frame<'core>, String>> + 'core {
         let (sender, receiver) = oneshot::channel();
         self.get_frame_async(n, move |result, _, _| {
-            let result_static: Result<FrameRef<'core>, String> =
+            let result_static: Result<Frame<'core>, String> =
                 result.map_err(|e| e.into_inner().to_string_lossy().into_owned());
             let _ = sender.send(result_static);
         });

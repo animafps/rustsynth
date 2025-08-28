@@ -9,7 +9,7 @@ use std::ptr::NonNull;
 use std::{result, slice};
 
 use crate::api::API;
-use crate::frame::{Frame, FrameRef};
+use crate::frame::Frame;
 use crate::function::Function;
 use crate::node::Node;
 
@@ -549,7 +549,7 @@ impl<'elem> Map<'elem> {
     ///
     /// This function retrieves the first value associated with the key.
     #[inline]
-    pub fn get_frame(&self, key: &str) -> Result<FrameRef<'elem>> {
+    pub fn get_frame(&self, key: &str) -> Result<Frame<'elem>> {
         let key = Map::make_raw_key(key)?;
         unsafe { self.get_frame_raw_unchecked(&key, 0) }
     }
@@ -559,7 +559,7 @@ impl<'elem> Map<'elem> {
     pub fn get_frame_iter<'map>(
         &'map self,
         key: &str,
-    ) -> Result<ValueIter<'map, 'elem, FrameRef<'elem>>> {
+    ) -> Result<ValueIter<'map, 'elem, Frame<'elem>>> {
         let key = Map::make_raw_key(key)?;
         unsafe { ValueIter::new_frame(self, key) }
     }
@@ -694,12 +694,12 @@ impl<'elem> Map<'elem> {
         &self,
         key: &CStr,
         index: i32,
-    ) -> Result<FrameRef<'elem>> {
+    ) -> Result<Frame<'elem>> {
         let mut error = 0;
         let value = API::get_cached().map_get_frame(self, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;
 
-        Ok(FrameRef::from_ptr(value))
+        Ok(Frame::from_ptr(value))
     }
 
     /// Retrieves a function from a map.

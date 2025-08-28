@@ -57,47 +57,14 @@ pub struct Frame<'core> {
     _owner: PhantomData<&'core ()>,
 }
 
-/// A reference to a ref-counted frame.
-#[derive(Debug)]
-pub struct FrameRef<'core> {
-    // Only immutable references to this are allowed.
-    frame: Frame<'core>,
-}
 
 unsafe impl<'core> Send for Frame<'core> {}
 unsafe impl<'core> Sync for Frame<'core> {}
 
-unsafe impl<'core> Send for FrameRef<'core> {}
-unsafe impl<'core> Sync for FrameRef<'core> {}
 
 impl<'core> Drop for Frame<'core> {
     fn drop(&mut self) {
         unsafe { API::get_cached().free_frame(self.handle.as_ptr()) }
-    }
-}
-
-impl<'core> Deref for FrameRef<'core> {
-    type Target = Frame<'core>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.frame
-    }
-}
-
-impl<'core> FrameRef<'core> {
-    #[inline]
-    pub(crate) fn from_ptr(ptr: *const ffi::VSFrame) -> Self {
-        Self {
-            frame: Frame::from_ptr(ptr),
-        }
-    }
-
-    #[inline]
-    #[allow(unused)]
-    pub fn into_ptr(self) -> *const ffi::VSFrame {
-        let ptr = self.frame.handle.as_ptr();
-        std::mem::forget(self); // Don't drop the frame, transfer ownership to C
-        ptr
     }
 }
 
@@ -188,7 +155,7 @@ impl<'core> Frame<'core> {
     ) -> Self {
         let ptr = unsafe {
             API::get_cached().new_video_frame(
-                format.as_ptr(),
+                &format.as_ptr() as *const ffi::VSVideoFormat,
                 width,
                 height,
                 prop_src.map_or(std::ptr::null(), |f| f.as_ptr()),
@@ -207,14 +174,14 @@ impl<'core> Frame<'core> {
         width: i32,
         height: i32,
         format: VideoFormat,
-        planesrc: &mut [&FrameRef<'_>; T],
+        planesrc: &mut [&Frame<'_>; T],
         planes: &[i32; T],
-        propsrc: Option<&FrameRef<'_>>,
+        propsrc: Option<&Frame<'_>>,
     ) -> Self {
         let ptr = unsafe {
             let mut planesrcptr: Vec<_> = planesrc.iter().map(|f| f.as_ptr()).collect();
             API::get_cached().new_video_frame2(
-                format.as_ptr(),
+                &format.as_ptr() as *const ffi::VSVideoFormat,
                 width,
                 height,
                 planesrcptr.as_mut_ptr(),
@@ -231,30 +198,14 @@ impl<'core> Frame<'core> {
 
     /// Get read-only access to plane data
     #[inline]
-    pub fn get_read_slice(&self, plane: i32) -> &[u8] {
-        let ptr = unsafe { API::get_cached().get_frame_read_ptr(self.handle.as_ref(), plane) };
-        let height = self.get_height(plane);
-        let stride = self.get_stride(plane);
-        let len = (height as isize * stride) as usize;
-        unsafe { std::slice::from_raw_parts(ptr, len) }
-    }
+    pub fn get_read_ptr(&self, plane: i32) -> *const u8 {
+        unsafe { API::get_cached().get_frame_read_ptr(self.handle.as_ref(), plane) }
+        }
 
     /// Get mutable access to plane data (only for owned frames)
     #[inline]
-    pub fn get_write_slice(&mut self, plane: i32) -> &mut [u8] {
-        let ptr = unsafe { API::get_cached().get_frame_write_ptr(self.handle.as_ptr(), plane) };
-        let height = self.get_height(plane);
-        let stride = self.get_stride(plane);
-        let len = (height as isize * stride) as usize;
-        unsafe { std::slice::from_raw_parts_mut(ptr, len) }
-    }
-
-    /// Convert owned frame to FrameRef
-    #[inline]
-    pub fn into_frame_ref(self) -> FrameRef<'core> {
-        let ptr = self.as_ptr();
-        std::mem::forget(self); // Don't drop the frame, transfer ownership
-        FrameRef::from_ptr(ptr)
+    pub fn get_write_ptr(&mut self, plane: i32) -> *mut u8 {
+        unsafe { API::get_cached().get_frame_write_ptr(self.handle.as_ptr(), plane) }
     }
 
     /// Get read-only access to frame properties
@@ -390,7 +341,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get alpha channel frame attached to this frame
-    pub fn alpha(&self) -> Option<FrameRef<'core>> {
+    pub fn alpha(&self) -> Option<Frame<'core>> {
         self.properties().get_frame("_Alpha").ok()
     }
 

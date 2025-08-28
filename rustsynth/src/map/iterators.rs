@@ -1,5 +1,5 @@
 use super::*;
-use crate::frame::FrameRef;
+use crate::frame::Frame;
 
 /// An iterator over the keys of a map.
 #[derive(Debug, Clone, Copy)]
@@ -116,7 +116,7 @@ impl_value_iter!(
 impl_value_iter!(ValueType::Node, Node, get_node_raw_unchecked, new_node);
 impl_value_iter!(
     ValueType::Frame,
-    FrameRef<'elem>,
+    Frame<'elem>,
     get_frame_raw_unchecked,
     new_frame
 );

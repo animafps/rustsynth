@@ -412,8 +412,9 @@ fn generate_vs_filter(
 
                         match filter.process_frame(n, frame_data_array, frame_ctx_wrapper, core_ref) {
                             Ok(output_frame) => {
-                                // Convert to FrameRef and transfer ownership properly
-                                output_frame.into_frame_ref().into_ptr()
+                                let out = output_frame.as_ptr();
+                                std::mem::forget(output_frame);
+                                out
                             },
                             Err(error_msg) => {
                                 let error_cstr = std::ffi::CString::new(error_msg).unwrap_or_else(|_| {

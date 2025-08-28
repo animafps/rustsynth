@@ -1,4 +1,4 @@
-use crate::frame::FrameRef;
+use crate::frame::Frame;
 use crate::function::Function;
 use crate::map::{Map, Result, ValueIter};
 use crate::node::Node;
@@ -128,7 +128,7 @@ impl<'map, 'elem: 'map> ValueNotArray<'map, 'elem> for Node {
     }
 }
 
-impl<'map, 'elem: 'map> Value<'map, 'elem> for FrameRef<'elem> {
+impl<'map, 'elem: 'map> Value<'map, 'elem> for Frame<'elem> {
     #[inline]
     fn get_from_map(map: &Map<'elem>, key: &str) -> Result<Self> {
         map.get_frame(key)
@@ -140,7 +140,7 @@ impl<'map, 'elem: 'map> Value<'map, 'elem> for FrameRef<'elem> {
     }
 }
 
-impl<'map, 'elem: 'map> ValueNotArray<'map, 'elem> for FrameRef<'elem> {
+impl<'map, 'elem: 'map> ValueNotArray<'map, 'elem> for Frame<'elem> {
     #[inline]
     fn get_iter_from_map(map: &'map Map<'elem>, key: &str) -> Result<ValueIter<'map, 'elem, Self>> {
         map.get_frame_iter(key)
