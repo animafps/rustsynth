@@ -7,11 +7,6 @@ use crate::{
     map::Map,
 };
 
-pub enum FilterType {
-    Video,
-    Audio,
-}
-
 /// Trait that filter structs must implement
 pub trait Filter {
     const NAME: &'static str;

@@ -2,7 +2,6 @@ use rustsynth_sys::{VSActivationReason, VSFilterMode};
 
 use crate::ffi;
 use crate::ffi::VSRequestPattern;
-use crate::frame::{Frame, FrameContext};
 use crate::node::Node;
 
 pub struct FilterDependency {
@@ -95,34 +94,6 @@ impl FilterMode {
         }
     }
 }
-
-/// A filter’s “getframe” function. It is called by the core when it needs the filter to generate a frame.
-/// It is possible to allocate local data, persistent during the multiple calls requesting the output frame.
-/// In case of error, call setFilterError and return [None].
-/// Depending on the [FilterMode] set for the filter, multiple output frames could be requested concurrently.
-/// It is never called concurrently for the same frame number.
-///
-/// # Arguments
-///
-/// * `n`: Requested frame number.
-/// * `activation_reason`: This function is first called with [ActivationReason::Initial]. At this point the function should request the input frames it needs and return [None]. When one or all of the requested frames are ready, this function is called again with [ActivationReason::AllFramesReady]. The function should only return a frame when called with [ActivationReason::AllFramesReady].
-/// If a the function is called with [ActivationReason::Error] all processing has to be aborted and any.
-/// * `instance_data`: The filter’s private instance data.
-/// * `frame_data`:     Optional private data associated with output frame number `n``. It must be deallocated before the last call for the given frame ([ActivationReason::AllFramesReady] or error).
-pub type FilterGetFrame<'a> = fn(
-    n: i32,
-    activation_reason: ActivationReason,
-    instance_data: &mut [u8],
-    frame_data: &mut Option<&mut [u8; 4]>,
-    frame_ctx: &FrameContext,
-) -> Option<Frame<'a>>;
-
-// Free callback signature
-pub type FilterFree = fn(instance_data: &mut [u8]);
-
-// TODO!
-// - Filter Traits
-// - Export macros
 
 pub mod traits;
 

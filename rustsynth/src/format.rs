@@ -145,12 +145,10 @@ impl VideoFormat {
     pub(crate) fn from_ptr(from: *const ffi::VSVideoFormat) -> Self {
         let info = unsafe { &*from };
 
-        let sample_type = if info.sampleType == 0 {
+        let sample_type = if info.sampleType == ffi::VSSampleType::stInteger as i32 {
             SampleType::Integer
-        } else if info.sampleType == 1 {
-            SampleType::Float
         } else {
-            panic!("Sample type not valid")
+            SampleType::Float
         };
 
         let color_family = match info.colorFamily {
@@ -218,11 +216,10 @@ impl AudioFormat {
         let from = &*from;
         let sample_type = if from.sampleType == 0 {
             SampleType::Integer
-        } else if from.sampleType == 1 {
-            SampleType::Float
         } else {
-            panic!("Sample type not valid")
+            SampleType::Float
         };
+
         Self {
             sample_type,
             bits_per_sample: from.bitsPerSample,

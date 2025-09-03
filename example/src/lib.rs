@@ -63,18 +63,19 @@ mod plugin {
 
             // Actually do the invert operation
             for plane in 0..vf.num_planes {
-                let srcp = src.get_read_ptr(plane);
-                let dstp = dst.get_write_ptr(plane);
+                let mut srcp = src.get_read_ptr(plane);
+                let mut dstp = dst.get_write_ptr(plane);
                 let stride = src.get_stride(plane) as usize;
                 let h = src.get_height(plane) as usize;
                 let w = src.get_width(plane) as usize;
 
-                for y in 0..h {
-                    for x in 0..w {
-                        unsafe {
-                            let src_pixel = *srcp.add(y * stride + x);
-                            *dstp.add(y * stride + x) = !src_pixel;
+                unsafe {
+                    for _y in 0..h {
+                        for x in 0..w {
+                            *dstp.add(x) = !(*srcp.add(x));
                         }
+                        srcp = srcp.add(stride);
+                        dstp = dstp.add(stride);
                     }
                 }
             }

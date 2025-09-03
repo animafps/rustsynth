@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ops::Deref, ptr::NonNull};
+use std::{ffi::CStr, marker::PhantomData, ops::Deref, ptr::NonNull};
 
 use rustsynth_sys as ffi;
 
@@ -85,6 +85,25 @@ impl FrameContext {
     }
 }
 
+const CHROMA_LOCATION_KEY: &CStr =
+    unsafe { CStr::from_bytes_with_nul_unchecked(b"_ChromaLocation\0") };
+const COLOR_RANGE_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_ColorRange\0") };
+const PRIMARIES_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_Primaries\0") };
+const MATRIX_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_Matrix\0") };
+const TRANSFER_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_Transfer\0") };
+const FIELD_BASED_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_FieldBased\0") };
+const ABSOLUTE_TIME_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_AbsoluteTime\0") };
+const DURATION_NUM_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_DurationNum\0") };
+const DURATION_DEN_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_DurationDen\0") };
+const COMBED_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_Combed\0") };
+const FIELD_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_Field\0") };
+const PICT_TYPE_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_PictType\0") };
+const SAR_NUM_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_SARNum\0") };
+const SAR_DEN_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_SARDen\0") };
+const SCENE_CHANGE_NEXT_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_SceneChangeNext\0") };
+const SCENE_CHANGE_PREV_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_SceneChangePrev\0") };
+const ALPHA_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_Alpha\0") };
+
 impl<'core> Frame<'core> {
     #[inline]
     pub fn from_ptr(ptr: *const ffi::VSFrame) -> Self {
@@ -160,9 +179,6 @@ impl<'core> Frame<'core> {
                 core.ptr(),
             )
         };
-        if ptr.is_null() {
-            panic!("Failed to create new video frame");
-        }
         Frame::from_ptr(ptr)
     }
 
@@ -177,7 +193,10 @@ impl<'core> Frame<'core> {
         propsrc: Option<&Frame<'_>>,
     ) -> Self {
         let ptr = unsafe {
-            let mut planesrcptr: Vec<_> = planesrc.iter().map(|f| f.as_ptr()).collect();
+            let mut planesrcptr: [*const ffi::VSFrame; T] = [std::ptr::null(); T];
+            for (i, frame) in planesrc.iter().enumerate() {
+                planesrcptr[i] = frame.as_ptr();
+            }
             API::get_cached().new_video_frame2(
                 &format.as_ptr() as *const ffi::VSVideoFormat,
                 width,
@@ -188,9 +207,6 @@ impl<'core> Frame<'core> {
                 core.ptr(),
             )
         };
-        if ptr.is_null() {
-            panic!("Failed to create new video frame from existing planes");
-        }
         Frame::from_ptr(ptr)
     }
 
@@ -224,8 +240,8 @@ impl<'core> Frame<'core> {
 
     /// Get chroma sample position in YUV formats
     pub fn chroma_location(&self) -> Option<ChromaLocation> {
-        self.properties()
-            .get_int("_ChromaLocation")
+        unsafe { self.properties()
+            .get_int_raw_unchecked(CHROMA_LOCATION_KEY, 0)
             .ok()
             .and_then(|val| match val {
                 0 => Some(ChromaLocation::Left),
@@ -235,112 +251,112 @@ impl<'core> Frame<'core> {
                 4 => Some(ChromaLocation::BottomLeft),
                 5 => Some(ChromaLocation::Bottom),
                 _ => None,
-            })
+            }) }
     }
 
     /// Get color range (full or limited)
     pub fn color_range(&self) -> Option<ColorRange> {
-        self.properties()
-            .get_int("_ColorRange")
+        unsafe { self.properties()
+            .get_int_raw_unchecked(COLOR_RANGE_KEY, 0)
             .ok()
             .and_then(|val| match val {
                 0 => Some(ColorRange::Full),
                 1 => Some(ColorRange::Limited),
                 _ => None,
-            })
+            }) }
     }
 
     /// Get color primaries as specified in ITU-T H.273 Table 2
     pub fn primaries(&self) -> Option<i64> {
-        self.properties().get_int("_Primaries").ok()
+        unsafe { self.properties().get_int_raw_unchecked(PRIMARIES_KEY, 0).ok() }
     }
 
     /// Get matrix coefficients as specified in ITU-T H.273 Table 4
     pub fn matrix(&self) -> Option<i64> {
-        self.properties().get_int("_Matrix").ok()
+        unsafe { self.properties().get_int_raw_unchecked(MATRIX_KEY, 0).ok() }
     }
 
     /// Get transfer characteristics as specified in ITU-T H.273 Table 3
     pub fn transfer(&self) -> Option<i64> {
-        self.properties().get_int("_Transfer").ok()
+        unsafe { self.properties().get_int_raw_unchecked(TRANSFER_KEY, 0).ok() }
     }
 
     /// Get field based information (interlaced)
     pub fn field_based(&self) -> Option<FieldBased> {
-        self.properties()
-            .get_int("_FieldBased")
+        unsafe { self.properties()
+            .get_int_raw_unchecked(FIELD_BASED_KEY, 0)
             .ok()
             .and_then(|val| match val {
                 0 => Some(FieldBased::Progressive),
                 1 => Some(FieldBased::BottomFieldFirst),
                 2 => Some(FieldBased::TopFieldFirst),
                 _ => None,
-            })
+            }) }
     }
 
     /// Get absolute timestamp in seconds
     pub fn absolute_time(&self) -> Option<f64> {
-        self.properties().get_float("_AbsoluteTime").ok()
+        unsafe { self.properties().get_float_raw_unchecked(ABSOLUTE_TIME_KEY, 0).ok() }
     }
 
     /// Get frame duration as a rational number (numerator, denominator)
     pub fn duration(&self) -> Option<(i64, i64)> {
-        let num = self.properties().get_int("_DurationNum").ok()?;
-        let den = self.properties().get_int("_DurationDen").ok()?;
+        let num = unsafe { self.properties().get_int_raw_unchecked(DURATION_NUM_KEY, 0).ok()? };
+        let den = unsafe { self.properties().get_int_raw_unchecked(DURATION_DEN_KEY, 0).ok()? };
         Some((num, den))
     }
 
     /// Get whether the frame needs postprocessing
     pub fn combed(&self) -> Option<bool> {
-        self.properties()
-            .get_int("_Combed")
+        unsafe { self.properties()
+            .get_int_raw_unchecked(COMBED_KEY, 0)
             .ok()
-            .map(|val| val != 0)
+            .map(|val| val != 0) }
     }
 
     /// Get which field was used to generate this frame
     pub fn field(&self) -> Option<Field> {
-        self.properties()
-            .get_int("_Field")
+        unsafe { self.properties()
+            .get_int_raw_unchecked(FIELD_KEY, 0)
             .ok()
             .and_then(|val| match val {
                 0 => Some(Field::Bottom),
                 1 => Some(Field::Top),
                 _ => None,
-            })
+            }) }
     }
 
     /// Get picture type (single character describing frame type)
     pub fn picture_type(&self) -> Option<String> {
-        self.properties().get_string("_PictType").ok()
+        unsafe { self.properties().get_string_raw_unchecked(PICT_TYPE_KEY, 0).ok() }
     }
 
     /// Get pixel (sample) aspect ratio as a rational number (numerator, denominator)
     pub fn sample_aspect_ratio(&self) -> Option<(i64, i64)> {
-        let num = self.properties().get_int("_SARNum").ok()?;
-        let den = self.properties().get_int("_SARDen").ok()?;
+        let num = unsafe { self.properties().get_int_raw_unchecked(SAR_NUM_KEY, 0).ok()? };
+        let den = unsafe { self.properties().get_int_raw_unchecked(SAR_DEN_KEY, 0).ok()? };
         Some((num, den))
     }
 
     /// Get whether this frame is the last frame of the current scene
     pub fn scene_change_next(&self) -> Option<bool> {
-        self.properties()
-            .get_int("_SceneChangeNext")
+        unsafe { self.properties()
+            .get_int_raw_unchecked(SCENE_CHANGE_NEXT_KEY, 0)
             .ok()
-            .map(|val| val != 0)
+            .map(|val| val != 0) }
     }
 
     /// Get whether this frame starts a new scene
     pub fn scene_change_prev(&self) -> Option<bool> {
-        self.properties()
-            .get_int("_SceneChangePrev")
+        unsafe { self.properties()
+            .get_int_raw_unchecked(SCENE_CHANGE_PREV_KEY, 0)
             .ok()
-            .map(|val| val != 0)
+            .map(|val| val != 0) }
     }
 
     /// Get alpha channel frame attached to this frame
     pub fn alpha(&self) -> Option<Frame<'core>> {
-        self.properties().get_frame("_Alpha").ok()
+        unsafe { self.properties().get_frame_raw_unchecked(ALPHA_KEY, 0).ok() }
     }
 
     // Standard frame property setters (for owned frames only)
@@ -350,85 +366,124 @@ impl<'core> Frame<'core> {
         &mut self,
         location: ChromaLocation,
     ) -> Result<(), crate::map::Error> {
-        self.properties_mut()
-            .set_int("_ChromaLocation", location as i64)
+        unsafe {
+            self.properties_mut().set_int_raw_unchecked(CHROMA_LOCATION_KEY, location as i64);
+        }
+        Ok(())
     }
 
     /// Set color range (full or limited)
     pub fn set_color_range(&mut self, range: ColorRange) -> Result<(), crate::map::Error> {
-        self.properties_mut().set_int("_ColorRange", range as i64)
+        unsafe {
+            self.properties_mut().set_int_raw_unchecked(COLOR_RANGE_KEY, range as i64);
+        }
+        Ok(())
     }
 
     /// Set color primaries as specified in ITU-T H.273 Table 2
     pub fn set_primaries(&mut self, primaries: i64) -> Result<(), crate::map::Error> {
-        self.properties_mut().set_int("_Primaries", primaries)
+        unsafe {
+            self.properties_mut().set_int_raw_unchecked(PRIMARIES_KEY, primaries);
+        }
+        Ok(())
     }
 
     /// Set matrix coefficients as specified in ITU-T H.273 Table 4
     pub fn set_matrix(&mut self, matrix: i64) -> Result<(), crate::map::Error> {
-        self.properties_mut().set_int("_Matrix", matrix)
+        unsafe {
+            self.properties_mut().set_int_raw_unchecked(MATRIX_KEY, matrix);
+        }
+        Ok(())
     }
 
     /// Set transfer characteristics as specified in ITU-T H.273 Table 3
     pub fn set_transfer(&mut self, transfer: i64) -> Result<(), crate::map::Error> {
-        self.properties_mut().set_int("_Transfer", transfer)
+        unsafe {
+            self.properties_mut().set_int_raw_unchecked(TRANSFER_KEY, transfer);
+        }
+        Ok(())
     }
 
     /// Set field based information (interlaced)
     pub fn set_field_based(&mut self, field_based: FieldBased) -> Result<(), crate::map::Error> {
-        self.properties_mut()
-            .set_int("_FieldBased", field_based as i64)
+        unsafe {
+            self.properties_mut().set_int_raw_unchecked(FIELD_BASED_KEY, field_based as i64);
+        }
+        Ok(())
     }
 
     /// Set absolute timestamp in seconds (should only be set by source filter)
     pub fn set_absolute_time(&mut self, time: f64) -> Result<(), crate::map::Error> {
-        self.properties_mut().set_float("_AbsoluteTime", time)
+        unsafe {
+            self.properties_mut().set_float_raw_unchecked(ABSOLUTE_TIME_KEY, time);
+        }
+        Ok(())
     }
 
     /// Set frame duration as a rational number (numerator, denominator)
     pub fn set_duration(&mut self, num: i64, den: i64) -> Result<(), crate::map::Error> {
-        self.properties_mut().set_int("_DurationNum", num)?;
-        self.properties_mut().set_int("_DurationDen", den)
+        unsafe {
+            self.properties_mut().set_int_raw_unchecked(DURATION_NUM_KEY, num);
+            self.properties_mut().set_int_raw_unchecked(DURATION_DEN_KEY, den);
+        }
+        Ok(())
     }
 
     /// Set whether the frame needs postprocessing
     pub fn set_combed(&mut self, combed: bool) -> Result<(), crate::map::Error> {
-        self.properties_mut()
-            .set_int("_Combed", if combed { 1 } else { 0 })
+        unsafe {
+            self.properties_mut().set_int_raw_unchecked(COMBED_KEY, if combed { 1 } else { 0 });
+        }
+        Ok(())
     }
 
     /// Set which field was used to generate this frame
     pub fn set_field(&mut self, field: Field) -> Result<(), crate::map::Error> {
-        self.properties_mut().set_int("_Field", field as i64)
+        unsafe {
+            self.properties_mut().set_int_raw_unchecked(FIELD_KEY, field as i64);
+        }
+        Ok(())
     }
 
     /// Set picture type (single character describing frame type)
     pub fn set_picture_type(&mut self, pic_type: &str) -> Result<(), crate::map::Error> {
-        self.properties_mut()
-            .set_string(&"_PictType".to_string(), pic_type)
+        unsafe {
+            self.properties_mut().set_string_raw_unchecked(PICT_TYPE_KEY, pic_type);
+        }
+        Ok(())
     }
 
     /// Set pixel (sample) aspect ratio as a rational number (numerator, denominator)
     pub fn set_sample_aspect_ratio(&mut self, num: i64, den: i64) -> Result<(), crate::map::Error> {
-        self.properties_mut().set_int("_SARNum", num)?;
-        self.properties_mut().set_int("_SARDen", den)
+        unsafe {
+            self.properties_mut().set_int_raw_unchecked(SAR_NUM_KEY, num);
+            self.properties_mut().set_int_raw_unchecked(SAR_DEN_KEY, den);
+        }
+        Ok(())
     }
 
     /// Set whether this frame is the last frame of the current scene
     pub fn set_scene_change_next(&mut self, scene_change: bool) -> Result<(), crate::map::Error> {
-        self.properties_mut()
-            .set_int("_SceneChangeNext", if scene_change { 1 } else { 0 })
+        unsafe {
+            self.properties_mut().set_int_raw_unchecked(SCENE_CHANGE_NEXT_KEY, if scene_change { 1 } else { 0 });
+        }
+        Ok(())
     }
 
     /// Set whether this frame starts a new scene
     pub fn set_scene_change_prev(&mut self, scene_change: bool) -> Result<(), crate::map::Error> {
-        self.properties_mut()
-            .set_int("_SceneChangePrev", if scene_change { 1 } else { 0 })
+        unsafe {
+            self.properties_mut().set_int_raw_unchecked(SCENE_CHANGE_PREV_KEY, if scene_change { 1 } else { 0 });
+        }
+        Ok(())
     }
 
     /// Set alpha channel frame for this frame
     pub fn set_alpha(&mut self, alpha_frame: &Frame<'core>) -> Result<(), crate::map::Error> {
-        self.properties_mut().set_frame("_Alpha", alpha_frame)
+        unsafe {
+            self.properties_mut().set_frame_raw_unchecked(ALPHA_KEY, alpha_frame);
+        }
+        Ok(())
     }
 }
 
