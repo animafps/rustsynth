@@ -42,7 +42,7 @@ pub trait Filter {
         let deps = self.get_dependencies();
         if let Some(dep) = deps.first() {
             match dep.source.audio_info() {
-                Some(ai) => Ok(unsafe { *ai.as_ptr() }),
+                Some(ai) => Ok(ai.as_ptr()),
                 None => Err("Input node has no audio info".to_string()),
             }
         } else {

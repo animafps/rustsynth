@@ -129,6 +129,19 @@ impl ScriptAPI {
     pub(crate) unsafe fn eval_set_working_dir(&self, script: *mut ffi::VSScript, set_cwd: i32) {
         self.handle.as_ref().evalSetWorkingDir.unwrap()(script, set_cwd)
     }
+
+    pub(crate) unsafe fn get_core(&self, script: *mut ffi::VSScript) -> *mut ffi::VSCore {
+        self.handle.as_ref().getCore.unwrap()(script)
+    }
+
+    pub(crate) unsafe fn get_exit_code(&self, script: *mut ffi::VSScript) -> i32 {
+        self.handle.as_ref().getExitCode.unwrap()(script)
+    }
+
+    #[allow(unused)]
+    pub(crate) unsafe fn get_vsapi(&self, version: i32) -> *const ffi::VSAPI {
+        self.handle.as_ref().getVSAPI.unwrap()(version)
+    }
 }
 
 mod errors;

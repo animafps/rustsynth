@@ -6,7 +6,6 @@ use crate::{
     api::API,
     core::CoreRef,
     format::{AudioFormat, MediaType, VideoFormat},
-    frame,
     map::{MapRef, MapRefMut},
 };
 

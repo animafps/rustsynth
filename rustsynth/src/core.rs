@@ -1,8 +1,19 @@
-use crate::{api::API, plugin::Plugin};
+use crate::{
+    api::API,
+    format::VideoFormat,
+    frame::Frame,
+    log::{log_handler_callback, LogHandle, LogHandler, MessageType},
+    plugin::Plugin,
+};
 use bitflags::bitflags;
 use core::fmt;
 use rustsynth_sys as ffi;
-use std::{ffi::CStr, marker::PhantomData, ptr::NonNull};
+use std::{
+    ffi::{CStr, CString},
+    marker::PhantomData,
+    ops::Deref,
+    ptr::NonNull,
+};
 
 #[cfg(test)]
 mod tests;
@@ -124,6 +135,49 @@ impl<'core> CoreRef<'core> {
     /// Sets the maximum size of the framebuffer cache. Returns the new maximum size.
     pub fn set_max_cache_size(&self, size: i64) -> i64 {
         unsafe { API::get_cached().set_max_cache_size(self.ptr(), size) }
+    }
+
+    pub fn get_video_format_by_id(&self, id: u32) -> Option<VideoFormat> {
+        let format = unsafe { API::get_cached().get_video_format_by_id(id, self.ptr()) };
+        if format.is_none() {
+            None
+        } else {
+            Some(VideoFormat::from_ptr(format.unwrap()))
+        }
+    }
+
+    pub fn copy_frame(&'_ self, frame: &Frame) -> Frame<'_> {
+        let new_frame = unsafe { API::get_cached().copy_frame(frame, self.ptr()) };
+        Frame::from_ptr(new_frame)
+    }
+
+    pub fn add_log_handler(&self, handler: Box<dyn LogHandler>) -> LogHandle {
+        let handler_ptr = &handler.deref() as *const &dyn LogHandler as *mut std::ffi::c_void;
+        let ptr = unsafe {
+            API::get_cached().add_log_handler(
+                log_handler_callback,
+                handler_ptr,
+                self.handle.as_ptr(),
+            )
+        };
+        LogHandle::from_ptr(ptr, handler)
+    }
+
+    pub fn remove_log_handler(&self, handle: LogHandle) -> Result<(), ()> {
+        let ret =
+            unsafe { API::get_cached().remove_log_handler(handle.as_ptr(), self.handle.as_ptr()) };
+        if ret != 0 {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn log_mesage(&self, msg_type: MessageType, msg: &str) {
+        let cstr = CString::new(msg).unwrap();
+        unsafe {
+            API::get_cached().log_message(msg_type.into(), cstr.as_ptr(), self.handle.as_ptr())
+        }
     }
 }
 

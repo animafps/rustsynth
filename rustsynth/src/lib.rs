@@ -16,6 +16,7 @@ pub mod filter;
 pub mod format;
 pub mod frame;
 pub mod function;
+pub mod log;
 pub mod map;
 pub mod node;
 pub mod plugin;

@@ -180,6 +180,10 @@ impl VideoFormat {
             numPlanes: self.num_planes,
         }
     }
+
+    pub fn get_name(&self) -> Option<String> {
+        unsafe { API::get_cached().get_video_format_name(&self.as_ptr()) }
+    }
 }
 
 impl AudioInfo {
@@ -194,7 +198,7 @@ impl AudioInfo {
     }
 
     #[allow(unused)]
-    pub(crate) fn as_ptr(&self) -> *const ffi::VSAudioInfo {
+    pub(crate) fn as_ptr(&self) -> ffi::VSAudioInfo {
         let info = ffi::VSAudioInfo {
             format: ffi::VSAudioFormat {
                 sampleType: self.format.sample_type as i32,
@@ -207,7 +211,7 @@ impl AudioInfo {
             numSamples: self.num_samples,
             numFrames: self.num_frames,
         };
-        &info as *const ffi::VSAudioInfo
+        info
     }
 }
 

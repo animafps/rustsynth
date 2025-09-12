@@ -754,6 +754,59 @@ impl API {
         unsafe { self.handle.as_ref().setMaxCacheSize.unwrap()(size, core) }
     }
 
+    pub(crate) fn get_video_format_by_id(
+        &self,
+        id: u32,
+        core_ref: *mut ffi::VSCore,
+    ) -> Option<*mut ffi::VSVideoFormat> {
+        let not_filled = ptr::null_mut() as *mut ffi::VSVideoFormat;
+        let format =
+            unsafe { self.handle.as_ref().getVideoFormatByID.unwrap()(not_filled, id, core_ref) };
+        if format == 0 {
+            None
+        } else {
+            Some(not_filled)
+        }
+    }
+
+    pub(crate) fn get_video_format_name(
+        &self,
+        format: *const ffi::VSVideoFormat,
+    ) -> Option<String> {
+        let buf: *mut i8 = std::ptr::null_mut();
+        let result = unsafe { self.handle.as_ref().getVideoFormatName.unwrap()(format, buf) };
+        if result == 0 {
+            None
+        } else {
+            Some(unsafe { CString::from_raw(buf).to_string_lossy().into_owned() })
+        }
+    }
+
+    pub(crate) fn add_log_handler(
+        &self,
+        handler: unsafe extern "C" fn(
+            msg_type: i32,
+            msg: *const std::ffi::c_char,
+            userdata: *mut c_void,
+        ),
+        userdata: *mut c_void,
+        core: *mut ffi::VSCore,
+    ) -> *mut ffi::VSLogHandle {
+        unsafe { self.handle.as_ref().addLogHandler.unwrap()(Some(handler), None, userdata, core) }
+    }
+
+    pub(crate) fn remove_log_handler(
+        &self,
+        handle: *mut ffi::VSLogHandle,
+        core: *mut ffi::VSCore,
+    ) -> i32 {
+        unsafe { self.handle.as_ref().removeLogHandler.unwrap()(handle, core) }
+    }
+
+    pub(crate) fn log_message(&self, msg_type: i32, msg: *const c_char, core: *mut ffi::VSCore) {
+        unsafe { self.handle.as_ref().logMessage.unwrap()(msg_type, msg, core) }
+    }
+
     map_get_something!(map_get_int, mapGetInt, i64);
     map_get_something!(map_get_float, mapGetFloat, f64);
     map_get_something!(map_get_data, mapGetData, *const c_char);

@@ -11,7 +11,7 @@ use crate::core::CoreRef;
 use crate::map::Map;
 use crate::node::Node;
 use crate::vsscript::errors::Result;
-use crate::vsscript::*;
+use crate::{init_api, vsscript::*};
 
 use crate::vsscript::VSScriptError;
 
@@ -191,5 +191,20 @@ impl Environment {
 
     pub fn eval_set_working_dir(&self, set_cwd: i32) {
         unsafe { ScriptAPI::get_cached().eval_set_working_dir(self.handle.as_ptr(), set_cwd) };
+    }
+
+    pub fn get_core(&'_ self) -> CoreRef<'_> {
+        let ptr = unsafe { ScriptAPI::get_cached().get_core(self.handle.as_ptr()) };
+        unsafe { CoreRef::from_ptr(ptr) }
+    }
+
+    pub fn load_api(version: i32) {
+        unsafe {
+            init_api(ScriptAPI::get_cached().get_vsapi(version));
+        }
+    }
+
+    pub fn get_exit_code(&self) -> i32 {
+        unsafe { ScriptAPI::get_cached().get_exit_code(self.handle.as_ptr()) }
     }
 }
