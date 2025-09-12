@@ -120,6 +120,11 @@ impl<'core> CoreRef<'core> {
     pub unsafe fn free_core(self) {
         API::get_cached().free_core(self.handle.as_ptr());
     }
+
+    /// Sets the maximum size of the framebuffer cache. Returns the new maximum size.
+    pub fn set_max_cache_size(&self, size: i64) -> i64 {
+        unsafe { API::get_cached().set_max_cache_size(self.ptr(), size) }
+    }
 }
 
 /// Contains information about a VapourSynth core.

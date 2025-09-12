@@ -480,6 +480,44 @@ impl API {
         )
     }
 
+    /// Creates a new frame, optionally copying the properties attached to another frame. The new
+    /// frame contains uninitialised memory.
+    ///
+    /// # Safety
+    /// The caller must ensure all pointers are valid and that the uninitialized plane data of the
+    /// returned frame is handled carefully.
+    #[inline]
+    pub(crate) unsafe fn new_audio_frame(
+        self,
+        format: *const ffi::VSAudioFormat,
+        prop_src: *const ffi::VSFrame,
+        num_samples: i32,
+        core: *mut ffi::VSCore,
+    ) -> *mut ffi::VSFrame {
+        self.handle.as_ref().newAudioFrame.unwrap()(format, num_samples, prop_src, core)
+    }
+
+    /// Creates a new audio frame from the channels of existing frames, optionally copying the properties attached to another frame.
+    #[inline]
+    pub(crate) unsafe fn new_audio_frame2(
+        self,
+        format: *const ffi::VSAudioFormat,
+        num_samples: i32,
+        channel_src: *mut *const ffi::VSFrame,
+        channels: *const i32,
+        prop_src: *const ffi::VSFrame,
+        core: *mut ffi::VSCore,
+    ) -> *mut ffi::VSFrame {
+        self.handle.as_ref().newAudioFrame2.unwrap()(
+            format,
+            num_samples,
+            channel_src,
+            channels,
+            prop_src,
+            core,
+        )
+    }
+
     pub(crate) unsafe fn clone_node(&self, node: *mut ffi::VSNode) -> *mut ffi::VSNode {
         self.handle.as_ref().addNodeRef.unwrap()(node)
     }
@@ -684,6 +722,36 @@ impl API {
         } else {
             Some(unsafe { CString::from_raw(buf).to_string_lossy().into_owned() })
         }
+    }
+
+    pub(crate) fn cache_frame(
+        &self,
+        frame: *const ffi::VSFrame,
+        n: i32,
+        frame_ctx: *mut ffi::VSFrameContext,
+    ) {
+        unsafe { self.handle.as_ref().cacheFrame.unwrap()(frame, n, frame_ctx) }
+    }
+
+    pub(crate) fn set_linear_filter(&self, node: *mut ffi::VSNode) -> i32 {
+        unsafe { self.handle.as_ref().setLinearFilter.unwrap()(node) }
+    }
+
+    pub(crate) fn get_frame_type(&self, frame: *const ffi::VSFrame) -> i32 {
+        unsafe { self.handle.as_ref().getFrameType.unwrap()(frame) }
+    }
+
+    pub(crate) fn release_frame_early(
+        &self,
+        node: *mut ffi::VSNode,
+        n: i32,
+        frame_ctx: *mut ffi::VSFrameContext,
+    ) {
+        unsafe { self.handle.as_ref().releaseFrameEarly.unwrap()(node, n, frame_ctx) }
+    }
+
+    pub(crate) fn set_max_cache_size(&self, core: *mut ffi::VSCore, size: i64) -> i64 {
+        unsafe { self.handle.as_ref().setMaxCacheSize.unwrap()(size, core) }
     }
 
     map_get_something!(map_get_int, mapGetInt, i64);

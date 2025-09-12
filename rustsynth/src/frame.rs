@@ -5,7 +5,8 @@ use rustsynth_sys as ffi;
 use crate::{
     api::API,
     core::CoreRef,
-    format::{AudioFormat, VideoFormat},
+    format::{AudioFormat, MediaType, VideoFormat},
+    frame,
     map::{MapRef, MapRefMut},
 };
 
@@ -100,8 +101,10 @@ const FIELD_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_Field\0
 const PICT_TYPE_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_PictType\0") };
 const SAR_NUM_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_SARNum\0") };
 const SAR_DEN_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_SARDen\0") };
-const SCENE_CHANGE_NEXT_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_SceneChangeNext\0") };
-const SCENE_CHANGE_PREV_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_SceneChangePrev\0") };
+const SCENE_CHANGE_NEXT_KEY: &CStr =
+    unsafe { CStr::from_bytes_with_nul_unchecked(b"_SceneChangeNext\0") };
+const SCENE_CHANGE_PREV_KEY: &CStr =
+    unsafe { CStr::from_bytes_with_nul_unchecked(b"_SceneChangePrev\0") };
 const ALPHA_KEY: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"_Alpha\0") };
 
 impl<'core> Frame<'core> {
@@ -210,6 +213,48 @@ impl<'core> Frame<'core> {
         Frame::from_ptr(ptr)
     }
 
+    pub fn new_audio_frame(
+        core: &CoreRef,
+        length: i32,
+        format: &AudioFormat,
+        prop_src: Option<&Frame<'_>>,
+    ) -> Self {
+        let ptr = unsafe {
+            API::get_cached().new_audio_frame(
+                &format.as_ptr() as *const ffi::VSAudioFormat,
+                prop_src.map_or(std::ptr::null(), |f| f.as_ptr()),
+                length,
+                core.ptr(),
+            )
+        };
+        Frame::from_ptr(ptr)
+    }
+
+    pub fn new_audio_frame_from_existing_channels<const T: usize>(
+        core: &CoreRef,
+        num_samples: i32,
+        format: &AudioFormat,
+        channelsrc: &mut [&Frame<'_>; T],
+        channels: &[i32; T],
+        propsrc: Option<&Frame<'_>>,
+    ) -> Self {
+        let ptr = unsafe {
+            let mut channelsrcptr: [*const ffi::VSFrame; T] = [std::ptr::null(); T];
+            for (i, frame) in channelsrc.iter().enumerate() {
+                channelsrcptr[i] = frame.as_ptr();
+            }
+            API::get_cached().new_audio_frame2(
+                &format.as_ptr() as *const ffi::VSAudioFormat,
+                num_samples,
+                channelsrcptr.as_mut_ptr(),
+                channels.as_ptr(),
+                propsrc.map_or(std::ptr::null(), |f| f.as_ptr()),
+                core.ptr(),
+            )
+        };
+        Frame::from_ptr(ptr)
+    }
+
     /// Get read-only access to plane data
     #[inline]
     pub fn get_read_ptr(&self, plane: i32) -> *const u8 {
@@ -240,35 +285,43 @@ impl<'core> Frame<'core> {
 
     /// Get chroma sample position in YUV formats
     pub fn chroma_location(&self) -> Option<ChromaLocation> {
-        unsafe { self.properties()
-            .get_int_raw_unchecked(CHROMA_LOCATION_KEY, 0)
-            .ok()
-            .and_then(|val| match val {
-                0 => Some(ChromaLocation::Left),
-                1 => Some(ChromaLocation::Center),
-                2 => Some(ChromaLocation::TopLeft),
-                3 => Some(ChromaLocation::Top),
-                4 => Some(ChromaLocation::BottomLeft),
-                5 => Some(ChromaLocation::Bottom),
-                _ => None,
-            }) }
+        unsafe {
+            self.properties()
+                .get_int_raw_unchecked(CHROMA_LOCATION_KEY, 0)
+                .ok()
+                .and_then(|val| match val {
+                    0 => Some(ChromaLocation::Left),
+                    1 => Some(ChromaLocation::Center),
+                    2 => Some(ChromaLocation::TopLeft),
+                    3 => Some(ChromaLocation::Top),
+                    4 => Some(ChromaLocation::BottomLeft),
+                    5 => Some(ChromaLocation::Bottom),
+                    _ => None,
+                })
+        }
     }
 
     /// Get color range (full or limited)
     pub fn color_range(&self) -> Option<ColorRange> {
-        unsafe { self.properties()
-            .get_int_raw_unchecked(COLOR_RANGE_KEY, 0)
-            .ok()
-            .and_then(|val| match val {
-                0 => Some(ColorRange::Full),
-                1 => Some(ColorRange::Limited),
-                _ => None,
-            }) }
+        unsafe {
+            self.properties()
+                .get_int_raw_unchecked(COLOR_RANGE_KEY, 0)
+                .ok()
+                .and_then(|val| match val {
+                    0 => Some(ColorRange::Full),
+                    1 => Some(ColorRange::Limited),
+                    _ => None,
+                })
+        }
     }
 
     /// Get color primaries as specified in ITU-T H.273 Table 2
     pub fn primaries(&self) -> Option<i64> {
-        unsafe { self.properties().get_int_raw_unchecked(PRIMARIES_KEY, 0).ok() }
+        unsafe {
+            self.properties()
+                .get_int_raw_unchecked(PRIMARIES_KEY, 0)
+                .ok()
+        }
     }
 
     /// Get matrix coefficients as specified in ITU-T H.273 Table 4
@@ -278,80 +331,118 @@ impl<'core> Frame<'core> {
 
     /// Get transfer characteristics as specified in ITU-T H.273 Table 3
     pub fn transfer(&self) -> Option<i64> {
-        unsafe { self.properties().get_int_raw_unchecked(TRANSFER_KEY, 0).ok() }
+        unsafe {
+            self.properties()
+                .get_int_raw_unchecked(TRANSFER_KEY, 0)
+                .ok()
+        }
     }
 
     /// Get field based information (interlaced)
     pub fn field_based(&self) -> Option<FieldBased> {
-        unsafe { self.properties()
-            .get_int_raw_unchecked(FIELD_BASED_KEY, 0)
-            .ok()
-            .and_then(|val| match val {
-                0 => Some(FieldBased::Progressive),
-                1 => Some(FieldBased::BottomFieldFirst),
-                2 => Some(FieldBased::TopFieldFirst),
-                _ => None,
-            }) }
+        unsafe {
+            self.properties()
+                .get_int_raw_unchecked(FIELD_BASED_KEY, 0)
+                .ok()
+                .and_then(|val| match val {
+                    0 => Some(FieldBased::Progressive),
+                    1 => Some(FieldBased::BottomFieldFirst),
+                    2 => Some(FieldBased::TopFieldFirst),
+                    _ => None,
+                })
+        }
     }
 
     /// Get absolute timestamp in seconds
     pub fn absolute_time(&self) -> Option<f64> {
-        unsafe { self.properties().get_float_raw_unchecked(ABSOLUTE_TIME_KEY, 0).ok() }
+        unsafe {
+            self.properties()
+                .get_float_raw_unchecked(ABSOLUTE_TIME_KEY, 0)
+                .ok()
+        }
     }
 
     /// Get frame duration as a rational number (numerator, denominator)
     pub fn duration(&self) -> Option<(i64, i64)> {
-        let num = unsafe { self.properties().get_int_raw_unchecked(DURATION_NUM_KEY, 0).ok()? };
-        let den = unsafe { self.properties().get_int_raw_unchecked(DURATION_DEN_KEY, 0).ok()? };
+        let num = unsafe {
+            self.properties()
+                .get_int_raw_unchecked(DURATION_NUM_KEY, 0)
+                .ok()?
+        };
+        let den = unsafe {
+            self.properties()
+                .get_int_raw_unchecked(DURATION_DEN_KEY, 0)
+                .ok()?
+        };
         Some((num, den))
     }
 
     /// Get whether the frame needs postprocessing
     pub fn combed(&self) -> Option<bool> {
-        unsafe { self.properties()
-            .get_int_raw_unchecked(COMBED_KEY, 0)
-            .ok()
-            .map(|val| val != 0) }
+        unsafe {
+            self.properties()
+                .get_int_raw_unchecked(COMBED_KEY, 0)
+                .ok()
+                .map(|val| val != 0)
+        }
     }
 
     /// Get which field was used to generate this frame
     pub fn field(&self) -> Option<Field> {
-        unsafe { self.properties()
-            .get_int_raw_unchecked(FIELD_KEY, 0)
-            .ok()
-            .and_then(|val| match val {
-                0 => Some(Field::Bottom),
-                1 => Some(Field::Top),
-                _ => None,
-            }) }
+        unsafe {
+            self.properties()
+                .get_int_raw_unchecked(FIELD_KEY, 0)
+                .ok()
+                .and_then(|val| match val {
+                    0 => Some(Field::Bottom),
+                    1 => Some(Field::Top),
+                    _ => None,
+                })
+        }
     }
 
     /// Get picture type (single character describing frame type)
     pub fn picture_type(&self) -> Option<String> {
-        unsafe { self.properties().get_string_raw_unchecked(PICT_TYPE_KEY, 0).ok() }
+        unsafe {
+            self.properties()
+                .get_string_raw_unchecked(PICT_TYPE_KEY, 0)
+                .ok()
+        }
     }
 
     /// Get pixel (sample) aspect ratio as a rational number (numerator, denominator)
     pub fn sample_aspect_ratio(&self) -> Option<(i64, i64)> {
-        let num = unsafe { self.properties().get_int_raw_unchecked(SAR_NUM_KEY, 0).ok()? };
-        let den = unsafe { self.properties().get_int_raw_unchecked(SAR_DEN_KEY, 0).ok()? };
+        let num = unsafe {
+            self.properties()
+                .get_int_raw_unchecked(SAR_NUM_KEY, 0)
+                .ok()?
+        };
+        let den = unsafe {
+            self.properties()
+                .get_int_raw_unchecked(SAR_DEN_KEY, 0)
+                .ok()?
+        };
         Some((num, den))
     }
 
     /// Get whether this frame is the last frame of the current scene
     pub fn scene_change_next(&self) -> Option<bool> {
-        unsafe { self.properties()
-            .get_int_raw_unchecked(SCENE_CHANGE_NEXT_KEY, 0)
-            .ok()
-            .map(|val| val != 0) }
+        unsafe {
+            self.properties()
+                .get_int_raw_unchecked(SCENE_CHANGE_NEXT_KEY, 0)
+                .ok()
+                .map(|val| val != 0)
+        }
     }
 
     /// Get whether this frame starts a new scene
     pub fn scene_change_prev(&self) -> Option<bool> {
-        unsafe { self.properties()
-            .get_int_raw_unchecked(SCENE_CHANGE_PREV_KEY, 0)
-            .ok()
-            .map(|val| val != 0) }
+        unsafe {
+            self.properties()
+                .get_int_raw_unchecked(SCENE_CHANGE_PREV_KEY, 0)
+                .ok()
+                .map(|val| val != 0)
+        }
     }
 
     /// Get alpha channel frame attached to this frame
@@ -367,7 +458,8 @@ impl<'core> Frame<'core> {
         location: ChromaLocation,
     ) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_int_raw_unchecked(CHROMA_LOCATION_KEY, location as i64);
+            self.properties_mut()
+                .set_int_raw_unchecked(CHROMA_LOCATION_KEY, location as i64);
         }
         Ok(())
     }
@@ -375,7 +467,8 @@ impl<'core> Frame<'core> {
     /// Set color range (full or limited)
     pub fn set_color_range(&mut self, range: ColorRange) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_int_raw_unchecked(COLOR_RANGE_KEY, range as i64);
+            self.properties_mut()
+                .set_int_raw_unchecked(COLOR_RANGE_KEY, range as i64);
         }
         Ok(())
     }
@@ -383,7 +476,8 @@ impl<'core> Frame<'core> {
     /// Set color primaries as specified in ITU-T H.273 Table 2
     pub fn set_primaries(&mut self, primaries: i64) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_int_raw_unchecked(PRIMARIES_KEY, primaries);
+            self.properties_mut()
+                .set_int_raw_unchecked(PRIMARIES_KEY, primaries);
         }
         Ok(())
     }
@@ -391,7 +485,8 @@ impl<'core> Frame<'core> {
     /// Set matrix coefficients as specified in ITU-T H.273 Table 4
     pub fn set_matrix(&mut self, matrix: i64) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_int_raw_unchecked(MATRIX_KEY, matrix);
+            self.properties_mut()
+                .set_int_raw_unchecked(MATRIX_KEY, matrix);
         }
         Ok(())
     }
@@ -399,7 +494,8 @@ impl<'core> Frame<'core> {
     /// Set transfer characteristics as specified in ITU-T H.273 Table 3
     pub fn set_transfer(&mut self, transfer: i64) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_int_raw_unchecked(TRANSFER_KEY, transfer);
+            self.properties_mut()
+                .set_int_raw_unchecked(TRANSFER_KEY, transfer);
         }
         Ok(())
     }
@@ -407,7 +503,8 @@ impl<'core> Frame<'core> {
     /// Set field based information (interlaced)
     pub fn set_field_based(&mut self, field_based: FieldBased) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_int_raw_unchecked(FIELD_BASED_KEY, field_based as i64);
+            self.properties_mut()
+                .set_int_raw_unchecked(FIELD_BASED_KEY, field_based as i64);
         }
         Ok(())
     }
@@ -415,7 +512,8 @@ impl<'core> Frame<'core> {
     /// Set absolute timestamp in seconds (should only be set by source filter)
     pub fn set_absolute_time(&mut self, time: f64) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_float_raw_unchecked(ABSOLUTE_TIME_KEY, time);
+            self.properties_mut()
+                .set_float_raw_unchecked(ABSOLUTE_TIME_KEY, time);
         }
         Ok(())
     }
@@ -423,8 +521,10 @@ impl<'core> Frame<'core> {
     /// Set frame duration as a rational number (numerator, denominator)
     pub fn set_duration(&mut self, num: i64, den: i64) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_int_raw_unchecked(DURATION_NUM_KEY, num);
-            self.properties_mut().set_int_raw_unchecked(DURATION_DEN_KEY, den);
+            self.properties_mut()
+                .set_int_raw_unchecked(DURATION_NUM_KEY, num);
+            self.properties_mut()
+                .set_int_raw_unchecked(DURATION_DEN_KEY, den);
         }
         Ok(())
     }
@@ -432,7 +532,8 @@ impl<'core> Frame<'core> {
     /// Set whether the frame needs postprocessing
     pub fn set_combed(&mut self, combed: bool) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_int_raw_unchecked(COMBED_KEY, if combed { 1 } else { 0 });
+            self.properties_mut()
+                .set_int_raw_unchecked(COMBED_KEY, if combed { 1 } else { 0 });
         }
         Ok(())
     }
@@ -440,7 +541,8 @@ impl<'core> Frame<'core> {
     /// Set which field was used to generate this frame
     pub fn set_field(&mut self, field: Field) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_int_raw_unchecked(FIELD_KEY, field as i64);
+            self.properties_mut()
+                .set_int_raw_unchecked(FIELD_KEY, field as i64);
         }
         Ok(())
     }
@@ -448,7 +550,8 @@ impl<'core> Frame<'core> {
     /// Set picture type (single character describing frame type)
     pub fn set_picture_type(&mut self, pic_type: &str) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_string_raw_unchecked(PICT_TYPE_KEY, pic_type);
+            self.properties_mut()
+                .set_string_raw_unchecked(PICT_TYPE_KEY, pic_type);
         }
         Ok(())
     }
@@ -456,8 +559,10 @@ impl<'core> Frame<'core> {
     /// Set pixel (sample) aspect ratio as a rational number (numerator, denominator)
     pub fn set_sample_aspect_ratio(&mut self, num: i64, den: i64) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_int_raw_unchecked(SAR_NUM_KEY, num);
-            self.properties_mut().set_int_raw_unchecked(SAR_DEN_KEY, den);
+            self.properties_mut()
+                .set_int_raw_unchecked(SAR_NUM_KEY, num);
+            self.properties_mut()
+                .set_int_raw_unchecked(SAR_DEN_KEY, den);
         }
         Ok(())
     }
@@ -465,7 +570,8 @@ impl<'core> Frame<'core> {
     /// Set whether this frame is the last frame of the current scene
     pub fn set_scene_change_next(&mut self, scene_change: bool) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_int_raw_unchecked(SCENE_CHANGE_NEXT_KEY, if scene_change { 1 } else { 0 });
+            self.properties_mut()
+                .set_int_raw_unchecked(SCENE_CHANGE_NEXT_KEY, if scene_change { 1 } else { 0 });
         }
         Ok(())
     }
@@ -473,7 +579,8 @@ impl<'core> Frame<'core> {
     /// Set whether this frame starts a new scene
     pub fn set_scene_change_prev(&mut self, scene_change: bool) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_int_raw_unchecked(SCENE_CHANGE_PREV_KEY, if scene_change { 1 } else { 0 });
+            self.properties_mut()
+                .set_int_raw_unchecked(SCENE_CHANGE_PREV_KEY, if scene_change { 1 } else { 0 });
         }
         Ok(())
     }
@@ -481,9 +588,21 @@ impl<'core> Frame<'core> {
     /// Set alpha channel frame for this frame
     pub fn set_alpha(&mut self, alpha_frame: &Frame<'core>) -> Result<(), crate::map::Error> {
         unsafe {
-            self.properties_mut().set_frame_raw_unchecked(ALPHA_KEY, alpha_frame);
+            self.properties_mut()
+                .set_frame_raw_unchecked(ALPHA_KEY, alpha_frame);
         }
         Ok(())
+    }
+
+    pub fn get_frame_type(&self) -> MediaType {
+        MediaType::from_ffi(unsafe { API::get_cached().get_frame_type(self.handle.as_ref()) })
+    }
+
+    /// Pushes a not requested frame into the cache. This is useful for (source) filters that greatly benefit from completely linear access and producing all output in linear order.
+    /// This function may only be used in filters that were created with setLinearFilter.
+    /// Only use inside a filter’s “getframe” function.
+    pub fn cache_frame(&self, n: i32, frame_ctxt: &FrameContext) {
+        unsafe { API::get_cached().cache_frame(self.handle.as_ref(), n, frame_ctxt.ptr()) }
     }
 }
 

@@ -302,6 +302,17 @@ impl Node {
             _ => unreachable!(),
         }
     }
+
+    /// Must be called immediately after audio or video filter creation. Returns the upper bound of how many additional frames it is reasonable to pass to [Frame::cache_frame] when trying to make a request more linear.
+    pub fn set_linear_filter(&self) -> i32 {
+        unsafe { API::get_cached().set_linear_filter(self.ptr()) }
+    }
+
+    pub fn release_frame_early(&self, n: i32, frame_ctx: &FrameContext) {
+        unsafe {
+            API::get_cached().release_frame_early(self.ptr(), n, frame_ctx.ptr());
+        }
+    }
 }
 
 /// Describes how the output of a node is cached.

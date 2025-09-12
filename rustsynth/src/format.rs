@@ -229,18 +229,18 @@ impl AudioFormat {
         }
     }
 
-    pub(crate) fn as_ptr(&self) -> *const ffi::VSAudioFormat {
-        &ffi::VSAudioFormat {
+    pub(crate) fn as_ptr(&self) -> ffi::VSAudioFormat {
+        ffi::VSAudioFormat {
             sampleType: self.sample_type as i32,
             bitsPerSample: self.bits_per_sample,
             bytesPerSample: self.bytes_per_sample,
             numChannels: self.num_channels,
             channelLayout: self.channel_layout,
-        } as *const ffi::VSAudioFormat
+        }
     }
 
     pub fn get_name(&self) -> Option<String> {
-        unsafe { API::get_cached().get_audio_format_name(self.as_ptr()) }
+        unsafe { API::get_cached().get_audio_format_name(&self.as_ptr()) }
     }
 }
 
@@ -322,5 +322,15 @@ unsafe impl Component for f32 {
     #[inline]
     fn is_valid(format: VideoFormat) -> bool {
         format.sample_type == SampleType::Float && format.bytes_per_sample == 4
+    }
+}
+
+impl MediaType {
+    pub(crate) fn from_ffi(from: i32) -> Self {
+        match from {
+            x if x == ffi::VSMediaType::mtVideo as i32 => MediaType::Video,
+            x if x == ffi::VSMediaType::mtAudio as i32 => MediaType::Audio,
+            _ => unreachable!(),
+        }
     }
 }
