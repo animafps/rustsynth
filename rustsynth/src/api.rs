@@ -715,12 +715,14 @@ impl API {
         &self,
         format: *const ffi::VSAudioFormat,
     ) -> Option<String> {
-        let buf: *mut i8 = std::ptr::null_mut();
-        let result = unsafe { self.handle.as_ref().getAudioFormatName.unwrap()(format, buf) };
+        let mut buf = [0i8; 32]; // Buffer for up to 32 characters as per API docs
+        let result = unsafe { self.handle.as_ref().getAudioFormatName.unwrap()(format, buf.as_mut_ptr()) };
         if result == 0 {
             None
         } else {
-            Some(unsafe { CString::from_raw(buf).to_string_lossy().into_owned() })
+            // Find the null terminator and create a CStr from the buffer
+            let cstr = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) };
+            Some(cstr.to_string_lossy().into_owned())
         }
     }
 
@@ -773,12 +775,14 @@ impl API {
         &self,
         format: *const ffi::VSVideoFormat,
     ) -> Option<String> {
-        let buf: *mut i8 = std::ptr::null_mut();
-        let result = unsafe { self.handle.as_ref().getVideoFormatName.unwrap()(format, buf) };
+        let mut buf = [0i8; 32]; // Buffer for up to 32 characters as per API docs
+        let result = unsafe { self.handle.as_ref().getVideoFormatName.unwrap()(format, buf.as_mut_ptr()) };
         if result == 0 {
             None
         } else {
-            Some(unsafe { CString::from_raw(buf).to_string_lossy().into_owned() })
+            // Find the null terminator and create a CStr from the buffer
+            let cstr = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) };
+            Some(cstr.to_string_lossy().into_owned())
         }
     }
 

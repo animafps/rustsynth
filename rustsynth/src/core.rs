@@ -19,10 +19,14 @@ use std::{
 mod tests;
 
 bitflags! {
+    /// Options when creating a core.
     pub struct CoreCreationFlags: u32 {
         const NONE = 0b00000000;
+        /// Required to use the graph inspection api functions. Increases memory usage due to the extra information stored.
         const ENABLE_GRAPH_INSPECTION = 0b00000001;
+        /// Don’t autoload any user plugins. Core plugins are always loaded.
         const DISABLE_AUTO_LOADING = 0b00000010;
+        /// Don’t unload plugin libraries when the core is destroyed. Due to a small amount of memory leaking every load and unload (windows feature, not my fault) of a library this may help in applications with extreme amount of script reloading.
         const DISABLE_LIBRARY_UNLOADING = 0b00000100;
     }
 }
@@ -99,14 +103,14 @@ impl<'core> CoreRef<'core> {
         }
     }
 
-    /// Returns an instance of Some<[Plugin]> if there exists a plugin loaded associated with the namespace
+    /// Returns an instance of [Some]<[Plugin]> if there exists a plugin loaded associated with the namespace
     ///
     /// [None] if no plugin is found
     pub fn plugin_by_namespace(&self, namespace: &str) -> Option<Plugin<'core>> {
         unsafe { API::get_cached() }.plugin_by_namespace(namespace, self)
     }
 
-    /// Returns an instance of Some<[Plugin]> if there exists a plugin loaded associated with the id
+    /// Returns an instance of [Some]<[Plugin]> if there exists a plugin loaded associated with the id
     ///
     /// [None] if no plugin is found
     pub fn plugin_by_id(&self, id: &str) -> Option<Plugin<'_>> {
@@ -118,6 +122,7 @@ impl<'core> CoreRef<'core> {
         unsafe { API::get_cached() }.plugins(self)
     }
 
+    /// Sets the number of threads used for processing. Pass 0 to automatically detect. Returns the number of threads that will be used for processing.
     #[inline]
     pub fn set_thread_count(&self, count: usize) -> i32 {
         unsafe { API::get_cached().set_thread_count(self.ptr(), count as i32) }
@@ -137,6 +142,7 @@ impl<'core> CoreRef<'core> {
         unsafe { API::get_cached().set_max_cache_size(self.ptr(), size) }
     }
 
+    /// The format identifier: one of [crate::format::PresetVideoFormat] or a value gotten from [VideoFormat::query_format_id].
     pub fn get_video_format_by_id(&self, id: u32) -> Option<VideoFormat> {
         let format = unsafe { API::get_cached().get_video_format_by_id(id, self.ptr()) };
         if format.is_none() {
@@ -146,11 +152,16 @@ impl<'core> CoreRef<'core> {
         }
     }
 
+    /// Duplicates the frame (not just the reference). As the frame buffer is shared in a copy-on-write fashion, the frame content is not really duplicated until a write operation occurs. This is transparent for the user.
     pub fn copy_frame(&'_ self, frame: &Frame) -> Frame<'_> {
         let new_frame = unsafe { API::get_cached().copy_frame(frame, self.ptr()) };
         Frame::from_ptr(new_frame)
     }
 
+    /// Installs a custom handler for the various error messages VapourSynth emits. The message handler is per Core instance. Returns a unique handle.
+    /// If no log handler is installed up to a few hundred messages are cached and will be delivered as soon as a log handler is attached. This behavior exists mostly so that warnings when auto-loading plugins (default behavior) won’t disappear
+    ///
+    /// See the example handler [crate::log::LogRS]
     pub fn add_log_handler(&self, handler: Box<dyn LogHandler>) -> LogHandle {
         let handler_ptr = &handler.deref() as *const &dyn LogHandler as *mut std::ffi::c_void;
         let ptr = unsafe {
@@ -163,6 +174,7 @@ impl<'core> CoreRef<'core> {
         LogHandle::from_ptr(ptr, handler)
     }
 
+    /// Removes a custom handler.
     pub fn remove_log_handler(&self, handle: LogHandle) -> Result<(), ()> {
         let ret =
             unsafe { API::get_cached().remove_log_handler(handle.as_ptr(), self.handle.as_ptr()) };
@@ -173,6 +185,7 @@ impl<'core> CoreRef<'core> {
         }
     }
 
+    /// Send a message through VapourSynth’s logging framework
     pub fn log_mesage(&self, msg_type: MessageType, msg: &str) {
         let cstr = CString::new(msg).unwrap();
         unsafe {

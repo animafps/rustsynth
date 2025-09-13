@@ -308,6 +308,9 @@ impl Node {
         unsafe { API::get_cached().set_linear_filter(self.ptr()) }
     }
 
+    /// By default all requested frames are referenced until a filter’s frame request is done. In extreme cases where a filter needs to reduce 20+ frames into a single output frame it may be beneficial to request these in batches and incrementally process the data instead.
+    ///
+    ///Should rarely be needed.
     pub fn release_frame_early(&self, n: i32, frame_ctx: &FrameContext) {
         unsafe {
             API::get_cached().release_frame_early(self.ptr(), n, frame_ctx.ptr());

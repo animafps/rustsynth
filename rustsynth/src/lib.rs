@@ -1,12 +1,8 @@
 //! A safe wraper for [VapourSynth], written in Rust
 //!
-//! Is a fork of [vapoursynth-rs] project for the latest VapourSynth API version
-//!
 //! The primary goal is safety (that is, safe Rust code should not trigger undefined behavior), and secondary goals include performance and ease of use.
 //!
 //! [VapourSynth]: https://github.com/vapoursynth/vapoursynth
-//! [vapoursynth-rs]: https://github.com/YaLTeR/vapoursynth-rs
-
 pub extern crate rustsynth_sys;
 pub use rustsynth_sys as ffi;
 

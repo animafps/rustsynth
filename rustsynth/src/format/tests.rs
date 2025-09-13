@@ -1,14 +1,14 @@
 #[cfg(test)]
 mod tests {
-    use crate::format::{ColorFamily, PresetFormat, SampleType};
+    use crate::format::{ColorFamily, PresetVideoFormat, SampleType};
 
     #[test]
     fn test_preset_format_values() {
         // Test some key preset format values
-        assert_eq!(PresetFormat::None as i32, 0);
-        assert_ne!(PresetFormat::Gray8 as i32, 0);
-        assert_ne!(PresetFormat::YUV420P8 as i32, 0);
-        assert_ne!(PresetFormat::RGB24 as i32, 0);
+        assert_eq!(PresetVideoFormat::None as i32, 0);
+        assert_ne!(PresetVideoFormat::Gray8 as i32, 0);
+        assert_ne!(PresetVideoFormat::YUV420P8 as i32, 0);
+        assert_ne!(PresetVideoFormat::RGB24 as i32, 0);
     }
 
     #[test]
@@ -30,19 +30,19 @@ mod tests {
     #[test]
     fn test_format_id_uniqueness() {
         // Different formats should have different IDs
-        assert_ne!(PresetFormat::Gray8 as i32, PresetFormat::Gray16 as i32);
-        assert_ne!(PresetFormat::Gray8 as i32, PresetFormat::YUV420P8 as i32);
-        assert_ne!(PresetFormat::RGB24 as i32, PresetFormat::YUV420P8 as i32);
+        assert_ne!(PresetVideoFormat::Gray8 as i32, PresetVideoFormat::Gray16 as i32);
+        assert_ne!(PresetVideoFormat::Gray8 as i32, PresetVideoFormat::YUV420P8 as i32);
+        assert_ne!(PresetVideoFormat::RGB24 as i32, PresetVideoFormat::YUV420P8 as i32);
 
         // Float vs Integer formats should be different
-        assert_ne!(PresetFormat::GrayS as i32, PresetFormat::Gray32 as i32);
+        assert_ne!(PresetVideoFormat::GrayS as i32, PresetVideoFormat::Gray32 as i32);
     }
 
     #[test]
     fn test_subsampling_differences() {
         // Different YUV subsampling should give different IDs
-        assert_ne!(PresetFormat::YUV420P8 as i32, PresetFormat::YUV422P8 as i32);
-        assert_ne!(PresetFormat::YUV422P8 as i32, PresetFormat::YUV444P8 as i32);
-        assert_ne!(PresetFormat::YUV420P8 as i32, PresetFormat::YUV444P8 as i32);
+        assert_ne!(PresetVideoFormat::YUV420P8 as i32, PresetVideoFormat::YUV422P8 as i32);
+        assert_ne!(PresetVideoFormat::YUV422P8 as i32, PresetVideoFormat::YUV444P8 as i32);
+        assert_ne!(PresetVideoFormat::YUV420P8 as i32, PresetVideoFormat::YUV444P8 as i32);
     }
 }

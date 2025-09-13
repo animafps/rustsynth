@@ -50,7 +50,7 @@ pub enum Transfer {
 
 // One frame of a clip.
 // This type is intended to be publicly used only in reference form.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Frame<'core> {
     // The actual mutability of this depends on whether it's accessed via `&Frame` or `&mut Frame`.
     handle: NonNull<ffi::VSFrame>,
@@ -212,6 +212,7 @@ impl<'core> Frame<'core> {
         Frame::from_ptr(ptr)
     }
 
+    /// Creates a new audio frame, optionally copying the properties attached to another frame. It is a fatal error to pass invalid arguments to this function
     pub fn new_audio_frame(
         core: &CoreRef,
         length: i32,
@@ -229,6 +230,9 @@ impl<'core> Frame<'core> {
         Frame::from_ptr(ptr)
     }
 
+    /// Creates a new audio frame, optionally copying the properties attached to another frame. It is a fatal error to pass invalid arguments to this function.
+    ///
+    /// See also [Frame::new_video_frame_from_existing_planes]
     pub fn new_audio_frame_from_existing_channels<const T: usize>(
         core: &CoreRef,
         num_samples: i32,

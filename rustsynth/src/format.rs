@@ -32,7 +32,7 @@ const fn make_video_id(
 /// VapourSynth plugins.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum PresetFormat {
+pub enum PresetVideoFormat {
     None = 0,
     Gray8 = make_video_id(ColorFamily::Gray, SampleType::Integer, 8, 0, 0),
     Gray9 = make_video_id(ColorFamily::Gray, SampleType::Integer, 9, 0, 0),
@@ -92,23 +92,38 @@ pub enum MediaType {
     Video,
     Audio,
 }
+
+/// Information about a video clip
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct VideoInfo {
+    /// Format of the clip. Will have color_family set to [ColorFamily::Undefined] if the format can vary.
     pub format: VideoFormat,
+    /// Numerator part of the clip’s frame rate. It will be 0 if the frame rate can vary. Should always be a reduced fraction.
     pub fps_num: i64,
+    /// Denominator part of the clip’s frame rate. It will be 0 if the frame rate can vary. Should always be a reduced fraction.
     pub fps_den: i64,
+    /// Width of the clip. Both width and height will be 0 if the clip’s dimensions can vary.
     pub width: i32,
+    /// Height of the clip. Both width and height will be 0 if the clip’s dimensions can vary.
     pub height: i32,
+    /// Length of the clip.
     pub num_frames: i32,
 }
+
+/// Describes the format of a clip.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct VideoFormat {
     pub color_family: ColorFamily,
     pub sample_type: SampleType,
+    /// Number of significant bits.
     pub bits_per_sample: i32,
+    /// Number of bytes needed for a sample. This is always a power of 2 and the smallest possible that can fit the number of bits used per sample.
     pub bytes_per_sample: i32,
     pub sub_sampling_w: i32,
+    /// log2 subsampling factor, applied to second and third plane. Convenient numbers that can be used like so:
+    /// `uv_width = y_width >> subSamplingW;`
     pub sub_sampling_h: i32,
+    /// Number of planes.
     pub num_planes: i32,
 }
 

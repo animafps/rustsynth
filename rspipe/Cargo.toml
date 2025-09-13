@@ -1,0 +1,8 @@
+[package]
+name = "rspipe"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rustsynth = {path = "../rustsynth"}
+clap = "4.5"

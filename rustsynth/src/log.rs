@@ -62,7 +62,7 @@ pub trait LogHandler: Send + Sync {
 }
 
 // C callback function that bridges to Rust LogHandler
-pub unsafe extern "C" fn log_handler_callback(
+pub(crate) unsafe extern "C" fn log_handler_callback(
     msg_type: i32,
     msg: *const c_char,
     userdata: *mut c_void,

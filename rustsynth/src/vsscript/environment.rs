@@ -166,6 +166,9 @@ impl Environment {
         }
     }
 
+    /// Retrieves a node from the script environment. A node in the script must have been marked for output with the requested index.
+    ///
+    /// Returns [None] if there is no node at the requested index.
     pub fn get_output(&self, index: i32) -> Option<Node> {
         let ptr = unsafe { ScriptAPI::get_cached().get_output(self.handle.as_ptr(), index as i32) };
         if ptr.is_null() {
@@ -175,6 +178,9 @@ impl Environment {
         }
     }
 
+    /// Retrieves an alpha node from the script environment. A node with associated alpha in the script must have been marked for output with the requested index.
+    ///
+    /// Returns [None] if there is no node at the requested index.
     pub fn get_output_alpha(&self, index: i32) -> Option<Node> {
         let ptr =
             unsafe { ScriptAPI::get_cached().get_output_alpha(self.handle.as_ptr(), index as i32) };
@@ -185,14 +191,20 @@ impl Environment {
         }
     }
 
+    /// Retrieves the alternative output mode settings from the script. This value has no fixed meaning but in vspipe and vsvfw it indicates that alternate output formats should be used when multiple ones are available.
+    /// It is up to the client application to define the exact meaning or simply disregard it completely.
+    ///
+    /// Returns 0 if there is no alt output mode set.
     pub fn get_alt_output_mode(&self, index: i32) -> i32 {
         unsafe { ScriptAPI::get_cached().get_alt_output_mode(self.handle.as_ptr(), index as i32) }
     }
 
+    /// Set whether or not the working directory is temporarily changed to the same location as the script file when evaluateFile is called. Off by default.
     pub fn eval_set_working_dir(&self, set_cwd: i32) {
         unsafe { ScriptAPI::get_cached().eval_set_working_dir(self.handle.as_ptr(), set_cwd) };
     }
 
+    /// Retrieves the VapourSynth core that was created in the script environment. If a VapourSynth core has not been created yet, it will be created now, with the default options (see the [Python Reference](https://www.vapoursynth.com/doc/pythonreference.html)).
     pub fn get_core(&'_ self) -> CoreRef<'_> {
         let ptr = unsafe { ScriptAPI::get_cached().get_core(self.handle.as_ptr()) };
         unsafe { CoreRef::from_ptr(ptr) }
@@ -204,6 +216,7 @@ impl Environment {
         }
     }
 
+    /// Returns the exit code if the script calls sys.exit(code), or 0, if the script fails for other reasons or calls sys.exit(0)
     pub fn get_exit_code(&self) -> i32 {
         unsafe { ScriptAPI::get_cached().get_exit_code(self.handle.as_ptr()) }
     }
