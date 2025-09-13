@@ -5,7 +5,6 @@ use rustsynth::{
     map::OwnedMap,
 };
 use std::collections::HashMap;
-use std::fs::File;
 use std::io::{self, BufWriter, Write};
 use std::process;
 use std::sync::{Arc, Mutex};
@@ -31,6 +30,7 @@ fn main() {
             Arg::new("outfile")
                 .help("Output file (use '-' for stdout, '--' for no output)")
                 .required_unless_present("version")
+                .required_unless_present("info")
                 .index(2),
         )
         .arg(
@@ -73,7 +73,6 @@ fn main() {
                 .help("Set number of concurrent frame requests")
                 .value_name("N")
                 .value_parser(clap::value_parser!(usize))
-                .default_value("6"),
         )
         .arg(
             Arg::new("container")
@@ -113,7 +112,8 @@ fn main() {
     }
 
     let script_path = matches.get_one::<String>("script").unwrap();
-    let outfile = matches.get_one::<String>("outfile").unwrap();
+    let binding = "--".to_string();
+    let outfile = matches.get_one::<String>("outfile").unwrap_or(&binding);
 
     // Initialize VapourSynth
     let core = CoreRef::new(CoreCreationFlags::NONE);
@@ -125,6 +125,7 @@ fn main() {
         }
     };
 
+    Environment::load_api(core.info().api_version);
     // Set script arguments
     if let Some(args) = matches.get_many::<String>("arg") {
         let mut script_args = HashMap::new();
@@ -167,7 +168,7 @@ fn main() {
 
     // Handle info mode
     if matches.get_flag("info") {
-        print_node_info(&node, outfile);
+        print_node_info(&node);
         return;
     }
 
@@ -209,19 +210,13 @@ fn main() {
     }
 
     // Set up progress tracking
-    let mut progress = if matches.get_flag("progress") {
-        Some(ProgressTracker::new(total_frames))
-    } else {
-        None
-    };
+    let mut progress = ProgressTracker::new(total_frames, matches.get_flag("progress"));
 
     // Process frames concurrently
-    let num_requests = *matches.get_one::<usize>("requests").unwrap();
-    process_frames_concurrent(&node, &mut writer, start_frame, end_frame, num_requests, progress.as_mut());
+    let num_requests = *matches.get_one::<usize>("requests").unwrap_or(&environment.get_core().info().num_threads);
+    process_frames_concurrent(&node, &mut writer, start_frame, end_frame, num_requests, &mut progress);
 
-    if let Some(ref mut progress) = progress {
-        progress.finish();
-    }
+    progress.finish();
 
     if let Err(e) = writer.finish() {
         eprintln!("Failed to finish output: {}", e);
@@ -235,7 +230,7 @@ fn process_frames_concurrent(
     start_frame: usize,
     end_frame: usize,
     num_requests: usize,
-    mut progress: Option<&mut ProgressTracker>,
+    progress: &mut ProgressTracker,
 ) {
     use std::sync::mpsc;
     
@@ -308,9 +303,7 @@ fn process_frames_concurrent(
                         frames_written += 1;
                         next_frame += 1;
                         
-                        if let Some(ref mut progress) = progress {
-                            progress.update(frames_written);
-                        }
+                        progress.update(frames_written);
                     }
                 }
                 Err(e) => {
@@ -322,20 +315,8 @@ fn process_frames_concurrent(
     }
 }
 
-fn print_node_info(node: &rustsynth::node::Node, outfile: &str) {
-    let output: Box<dyn Write> = if outfile == "-" {
-        Box::new(io::stdout())
-    } else {
-        match File::create(outfile) {
-            Ok(file) => Box::new(BufWriter::new(file)),
-            Err(e) => {
-                eprintln!("Failed to create output file: {}", e);
-                process::exit(1);
-            }
-        }
-    };
-
-    let mut writer = BufWriter::new(output);
+fn print_node_info(node: &rustsynth::node::Node) {
+    let mut writer = BufWriter::new(io::stderr());
 
     if let Some(video_info) = node.video_info() {
         writeln!(writer, "Width: {}", video_info.width).unwrap();

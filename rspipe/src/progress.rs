@@ -5,15 +5,17 @@ pub struct ProgressTracker {
     total_frames: usize,
     start_time: Instant,
     last_update: Instant,
+    verbose: bool,
 }
 
 impl ProgressTracker {
-    pub fn new(total_frames: usize) -> Self {
+    pub fn new(total_frames: usize, verbose: bool) -> Self {
         let now = Instant::now();
         ProgressTracker {
             total_frames,
             start_time: now,
             last_update: now,
+            verbose
         }
     }
 
@@ -36,16 +38,19 @@ impl ProgressTracker {
             0.0
         };
 
-        eprint!(
-            "\rFrame {} of {} ({}%) {:.2} fps, eta {:.0}s",
-            completed_frames,
-            self.total_frames,
-            (progress * 100.0) as u32,
-            fps,
-            eta
-        );
-        
-        io::stderr().flush().unwrap();
+        if self.verbose {
+            eprint!(
+                "\rFrame {} of {} ({}%) {:.2} fps, eta {:.0}s",
+                completed_frames,
+                self.total_frames,
+                (progress * 100.0) as u32,
+                fps,
+                eta
+            );
+
+            
+            io::stderr().flush().unwrap();
+        }
     }
 
     pub fn finish(&mut self) {
