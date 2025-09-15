@@ -1,6 +1,9 @@
 use rustsynth_sys as ffi;
 
-use crate::{api::API, format::{ChannelLayout, FormatError, SampleType}};
+use crate::{
+    api::API,
+    format::{ChannelLayout, FormatError, SampleType},
+};
 
 /// Builder for creating AudioFormat with validation
 #[derive(Debug, Clone)]
@@ -53,7 +56,6 @@ impl AudioFormatBuilder {
     }
 }
 
-
 impl AudioFormat {
     /// Convenience method to create common 16-bit stereo format
     pub fn stereo_16bit(core: &crate::core::CoreRef) -> Result<Self, FormatError> {
@@ -86,7 +88,6 @@ pub struct AudioFormat {
     pub num_channels: i32,
     pub channel_layout: ChannelLayout,
 }
-
 
 impl AudioInfo {
     pub(crate) unsafe fn from_ptr(from: *const ffi::VSAudioInfo) -> Self {

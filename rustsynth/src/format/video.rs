@@ -1,6 +1,8 @@
-use crate::{api::API, format::{ColorFamily, FormatError, SampleType}};
+use crate::{
+    api::API,
+    format::{ColorFamily, FormatError, SampleType},
+};
 use rustsynth_sys as ffi;
-
 
 impl VideoFormat {
     pub(crate) fn from_ptr(from: *const ffi::VSVideoFormat) -> Self {
@@ -106,7 +108,6 @@ impl VideoFormat {
     }
 }
 
-
 impl VideoInfo {
     pub(crate) unsafe fn from_ptr(from: *const ffi::VSVideoInfo) -> Self {
         let from = &*from;
@@ -141,7 +142,6 @@ impl VideoInfo {
         }
     }
 }
-
 
 /// Builder for creating VideoFormat with validation
 #[derive(Debug, Clone)]
@@ -196,7 +196,6 @@ impl VideoFormatBuilder {
         )
     }
 }
-
 
 impl VideoFormat {
     /// Convenience method to create common YUV420P8 format

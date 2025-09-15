@@ -56,8 +56,8 @@ unsafe impl Component for f32 {
     }
 }
 
+pub use audio::{AudioFormat, AudioFormatBuilder, AudioInfo};
 pub use enums::{ChannelLayout, ColorFamily, MediaType, SampleType};
 pub use errors::FormatError;
 pub use presets::PresetVideoFormat;
-pub use video::{VideoFormat, VideoInfo, VideoFormatBuilder};
-pub use audio::{AudioFormat, AudioInfo, AudioFormatBuilder};
+pub use video::{VideoFormat, VideoFormatBuilder, VideoInfo};
