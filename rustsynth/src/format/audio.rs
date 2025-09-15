@@ -56,23 +56,6 @@ impl AudioFormatBuilder {
     }
 }
 
-impl AudioFormat {
-    /// Convenience method to create common 16-bit stereo format
-    pub fn stereo_16bit(core: &crate::core::CoreRef) -> Result<Self, FormatError> {
-        AudioFormatBuilder::new(SampleType::Integer, 16, ChannelLayout::STEREO).build(core)
-    }
-
-    /// Convenience method to create common 32-bit float stereo format
-    pub fn stereo_32bit_float(core: &crate::core::CoreRef) -> Result<Self, FormatError> {
-        AudioFormatBuilder::new(SampleType::Float, 32, ChannelLayout::STEREO).build(core)
-    }
-
-    /// Convenience method to create common 16-bit mono format
-    pub fn mono_16bit(core: &crate::core::CoreRef) -> Result<Self, FormatError> {
-        AudioFormatBuilder::new(SampleType::Integer, 16, ChannelLayout::MONO).build(core)
-    }
-}
-
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct AudioInfo {
     pub format: AudioFormat,
@@ -186,4 +169,20 @@ impl AudioFormat {
     pub fn get_name(&self) -> Option<String> {
         unsafe { API::get_cached().get_audio_format_name(&self.as_ptr()) }
     }
+
+    pub const STEREO16: Self = Self {
+        sample_type: SampleType::Integer,
+        bits_per_sample: 16,
+        bytes_per_sample: 2,
+        num_channels: 2,
+        channel_layout: ChannelLayout::STEREO,
+    };
+
+    pub const MONO16: Self = Self {
+        sample_type: SampleType::Integer,
+        bits_per_sample: 16,
+        bytes_per_sample: 2,
+        num_channels: 1,
+        channel_layout: ChannelLayout::MONO,
+    };
 }

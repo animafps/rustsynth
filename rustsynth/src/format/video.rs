@@ -106,6 +106,46 @@ impl VideoFormat {
     pub fn get_name(&self) -> Option<String> {
         unsafe { API::get_cached().get_video_format_name(&self.as_ptr()) }
     }
+
+    pub const YUV420P8: Self = Self {
+        color_family: ColorFamily::YUV,
+        sample_type: SampleType::Integer,
+        bits_per_sample: 8,
+        bytes_per_sample: 1,
+        sub_sampling_w: 2,
+        sub_sampling_h: 2,
+        num_planes: 3,
+    };
+
+    pub const YUV444P8: Self = Self {
+        color_family: ColorFamily::YUV,
+        sample_type: SampleType::Integer,
+        bits_per_sample: 8,
+        bytes_per_sample: 1,
+        sub_sampling_w: 1,
+        sub_sampling_h: 1,
+        num_planes: 3,
+    };
+
+    pub const RGB24: Self = Self {
+        color_family: ColorFamily::RGB,
+        sample_type: SampleType::Integer,
+        bits_per_sample: 8,
+        bytes_per_sample: 1,
+        sub_sampling_w: 0,
+        sub_sampling_h: 0,
+        num_planes: 3,
+    };
+
+    pub const GRAY8: Self = Self {
+        color_family: ColorFamily::Gray,
+        sample_type: SampleType::Integer,
+        bits_per_sample: 8,
+        bytes_per_sample: 1,
+        sub_sampling_w: 0,
+        sub_sampling_h: 0,
+        num_planes: 1,
+    };
 }
 
 impl VideoInfo {
@@ -194,28 +234,6 @@ impl VideoFormatBuilder {
             self.sub_sampling_h,
             core,
         )
-    }
-}
-
-impl VideoFormat {
-    /// Convenience method to create common YUV420P8 format
-    pub fn yuv420p8(core: &crate::core::CoreRef) -> Result<Self, FormatError> {
-        Self::query(ColorFamily::YUV, SampleType::Integer, 8, 1, 1, core)
-    }
-
-    /// Convenience method to create common YUV444P8 format
-    pub fn yuv444p8(core: &crate::core::CoreRef) -> Result<Self, FormatError> {
-        Self::query(ColorFamily::YUV, SampleType::Integer, 8, 0, 0, core)
-    }
-
-    /// Convenience method to create common RGB24 format
-    pub fn rgb24(core: &crate::core::CoreRef) -> Result<Self, FormatError> {
-        Self::query(ColorFamily::RGB, SampleType::Integer, 8, 0, 0, core)
-    }
-
-    /// Convenience method to create common Gray8 format
-    pub fn gray8(core: &crate::core::CoreRef) -> Result<Self, FormatError> {
-        Self::query(ColorFamily::Gray, SampleType::Integer, 8, 0, 0, core)
     }
 }
 

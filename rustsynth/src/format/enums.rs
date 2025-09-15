@@ -8,7 +8,7 @@ pub enum MediaType {
     Audio,
 }
 
-/// Audio channel layout bitmask using VSAudioChannels constants
+/// Audio channel layout bitmask
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct ChannelLayout(pub u64);
 

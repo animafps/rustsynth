@@ -1,5 +1,5 @@
-use crate::format::{ColorFamily, SampleType};
-/// Preset video formats as defined by VapourSynth.
+use crate::{core::CoreRef, format::{ColorFamily, SampleType, VideoFormat}};
+/// Preset video format IDs as defined by VapourSynth.
 ///
 /// The presets suffixed with H and S have floating point sample type. The H and S suffixes stand
 /// for half precision and single precision, respectively.
@@ -76,4 +76,11 @@ const fn make_video_id(
         | (bits_per_sample << 16)
         | (sub_sampling_w << 8)
         | sub_sampling_h
+}
+
+impl PresetVideoFormat {
+    /// Consumes the PresetVideoFormatID and returns the corresponding VideoFormat from the core.
+    pub fn into_format(self, core: &CoreRef) -> VideoFormat {
+        core.get_video_format_by_id(self as u32).unwrap()
+    }
 }
