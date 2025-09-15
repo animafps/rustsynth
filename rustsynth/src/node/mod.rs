@@ -355,7 +355,7 @@ impl Node {
         if ptr.is_null() {
             None
         } else {
-            Some(FilterDependency::from_ptr(ptr))
+            FilterDependency::from_ptr(ptr)
         }
     }
 

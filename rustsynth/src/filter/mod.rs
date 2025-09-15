@@ -17,11 +17,15 @@ impl FilterDependency {
         }
     }
 
-    pub fn from_ptr(ptr: *const ffi::VSFilterDependency) -> Self {
-        unsafe {
-            Self {
-                source: Node::from_ptr((*ptr).source),
-                request_pattern: (*ptr).requestPattern.into(),
+    pub fn from_ptr(ptr: *const ffi::VSFilterDependency) -> Option<Self> {
+        if unsafe { (*ptr).source.is_null() } {
+            None
+        } else {
+            unsafe {
+                Some(Self {
+                    source: Node::from_ptr((*ptr).source),
+                    request_pattern: (*ptr).requestPattern.into(),
+                })
             }
         }
     }
