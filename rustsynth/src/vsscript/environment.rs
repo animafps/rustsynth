@@ -10,7 +10,7 @@ use std::ptr::NonNull;
 use crate::core::CoreRef;
 use crate::map::Map;
 use crate::node::Node;
-use crate::vsscript::errors::Result;
+use crate::vsscript::errors::ScriptResult;
 use crate::{init_api, vsscript::*};
 
 use crate::vsscript::VSScriptError;
@@ -61,7 +61,7 @@ impl Environment {
     ///
     /// Useful if it is necessary to set some variable in the script environment before evaluating
     /// any scripts.
-    pub fn new(core: &CoreRef) -> Result<Self> {
+    pub fn new(core: &CoreRef) -> ScriptResult<Self> {
         let api = ScriptAPI::get().unwrap();
 
         let handle = unsafe { api.create_script(core.ptr()) };
@@ -76,16 +76,16 @@ impl Environment {
     }
 
     /// Calls `ScriptAPI::eval_buffer()`.
-    fn evaluate_script(&self, args: EvaluateScriptArgs) -> Result<()> {
+    fn evaluate_script(&self, args: EvaluateScriptArgs) -> ScriptResult<()> {
         let (script, path) = match args {
             EvaluateScriptArgs::Script(script) => (script.to_owned(), None),
             EvaluateScriptArgs::File(path) => {
-                let mut file = File::open(path).map_err(Error::FileOpen)?;
+                let mut file = File::open(path).map_err(ScriptError::FileOpen)?;
                 let mut script = String::new();
-                file.read_to_string(&mut script).map_err(Error::FileRead)?;
+                file.read_to_string(&mut script).map_err(ScriptError::FileRead)?;
 
                 // vsscript throws an error if it's not valid UTF-8 anyway.
-                let path = path.to_str().ok_or(Error::PathInvalidUnicode)?;
+                let path = path.to_str().ok_or(ScriptError::PathInvalidUnicode)?;
                 let path = CString::new(path)?;
 
                 (script, Some(path))
@@ -111,7 +111,7 @@ impl Environment {
 
     /// Creates a script environment and evaluates a script contained in a string.
     #[inline]
-    pub fn from_script(core: &CoreRef, script: &str) -> Result<Self> {
+    pub fn from_script(core: &CoreRef, script: &str) -> ScriptResult<Self> {
         let environment = Self::new(core)?;
         environment.evaluate_script(EvaluateScriptArgs::Script(script))?;
         Ok(environment)
@@ -119,7 +119,7 @@ impl Environment {
 
     /// Creates a script environment and evaluates a script contained in a file.
     #[inline]
-    pub fn from_file<P: AsRef<Path>>(core: &CoreRef, path: P) -> Result<Self> {
+    pub fn from_file<P: AsRef<Path>>(core: &CoreRef, path: P) -> ScriptResult<Self> {
         let environment = Self::new(core)?;
         environment.evaluate_script(EvaluateScriptArgs::File(path.as_ref()))?;
         Ok(environment)
@@ -127,18 +127,18 @@ impl Environment {
 
     /// Evaluates a script contained in a string.
     #[inline]
-    pub fn eval_script(&mut self, script: &str) -> Result<()> {
+    pub fn eval_script(&mut self, script: &str) -> ScriptResult<()> {
         self.evaluate_script(EvaluateScriptArgs::Script(script))
     }
 
     /// Evaluates a script contained in a file.
     #[inline]
-    pub fn eval_file<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+    pub fn eval_file<P: AsRef<Path>>(&mut self, path: P) -> ScriptResult<()> {
         self.evaluate_script(EvaluateScriptArgs::File(path.as_ref()))
     }
 
     /// Retrieves a variable from the script environment.
-    pub fn get_variable(&self, name: &str, map: &mut Map) -> Result<()> {
+    pub fn get_variable(&self, name: &str, map: &mut Map) -> ScriptResult<()> {
         let name = CString::new(name)?;
         let rv = unsafe {
             ScriptAPI::get_cached().get_variable(
@@ -148,19 +148,19 @@ impl Environment {
             )
         };
         if rv != 0 {
-            Err(Error::NoSuchVariable)
+            Err(ScriptError::NoSuchVariable)
         } else {
             Ok(())
         }
     }
 
     /// Sets variables in the script environment.
-    pub fn set_variables(&self, variables: &Map) -> Result<()> {
+    pub fn set_variables(&self, variables: &Map) -> ScriptResult<()> {
         let rv = unsafe {
             ScriptAPI::get_cached().set_variables(self.handle.as_ptr(), variables.deref())
         };
         if rv != 0 {
-            Err(Error::NoSuchVariable)
+            Err(ScriptError::NoSuchVariable)
         } else {
             Ok(())
         }

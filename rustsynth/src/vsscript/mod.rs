@@ -145,7 +145,7 @@ impl ScriptAPI {
 }
 
 mod errors;
-pub use self::errors::{Error, VSScriptError};
+pub use self::errors::{ScriptError, VSScriptError};
 
 mod environment;
 pub use self::environment::Environment;

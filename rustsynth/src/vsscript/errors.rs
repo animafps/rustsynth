@@ -5,7 +5,7 @@ use thiserror::Error;
 
 /// The error type for `vsscript` operations.
 #[derive(Error, Debug)]
-pub enum Error {
+pub enum ScriptError {
     #[error("Couldn't convert to a CString")]
     CStringConversion(#[source] NulError),
     #[error("Couldn't open the file")]
@@ -26,21 +26,21 @@ pub enum Error {
     NoAPI,
 }
 
-impl From<NulError> for Error {
+impl From<NulError> for ScriptError {
     #[inline]
     fn from(x: NulError) -> Self {
-        Error::CStringConversion(x)
+        Self::CStringConversion(x)
     }
 }
 
-impl From<VSScriptError> for Error {
+impl From<VSScriptError> for ScriptError {
     #[inline]
     fn from(x: VSScriptError) -> Self {
-        Error::VSScript(x)
+        Self::VSScript(x)
     }
 }
 
-pub(crate) type Result<T> = std::result::Result<T, Error>;
+pub(crate) type ScriptResult<T> = std::result::Result<T, ScriptError>;
 
 /// A container for a VSScript error.
 #[derive(Error, Debug)]

@@ -8,7 +8,7 @@ use crate::{
     api::API,
     core::CoreRef,
     format::{AudioFormat, MediaType, VideoFormat},
-    map::{MapRef, MapRefMut},
+    map::{MapRef, MapRefMut, MapResult},
 };
 
 // One frame of a clip.
@@ -425,7 +425,7 @@ impl<'core> Frame<'core> {
     pub fn set_chroma_location(
         &mut self,
         location: ChromaLocation,
-    ) -> Result<(), crate::map::Error> {
+    ) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(CHROMA_LOCATION_KEY, location as i64);
@@ -434,7 +434,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set color range (full or limited)
-    pub fn set_color_range(&mut self, range: ColorRange) -> Result<(), crate::map::Error> {
+    pub fn set_color_range(&mut self, range: ColorRange) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(COLOR_RANGE_KEY, range as i64);
@@ -443,7 +443,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set color primaries as specified in ITU-T H.273 Table 2
-    pub fn set_primaries(&mut self, primaries: ColorPrimaries) -> Result<(), crate::map::Error> {
+    pub fn set_primaries(&mut self, primaries: ColorPrimaries) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(PRIMARIES_KEY, primaries as i64);
@@ -452,7 +452,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set matrix coefficients as specified in ITU-T H.273 Table 4
-    pub fn set_matrix(&mut self, matrix: MatrixCoefficients) -> Result<(), crate::map::Error> {
+    pub fn set_matrix(&mut self, matrix: MatrixCoefficients) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(MATRIX_KEY, matrix as i64);
@@ -464,7 +464,7 @@ impl<'core> Frame<'core> {
     pub fn set_transfer(
         &mut self,
         transfer: TransferCharacteristics,
-    ) -> Result<(), crate::map::Error> {
+    ) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(TRANSFER_KEY, transfer as i64);
@@ -473,7 +473,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set field based information (interlaced)
-    pub fn set_field_based(&mut self, field_based: FieldBased) -> Result<(), crate::map::Error> {
+    pub fn set_field_based(&mut self, field_based: FieldBased) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(FIELD_BASED_KEY, field_based as i64);
@@ -482,7 +482,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set absolute timestamp in seconds (should only be set by source filter)
-    pub fn set_absolute_time(&mut self, time: f64) -> Result<(), crate::map::Error> {
+    pub fn set_absolute_time(&mut self, time: f64) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_float_raw_unchecked(ABSOLUTE_TIME_KEY, time);
@@ -491,7 +491,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set frame duration as a rational number (numerator, denominator)
-    pub fn set_duration(&mut self, num: i64, den: i64) -> Result<(), crate::map::Error> {
+    pub fn set_duration(&mut self, num: i64, den: i64) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(DURATION_NUM_KEY, num);
@@ -502,7 +502,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set whether the frame needs postprocessing
-    pub fn set_combed(&mut self, combed: bool) -> Result<(), crate::map::Error> {
+    pub fn set_combed(&mut self, combed: bool) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(COMBED_KEY, if combed { 1 } else { 0 });
@@ -511,7 +511,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set which field was used to generate this frame
-    pub fn set_field(&mut self, field: Field) -> Result<(), crate::map::Error> {
+    pub fn set_field(&mut self, field: Field) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(FIELD_KEY, field as i64);
@@ -520,7 +520,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set picture type (single character describing frame type)
-    pub fn set_picture_type(&mut self, pic_type: &str) -> Result<(), crate::map::Error> {
+    pub fn set_picture_type(&mut self, pic_type: &str) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_string_raw_unchecked(PICT_TYPE_KEY, pic_type);
@@ -529,7 +529,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set pixel (sample) aspect ratio as a rational number (numerator, denominator)
-    pub fn set_sample_aspect_ratio(&mut self, num: i64, den: i64) -> Result<(), crate::map::Error> {
+    pub fn set_sample_aspect_ratio(&mut self, num: i64, den: i64) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(SAR_NUM_KEY, num);
@@ -540,7 +540,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set whether this frame is the last frame of the current scene
-    pub fn set_scene_change_next(&mut self, scene_change: bool) -> Result<(), crate::map::Error> {
+    pub fn set_scene_change_next(&mut self, scene_change: bool) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(SCENE_CHANGE_NEXT_KEY, if scene_change { 1 } else { 0 });
@@ -549,7 +549,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set whether this frame starts a new scene
-    pub fn set_scene_change_prev(&mut self, scene_change: bool) -> Result<(), crate::map::Error> {
+    pub fn set_scene_change_prev(&mut self, scene_change: bool) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(SCENE_CHANGE_PREV_KEY, if scene_change { 1 } else { 0 });
@@ -558,7 +558,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set alpha channel frame for this frame
-    pub fn set_alpha(&mut self, alpha_frame: &Frame<'core>) -> Result<(), crate::map::Error> {
+    pub fn set_alpha(&mut self, alpha_frame: &Frame<'core>) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_frame_raw_unchecked(ALPHA_KEY, alpha_frame);

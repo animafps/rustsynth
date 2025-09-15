@@ -5,7 +5,7 @@ use thiserror::Error;
 
 /// The error type for `Map` operations.
 #[derive(Error, Debug, Eq, PartialEq)]
-pub enum Error {
+pub enum MapError {
     #[error("The requested key wasn't found in the map")]
     KeyNotFound,
     #[error("The requested index was out of bounds")]
@@ -20,14 +20,14 @@ pub enum Error {
     Error,
 }
 
-impl From<Error> for String {
-    fn from(error: Error) -> String {
+impl From<MapError> for String {
+    fn from(error: MapError) -> String {
         error.to_string()
     }
 }
 
 /// A specialized `Result` type for `Map` operations.
-pub type Result<T> = result::Result<T, Error>;
+pub type MapResult<T> = result::Result<T, MapError>;
 
 /// An error indicating the map key is invalid.
 #[derive(Error, Debug, Eq, PartialEq)]

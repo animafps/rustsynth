@@ -175,13 +175,13 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Removes a custom handler.
-    pub fn remove_log_handler(&self, handle: LogHandle) -> Result<(), ()> {
+    pub fn remove_log_handler(&self, handle: LogHandle) -> Result<(), i32> {
         let ret =
             unsafe { API::get_cached().remove_log_handler(handle.as_ptr(), self.handle.as_ptr()) };
         if ret != 0 {
             Ok(())
         } else {
-            Err(())
+            Err(ret)
         }
     }
 

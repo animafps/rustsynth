@@ -61,11 +61,11 @@ macro_rules! impl_value_iter {
             /// # Safety
             /// The caller must ensure `key` is valid.
             #[inline]
-            pub(crate) unsafe fn $new_method(map: &'map Map<'elem>, key: CString) -> Result<Self> {
+            pub(crate) unsafe fn $new_method(map: &'map Map<'elem>, key: CString) -> MapResult<Self> {
                 // Check if the value type is correct.
                 match map.value_type_raw_unchecked(&key)? {
                     $value_type => {}
-                    _ => return Err(Error::WrongValueType),
+                    _ => return Err(MapError::WrongValueType),
                 };
 
                 let count = map.value_count_raw_unchecked(&key)? as i32;
@@ -130,10 +130,10 @@ impl_value_iter!(
 // Manual implementation for String since it shares ValueType::Data with Data<'elem>
 impl<'map, 'elem> ValueIter<'map, 'elem, String> {
     #[inline]
-    pub(crate) unsafe fn new_string(map: &'map Map<'elem>, key: CString) -> Result<Self> {
+    pub(crate) unsafe fn new_string(map: &'map Map<'elem>, key: CString) -> MapResult<Self> {
         match map.value_type_raw_unchecked(&key)? {
             ValueType::Data => {}
-            _ => return Err(Error::WrongValueType),
+            _ => return Err(MapError::WrongValueType),
         };
 
         let count = map.value_count_raw_unchecked(&key)? as i32;
