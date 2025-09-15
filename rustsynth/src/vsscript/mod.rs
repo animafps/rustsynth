@@ -144,6 +144,18 @@ impl ScriptAPI {
     }
 }
 
+#[cfg(feature = "script-api-42")]
+impl ScriptAPI {
+    pub fn get_available_output_nodes(
+        &self,
+        handle: *mut ffi::VSScript,
+        size: i32,
+        dst: *mut i32,
+    ) -> i32 {
+        unsafe { self.handle.as_ref().getAvailableOutputNodes.unwrap()(handle, size, dst) }
+    }
+}
+
 mod errors;
 pub use self::errors::{ScriptError, VSScriptError};
 

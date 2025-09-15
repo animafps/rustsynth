@@ -32,19 +32,32 @@ impl<'core> Drop for Frame<'core> {
 /// Represents a reference to the obscure object
 #[derive(Debug)]
 pub struct FrameContext {
-    handle: *mut ffi::VSFrameContext,
+    handle: NonNull<ffi::VSFrameContext>,
 }
 
 impl FrameContext {
     #[inline]
-    #[allow(unused)]
     pub fn from_ptr(ptr: *mut ffi::VSFrameContext) -> Self {
-        Self { handle: ptr }
+        unsafe {
+            Self {
+                handle: NonNull::new_unchecked(ptr),
+            }
+        }
     }
 
     #[inline]
-    pub(crate) fn ptr(&self) -> *mut ffi::VSFrameContext {
-        self.handle
+    pub(crate) fn as_ptr(&self) -> *mut ffi::VSFrameContext {
+        self.handle.as_ptr()
+    }
+
+    /// Adds an error message to a frame context, replacing the existing message, if any.
+    ///
+    /// This is the way to report errors in a filter’s “getframe” function. Such errors are not necessarily fatal, i.e. the caller can try to request the same frame again.
+    pub fn set_filter_error(&self, message: &str) {
+        let c_message = std::ffi::CString::new(message).unwrap();
+        unsafe {
+            API::get_cached().set_filter_error(c_message.as_ptr(), self.as_ptr());
+        }
     }
 }
 
@@ -422,10 +435,7 @@ impl<'core> Frame<'core> {
     // Standard frame property setters (for owned frames only)
 
     /// Set chroma sample position in YUV formats
-    pub fn set_chroma_location(
-        &mut self,
-        location: ChromaLocation,
-    ) -> MapResult<()> {
+    pub fn set_chroma_location(&mut self, location: ChromaLocation) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(CHROMA_LOCATION_KEY, location as i64);
@@ -461,10 +471,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Set transfer characteristics as specified in ITU-T H.273 Table 3
-    pub fn set_transfer(
-        &mut self,
-        transfer: TransferCharacteristics,
-    ) -> MapResult<()> {
+    pub fn set_transfer(&mut self, transfer: TransferCharacteristics) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_int_raw_unchecked(TRANSFER_KEY, transfer as i64);
@@ -574,7 +581,7 @@ impl<'core> Frame<'core> {
     /// This function may only be used in filters that were created with setLinearFilter.
     /// Only use inside a filter’s “getframe” function.
     pub fn cache_frame(&self, n: i32, frame_ctxt: &FrameContext) {
-        unsafe { API::get_cached().cache_frame(self.handle.as_ref(), n, frame_ctxt.ptr()) }
+        unsafe { API::get_cached().cache_frame(self.handle.as_ref(), n, frame_ctxt.as_ptr()) }
     }
 
     /// RAII fn that provides access to all planes of a video frame

@@ -10,6 +10,8 @@ use std::ptr::NonNull;
 use std::{mem, panic};
 
 use crate::api::API;
+#[cfg(feature = "api-41")]
+use crate::filter::{FilterDependency, FilterMode};
 use crate::format::{AudioInfo, MediaType, VideoInfo};
 use crate::frame::{Frame, FrameContext};
 
@@ -274,7 +276,7 @@ impl Node {
     #[inline]
     pub fn request_frame_filter(&self, n: i32, frame_ctx: &FrameContext) {
         unsafe {
-            API::get_cached().request_frame_filter(n, self.ptr(), frame_ctx.ptr());
+            API::get_cached().request_frame_filter(n, self.ptr(), frame_ctx.as_ptr());
         }
     }
 
@@ -285,7 +287,7 @@ impl Node {
         n: i32,
         frame_ctx: &FrameContext,
     ) -> Option<Frame<'core>> {
-        let ptr = unsafe { API::get_cached().get_frame_filter(n, self.ptr(), frame_ctx.ptr()) };
+        let ptr = unsafe { API::get_cached().get_frame_filter(n, self.ptr(), frame_ctx.as_ptr()) };
         if ptr.is_null() {
             None
         } else {
@@ -313,8 +315,52 @@ impl Node {
     ///Should rarely be needed.
     pub fn release_frame_early(&self, n: i32, frame_ctx: &FrameContext) {
         unsafe {
-            API::get_cached().release_frame_early(self.ptr(), n, frame_ctx.ptr());
+            API::get_cached().release_frame_early(self.ptr(), n, frame_ctx.as_ptr());
         }
+    }
+}
+
+#[cfg(feature = "api-41")]
+impl Node {
+    pub fn clear_cache(&self) {
+        unsafe {
+            API::get_cached().clear_node_cache(self.ptr());
+        }
+    }
+
+    pub fn get_name(&self) -> Option<String> {
+        unsafe {
+            let ptr = API::get_cached().get_node_name(self.ptr());
+            if ptr.is_null() {
+                None
+            } else {
+                Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
+            }
+        }
+    }
+
+    pub fn get_fiter_mode(&self) -> FilterMode {
+        unsafe {
+            let ptr = API::get_cached().get_node_filter_mode(self.ptr());
+            ptr.into()
+        }
+    }
+
+    pub fn get_num_dependencies(&self) -> i32 {
+        unsafe { API::get_cached().get_num_node_dependencies(self.ptr()) }
+    }
+
+    pub fn get_dependency(&self, n: i32) -> Option<FilterDependency> {
+        let ptr = unsafe { API::get_cached().get_node_dependency(self.ptr(), n) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(FilterDependency::from_ptr(ptr))
+        }
+    }
+
+    pub fn get_node_processing_time(&self, reset: bool) -> i64 {
+        unsafe { API::get_cached().get_node_processing_time(self.ptr(), reset as i32) }
     }
 }
 

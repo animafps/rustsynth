@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rustsynth = { path = "../rustsynth", features = ["vapoursynth-functions"] }
+rustsynth = { path = "../rustsynth" }
 rustsynth-derive = {path = "../rustsynth-derive" }
 
 [features]

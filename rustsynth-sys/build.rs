@@ -49,17 +49,16 @@ fn main() {
         // bindings for.
         .header("wrapper.h");
 
-    
     if env::var("CARGO_FEATURE_API_41").is_ok() {
         builder = builder.clang_arg("-DVS_USE_API_41");
     }
 
     if env::var("CARGO_FEATURE_VS_GRAPH_API").is_ok() {
-        builder = builder.clang_arg("-DVS_USE_GRAPH_API");
+        builder = builder.clang_arg("-DVS_GRAPH_API");
     }
 
     if env::var("CARGO_FEATURE_SCRIPT_API_42").is_ok() {
-        builder = builder.clang_arg("-DVS_USE_SCRIPT_API_42");
+        builder = builder.clang_arg("-DVSSCRIPT_USE_API_42");
     }
 
     let bindings = builder

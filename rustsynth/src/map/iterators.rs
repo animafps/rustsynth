@@ -61,7 +61,10 @@ macro_rules! impl_value_iter {
             /// # Safety
             /// The caller must ensure `key` is valid.
             #[inline]
-            pub(crate) unsafe fn $new_method(map: &'map Map<'elem>, key: CString) -> MapResult<Self> {
+            pub(crate) unsafe fn $new_method(
+                map: &'map Map<'elem>,
+                key: CString,
+            ) -> MapResult<Self> {
                 // Check if the value type is correct.
                 match map.value_type_raw_unchecked(&key)? {
                     $value_type => {}

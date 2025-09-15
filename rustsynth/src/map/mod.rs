@@ -14,7 +14,7 @@ use crate::function::Function;
 use crate::node::Node;
 
 mod errors;
-pub use errors::{MapError, InvalidKeyError, MapResult};
+pub use errors::{InvalidKeyError, MapError, MapResult};
 
 mod iterators;
 pub use self::iterators::{Keys, ValueIter};
@@ -498,7 +498,10 @@ impl<'elem> Map<'elem> {
 
     /// Retrieves data from a map.
     #[inline]
-    pub fn get_string_iter<'map>(&'map self, key: &str) -> MapResult<ValueIter<'map, 'elem, String>> {
+    pub fn get_string_iter<'map>(
+        &'map self,
+        key: &str,
+    ) -> MapResult<ValueIter<'map, 'elem, String>> {
         let key = Map::make_raw_key(key)?;
         unsafe { ValueIter::new_string(self, key) }
     }
@@ -514,7 +517,11 @@ impl<'elem> Map<'elem> {
     /// # Safety
     /// The caller must ensure `key` is valid.
     #[inline]
-    pub(crate) unsafe fn get_string_raw_unchecked(&self, key: &CStr, index: i32) -> MapResult<String> {
+    pub(crate) unsafe fn get_string_raw_unchecked(
+        &self,
+        key: &CStr,
+        index: i32,
+    ) -> MapResult<String> {
         let mut error = 0;
         let value = API::get_cached().map_get_data(self, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;
@@ -778,7 +785,11 @@ impl<'elem> Map<'elem> {
     /// # Safety
     /// The caller must ensure `key` is valid.
     #[inline]
-    pub(crate) unsafe fn append_float_raw_unchecked(&mut self, key: &CStr, x: f64) -> MapResult<()> {
+    pub(crate) unsafe fn append_float_raw_unchecked(
+        &mut self,
+        key: &CStr,
+        x: f64,
+    ) -> MapResult<()> {
         let error =
             API::get_cached().map_set_float(self, key.as_ptr(), x, ffi::VSMapAppendMode::maAppend);
 
@@ -790,7 +801,11 @@ impl<'elem> Map<'elem> {
     /// # Safety
     /// The caller must ensure `key` is valid.
     #[inline]
-    pub(crate) unsafe fn append_data_raw_unchecked(&mut self, key: &CStr, x: &[u8]) -> MapResult<()> {
+    pub(crate) unsafe fn append_data_raw_unchecked(
+        &mut self,
+        key: &CStr,
+        x: &[u8],
+    ) -> MapResult<()> {
         let error = API::get_cached().map_set_data(
             self,
             key.as_ptr(),
@@ -807,7 +822,11 @@ impl<'elem> Map<'elem> {
     /// # Safety
     /// The caller must ensure `key` is valid.
     #[inline]
-    pub(crate) unsafe fn append_node_raw_unchecked(&mut self, key: &CStr, x: &Node) -> MapResult<()> {
+    pub(crate) unsafe fn append_node_raw_unchecked(
+        &mut self,
+        key: &CStr,
+        x: &Node,
+    ) -> MapResult<()> {
         let error = API::get_cached().map_set_node(
             self,
             key.as_ptr(),

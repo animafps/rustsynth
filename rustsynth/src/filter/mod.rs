@@ -16,6 +16,15 @@ impl FilterDependency {
             requestPattern: self.request_pattern.as_ptr() as i32,
         }
     }
+
+    pub fn from_ptr(ptr: *const ffi::VSFilterDependency) -> Self {
+        unsafe {
+            Self {
+                source: Node::from_ptr((*ptr).source),
+                request_pattern: (*ptr).requestPattern.into(),
+            }
+        }
+    }
 }
 
 pub enum RequestPattern {
@@ -25,6 +34,9 @@ pub enum RequestPattern {
     NoFrameReuse,
     /// Only requests frame N to output frame N. The main difference to NoFrameReuse is that the requested frame is always fixed and known ahead of time. Filter examples Lut, Expr (conditionally, see General note) and similar.
     StrictSpatial,
+    /// This modes is basically identical NoFrameReuse except that it hints the last frame may be requested multiple times
+    #[cfg(feature = "api-41")]
+    FrameReuseLastOnly,
 }
 
 impl RequestPattern {
@@ -33,6 +45,8 @@ impl RequestPattern {
             VSRequestPattern::rpGeneral => Self::General,
             VSRequestPattern::rpNoFrameReuse => Self::NoFrameReuse,
             VSRequestPattern::rpStrictSpatial => Self::StrictSpatial,
+            #[cfg(feature = "api-41")]
+            VSRequestPattern::rpFrameReuseLastOnly => Self::FrameReuseLastOnly,
         }
     }
 
@@ -41,6 +55,23 @@ impl RequestPattern {
             Self::General => &VSRequestPattern::rpGeneral as *const VSRequestPattern,
             Self::NoFrameReuse => &VSRequestPattern::rpNoFrameReuse as *const VSRequestPattern,
             Self::StrictSpatial => &VSRequestPattern::rpStrictSpatial as *const VSRequestPattern,
+            #[cfg(feature = "api-41")]
+            Self::FrameReuseLastOnly => {
+                &VSRequestPattern::rpFrameReuseLastOnly as *const VSRequestPattern
+            }
+        }
+    }
+}
+
+impl From<i32> for RequestPattern {
+    fn from(value: i32) -> Self {
+        match value {
+            val if val == VSRequestPattern::rpGeneral as i32 => Self::General,
+            val if val == VSRequestPattern::rpNoFrameReuse as i32 => Self::NoFrameReuse,
+            val if val == VSRequestPattern::rpStrictSpatial as i32 => Self::StrictSpatial,
+            #[cfg(feature = "api-41")]
+            val if val == VSRequestPattern::rpFrameReuseLastOnly as i32 => Self::FrameReuseLastOnly,
+            _ => Self::General,
         }
     }
 }
@@ -91,6 +122,18 @@ impl FilterMode {
             Self::ParallelRequests => &VSFilterMode::fmParallelRequests as *const VSFilterMode,
             Self::Unordered => &VSFilterMode::fmUnordered as *const VSFilterMode,
             Self::FrameState => &VSFilterMode::fmFrameState as *const VSFilterMode,
+        }
+    }
+}
+
+impl From<i32> for FilterMode {
+    fn from(value: i32) -> Self {
+        match value {
+            val if val == VSFilterMode::fmParallel as i32 => Self::Parallel,
+            val if val == VSFilterMode::fmParallelRequests as i32 => Self::ParallelRequests,
+            val if val == VSFilterMode::fmUnordered as i32 => Self::Unordered,
+            val if val == VSFilterMode::fmFrameState as i32 => Self::FrameState,
+            _ => Self::Parallel,
         }
     }
 }

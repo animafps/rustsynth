@@ -82,7 +82,8 @@ impl Environment {
             EvaluateScriptArgs::File(path) => {
                 let mut file = File::open(path).map_err(ScriptError::FileOpen)?;
                 let mut script = String::new();
-                file.read_to_string(&mut script).map_err(ScriptError::FileRead)?;
+                file.read_to_string(&mut script)
+                    .map_err(ScriptError::FileRead)?;
 
                 // vsscript throws an error if it's not valid UTF-8 anyway.
                 let path = path.to_str().ok_or(ScriptError::PathInvalidUnicode)?;
@@ -219,5 +220,22 @@ impl Environment {
     /// Returns the exit code if the script calls sys.exit(code), or 0, if the script fails for other reasons or calls sys.exit(0)
     pub fn get_exit_code(&self) -> i32 {
         unsafe { ScriptAPI::get_cached().get_exit_code(self.handle.as_ptr()) }
+    }
+}
+
+#[cfg(feature = "script-api-42")]
+impl Environment {
+    /// List of set output index values to dst but at most size values
+    /// Always returns the total number of available output index values.
+    pub fn get_available_output_nodes(&self, size: i32) -> (&[i32], i32) {
+        let list: &mut [i32] = &mut [];
+        let ret = unsafe {
+            ScriptAPI::get_cached().get_available_output_nodes(
+                self.handle.as_ptr(),
+                size,
+                list.as_mut_ptr(),
+            )
+        };
+        (list, ret)
     }
 }

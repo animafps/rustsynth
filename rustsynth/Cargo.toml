@@ -10,7 +10,7 @@ categories = ["multimedia::video", "api-bindings"]
 keywords = ["vapoursynth"]
 
 [dependencies]
-rustsynth-sys = { version = "=0.5.0", path = "../rustsynth-sys" }
+rustsynth-sys = { version = "=0.5.2", path = "../rustsynth-sys" }
 thiserror = "1.0"
 bitflags = "1.3"
 half = { version = "2.0", optional = true }
@@ -25,4 +25,7 @@ f16-pixel-type = ["dep:half"]
 vapoursynth-functions = ["rustsynth-sys/vapoursynth-functions"]
 vsscript-functions = ["rustsynth-sys/vsscript-functions"]
 
-default = ["vapoursynth-functions", "vsscript-functions"]
+api-41 = ["rustsynth-sys/api-41"]
+script-api-42 = ["rustsynth-sys/script-api-42"]
+
+default = ["vapoursynth-functions", "vsscript-functions", "api-41", "script-api-42"]

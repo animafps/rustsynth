@@ -194,6 +194,27 @@ impl<'core> CoreRef<'core> {
     }
 }
 
+#[cfg(feature = "api-41")]
+impl<'core> CoreRef<'core> {
+    pub fn clear_caches(&self) {
+        unsafe {
+            API::get_cached().clear_core_caches(self.ptr());
+        }
+    }
+
+    pub fn get_node_timing(&self) -> i32 {
+        unsafe { API::get_cached().get_core_node_timing(self.ptr()) }
+    }
+
+    pub fn set_node_timing(&self, enable: bool) {
+        unsafe { API::get_cached().set_core_node_timing(self.ptr(), enable as i32) }
+    }
+
+    pub fn get_freeed_node_processing_time(&self, reset: bool) -> i64 {
+        unsafe { API::get_cached().get_freed_node_processing_time(self.ptr(), reset as i32) }
+    }
+}
+
 /// Contains information about a VapourSynth core.
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct CoreInfo {

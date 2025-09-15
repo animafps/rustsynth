@@ -876,6 +876,10 @@ impl API {
         unsafe { self.handle.as_ref().logMessage.unwrap()(msg_type, msg, core) }
     }
 
+    pub(crate) fn set_filter_error(&self, msg: *const c_char, frame_ctx: *mut ffi::VSFrameContext) {
+        unsafe { self.handle.as_ref().setFilterError.unwrap()(msg, frame_ctx) }
+    }
+
     map_get_something!(map_get_int, mapGetInt, i64);
     map_get_something!(map_get_float, mapGetFloat, f64);
     map_get_something!(map_get_data, mapGetData, *const c_char);
@@ -888,6 +892,53 @@ impl API {
     map_set_something!(map_set_node, mapSetNode, *mut ffi::VSNode);
     map_set_something!(map_set_frame, mapSetFrame, *const ffi::VSFrame);
     map_set_something!(map_set_func, mapSetFunction, *mut ffi::VSFunction);
+}
+
+#[cfg(feature = "api-41")]
+impl API {
+    pub(crate) fn clear_node_cache(&self, node: *mut ffi::VSNode) {
+        unsafe { self.handle.as_ref().clearNodeCache.unwrap()(node) }
+    }
+
+    pub(crate) fn clear_core_caches(&self, core: *mut ffi::VSCore) {
+        unsafe { self.handle.as_ref().clearCoreCaches.unwrap()(core) }
+    }
+
+    pub(crate) fn get_node_name(&self, node: *mut ffi::VSNode) -> *const c_char {
+        unsafe { self.handle.as_ref().getNodeName.unwrap()(node) }
+    }
+
+    pub(crate) fn get_node_filter_mode(&self, node: *mut ffi::VSNode) -> i32 {
+        unsafe { self.handle.as_ref().getNodeFilterMode.unwrap()(node) }
+    }
+
+    pub(crate) fn get_num_node_dependencies(&self, node: *mut ffi::VSNode) -> i32 {
+        unsafe { self.handle.as_ref().getNumNodeDependencies.unwrap()(node) }
+    }
+
+    pub(crate) fn get_node_dependency(
+        &self,
+        node: *mut ffi::VSNode,
+        n: i32,
+    ) -> *const ffi::VSFilterDependency {
+        unsafe { self.handle.as_ref().getNodeDependency.unwrap()(node, n) }
+    }
+
+    pub(crate) fn get_core_node_timing(&self, core: *mut ffi::VSCore) -> i32 {
+        unsafe { self.handle.as_ref().getCoreNodeTiming.unwrap()(core) }
+    }
+
+    pub(crate) fn set_core_node_timing(&self, core: *mut ffi::VSCore, enable: i32) {
+        unsafe { self.handle.as_ref().setCoreNodeTiming.unwrap()(core, enable) };
+    }
+
+    pub(crate) fn get_node_processing_time(&self, node: *mut ffi::VSNode, reset: i32) -> i64 {
+        unsafe { self.handle.as_ref().getNodeProcessingTime.unwrap()(node, reset) }
+    }
+
+    pub(crate) fn get_freed_node_processing_time(&self, core: *mut ffi::VSCore, reset: i32) -> i64 {
+        unsafe { self.handle.as_ref().getFreedNodeProcessingTime.unwrap()(core, reset) }
+    }
 }
 
 /// Initialize the global API pointer (for use in derive macros)

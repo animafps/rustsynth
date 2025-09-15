@@ -19,7 +19,10 @@ pub enum ValueType {
 /// A trait for values which can be stored in a map.
 pub trait ValueNotArray<'map, 'elem: 'map>: Sized {
     /// Retrieves an iterator over the values from the map.
-    fn get_iter_from_map(map: &'map Map<'elem>, key: &str) -> MapResult<ValueIter<'map, 'elem, Self>>;
+    fn get_iter_from_map(
+        map: &'map Map<'elem>,
+        key: &str,
+    ) -> MapResult<ValueIter<'map, 'elem, Self>>;
 
     /// Appends the value to the map.
     fn append_to_map(map: &'map mut Map<'elem>, key: &str, x: &Self) -> MapResult<()>;
@@ -47,7 +50,10 @@ impl<'map, 'elem: 'map> Value<'map, 'elem> for i64 {
 
 impl<'map, 'elem: 'map> ValueNotArray<'map, 'elem> for i64 {
     #[inline]
-    fn get_iter_from_map(map: &'map Map<'elem>, key: &str) -> MapResult<ValueIter<'map, 'elem, Self>> {
+    fn get_iter_from_map(
+        map: &'map Map<'elem>,
+        key: &str,
+    ) -> MapResult<ValueIter<'map, 'elem, Self>> {
         map.get_int_iter(key)
     }
 
@@ -70,7 +76,10 @@ impl<'map, 'elem: 'map> Value<'map, 'elem> for f64 {
 
 impl<'map, 'elem: 'map> ValueNotArray<'map, 'elem> for f64 {
     #[inline]
-    fn get_iter_from_map(map: &'map Map<'elem>, key: &str) -> MapResult<ValueIter<'map, 'elem, Self>> {
+    fn get_iter_from_map(
+        map: &'map Map<'elem>,
+        key: &str,
+    ) -> MapResult<ValueIter<'map, 'elem, Self>> {
         map.get_float_iter(key)
     }
 
@@ -94,7 +103,10 @@ impl<'map, 'elem: 'map> Value<'map, 'elem> for Data<'elem> {
 
 impl<'map, 'elem: 'map> ValueNotArray<'map, 'elem> for Data<'elem> {
     #[inline]
-    fn get_iter_from_map(map: &'map Map<'elem>, key: &str) -> MapResult<ValueIter<'map, 'elem, Self>> {
+    fn get_iter_from_map(
+        map: &'map Map<'elem>,
+        key: &str,
+    ) -> MapResult<ValueIter<'map, 'elem, Self>> {
         map.get_data_iter(key)
     }
 
@@ -118,7 +130,10 @@ impl<'map, 'elem: 'map> Value<'map, 'elem> for Node {
 
 impl<'map, 'elem: 'map> ValueNotArray<'map, 'elem> for Node {
     #[inline]
-    fn get_iter_from_map(map: &'map Map<'elem>, key: &str) -> MapResult<ValueIter<'map, 'elem, Self>> {
+    fn get_iter_from_map(
+        map: &'map Map<'elem>,
+        key: &str,
+    ) -> MapResult<ValueIter<'map, 'elem, Self>> {
         map.get_node_iter(key)
     }
 
@@ -142,7 +157,10 @@ impl<'map, 'elem: 'map> Value<'map, 'elem> for Frame<'elem> {
 
 impl<'map, 'elem: 'map> ValueNotArray<'map, 'elem> for Frame<'elem> {
     #[inline]
-    fn get_iter_from_map(map: &'map Map<'elem>, key: &str) -> MapResult<ValueIter<'map, 'elem, Self>> {
+    fn get_iter_from_map(
+        map: &'map Map<'elem>,
+        key: &str,
+    ) -> MapResult<ValueIter<'map, 'elem, Self>> {
         map.get_frame_iter(key)
     }
 
@@ -166,7 +184,10 @@ impl<'map, 'elem: 'map> Value<'map, 'elem> for Function<'elem> {
 
 impl<'map, 'elem: 'map> ValueNotArray<'map, 'elem> for Function<'elem> {
     #[inline]
-    fn get_iter_from_map(map: &'map Map<'elem>, key: &str) -> MapResult<ValueIter<'map, 'elem, Self>> {
+    fn get_iter_from_map(
+        map: &'map Map<'elem>,
+        key: &str,
+    ) -> MapResult<ValueIter<'map, 'elem, Self>> {
         map.get_function_iter(key)
     }
 
@@ -217,7 +238,10 @@ impl<'map, 'elem: 'map> Value<'map, 'elem> for String {
 
 impl<'map, 'elem: 'map> ValueNotArray<'map, 'elem> for String {
     #[inline]
-    fn get_iter_from_map(map: &'map Map<'elem>, key: &str) -> MapResult<ValueIter<'map, 'elem, Self>> {
+    fn get_iter_from_map(
+        map: &'map Map<'elem>,
+        key: &str,
+    ) -> MapResult<ValueIter<'map, 'elem, Self>> {
         map.get_string_iter(key)
     }
 

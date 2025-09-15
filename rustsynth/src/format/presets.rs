@@ -1,4 +1,7 @@
-use crate::{core::CoreRef, format::{ColorFamily, SampleType, VideoFormat}};
+use crate::{
+    core::CoreRef,
+    format::{ColorFamily, SampleType, VideoFormat},
+};
 /// Preset video format IDs as defined by VapourSynth.
 ///
 /// The presets suffixed with H and S have floating point sample type. The H and S suffixes stand

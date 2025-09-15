@@ -68,7 +68,7 @@ jobs:
           sudo make install
       - name: Run doc
         run: |
-          cargo doc --workspace --no-deps --exclude example_plugin
+          cargo doc --workspace --no-deps --exclude example_plugin --exclude rspipe
       - name: Deploy documentation
         uses: actions/upload-pages-artifact@v3
         with:
