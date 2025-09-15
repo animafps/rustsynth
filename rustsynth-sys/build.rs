@@ -44,10 +44,25 @@ fn main() {
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
     // the resulting bindings.
-    let bindings = bindgen::Builder::default()
+    let mut builder = bindgen::Builder::default()
         // The input header we would like to generate
         // bindings for.
-        .header("wrapper.h")
+        .header("wrapper.h");
+
+    
+    if env::var("CARGO_FEATURE_API_41").is_ok() {
+        builder = builder.clang_arg("-DVS_USE_API_41");
+    }
+
+    if env::var("CARGO_FEATURE_VS_GRAPH_API").is_ok() {
+        builder = builder.clang_arg("-DVS_USE_GRAPH_API");
+    }
+
+    if env::var("CARGO_FEATURE_SCRIPT_API_42").is_ok() {
+        builder = builder.clang_arg("-DVS_USE_SCRIPT_API_42");
+    }
+
+    let bindings = builder
         // https://github.com/rust-lang/rust-bindgen/issues/550
         .blocklist_type("max_align_t")
         .blocklist_function("_.*")
