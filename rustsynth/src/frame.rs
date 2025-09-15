@@ -607,6 +607,43 @@ impl<'core> Frame<'core> {
     pub fn cache_frame(&self, n: i32, frame_ctxt: &FrameContext) {
         unsafe { API::get_cached().cache_frame(self.handle.as_ref(), n, frame_ctxt.ptr()) }
     }
+
+    /// RAII fn that provides access to all planes of a video frame
+    pub fn with_planes<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Plane]) -> R,
+    {
+        let num_planes = self.get_video_format().map_or(0, |vf| vf.num_planes);
+        let mut planes = Vec::with_capacity(num_planes as usize);
+        for i in 0..num_planes {
+            let plane = Plane {
+                data: self.get_read_ptr(i),
+                stride: self.get_stride(i),
+                width: self.get_width(i),
+                height: self.get_height(i),
+            };
+            planes.push(plane);
+        }
+        f(&planes)
+    }
+
+    /// RAII fn that provides mutable access to all planes of a video frame (only for owned frames)
+    pub fn map_pixels<T, F>(&mut self, plane: i32, mut f: F)
+    where
+        F: FnMut(&mut [T]),
+    {
+        let ptr = self.get_write_ptr(plane) as *mut T;
+        let stride = self.get_stride(plane) as isize / std::mem::size_of::<T>() as isize;
+        let width = self.get_width(plane) as isize;
+        let height = self.get_height(plane) as isize;
+        unsafe {
+            for row in 0..height {
+                let row_ptr = ptr.offset(row * stride);
+                let slice = std::slice::from_raw_parts_mut(row_ptr, width as usize);
+                f(slice);
+            }
+        }
+    }
 }
 
 impl<'core> Deref for Frame<'core> {
@@ -615,4 +652,10 @@ impl<'core> Deref for Frame<'core> {
     fn deref(&self) -> &Self::Target {
         unsafe { self.handle.as_ref() }
     }
+}
+pub struct Plane {
+    pub data: *const u8,
+    pub stride: isize,
+    pub width: i32,
+    pub height: i32,
 }

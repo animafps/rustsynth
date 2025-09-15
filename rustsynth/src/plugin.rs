@@ -8,7 +8,7 @@ use std::{
     ptr::{self, NonNull},
 };
 
-use crate::{api::API, map::OwnedMap, prelude::Map};
+use crate::{api::API, map::Map, map::OwnedMap};
 
 /// A VapourSynth plugin.
 ///

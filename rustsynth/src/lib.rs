@@ -24,10 +24,13 @@ pub mod prelude {
     //! The VapourSynth prelude.
     //!
     //! Contains the types you most likely want to import anyway.
-    pub use super::map::Map;
-
-    #[cfg(feature = "vsscript-functions")]
-    pub use super::vsscript::Environment;
+    pub use super::{
+        core::{CoreCreationFlags, CoreRef},
+        filter::{traits::Filter, FilterMode, RequestPattern},
+        format::{VideoFormat, VideoInfo},
+        frame::Frame,
+        node::Node,
+    };
 }
 
 pub fn api_version() -> i32 {

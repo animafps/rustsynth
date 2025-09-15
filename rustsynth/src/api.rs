@@ -716,7 +716,8 @@ impl API {
         format: *const ffi::VSAudioFormat,
     ) -> Option<String> {
         let mut buf = [0i8; 32]; // Buffer for up to 32 characters as per API docs
-        let result = unsafe { self.handle.as_ref().getAudioFormatName.unwrap()(format, buf.as_mut_ptr()) };
+        let result =
+            unsafe { self.handle.as_ref().getAudioFormatName.unwrap()(format, buf.as_mut_ptr()) };
         if result == 0 {
             None
         } else {
@@ -776,7 +777,8 @@ impl API {
         format: *const ffi::VSVideoFormat,
     ) -> Option<String> {
         let mut buf = [0i8; 32]; // Buffer for up to 32 characters as per API docs
-        let result = unsafe { self.handle.as_ref().getVideoFormatName.unwrap()(format, buf.as_mut_ptr()) };
+        let result =
+            unsafe { self.handle.as_ref().getVideoFormatName.unwrap()(format, buf.as_mut_ptr()) };
         if result == 0 {
             None
         } else {

@@ -30,19 +30,40 @@ mod tests {
     #[test]
     fn test_format_id_uniqueness() {
         // Different formats should have different IDs
-        assert_ne!(PresetVideoFormat::Gray8 as i32, PresetVideoFormat::Gray16 as i32);
-        assert_ne!(PresetVideoFormat::Gray8 as i32, PresetVideoFormat::YUV420P8 as i32);
-        assert_ne!(PresetVideoFormat::RGB24 as i32, PresetVideoFormat::YUV420P8 as i32);
+        assert_ne!(
+            PresetVideoFormat::Gray8 as i32,
+            PresetVideoFormat::Gray16 as i32
+        );
+        assert_ne!(
+            PresetVideoFormat::Gray8 as i32,
+            PresetVideoFormat::YUV420P8 as i32
+        );
+        assert_ne!(
+            PresetVideoFormat::RGB24 as i32,
+            PresetVideoFormat::YUV420P8 as i32
+        );
 
         // Float vs Integer formats should be different
-        assert_ne!(PresetVideoFormat::GrayS as i32, PresetVideoFormat::Gray32 as i32);
+        assert_ne!(
+            PresetVideoFormat::GrayS as i32,
+            PresetVideoFormat::Gray32 as i32
+        );
     }
 
     #[test]
     fn test_subsampling_differences() {
         // Different YUV subsampling should give different IDs
-        assert_ne!(PresetVideoFormat::YUV420P8 as i32, PresetVideoFormat::YUV422P8 as i32);
-        assert_ne!(PresetVideoFormat::YUV422P8 as i32, PresetVideoFormat::YUV444P8 as i32);
-        assert_ne!(PresetVideoFormat::YUV420P8 as i32, PresetVideoFormat::YUV444P8 as i32);
+        assert_ne!(
+            PresetVideoFormat::YUV420P8 as i32,
+            PresetVideoFormat::YUV422P8 as i32
+        );
+        assert_ne!(
+            PresetVideoFormat::YUV422P8 as i32,
+            PresetVideoFormat::YUV444P8 as i32
+        );
+        assert_ne!(
+            PresetVideoFormat::YUV420P8 as i32,
+            PresetVideoFormat::YUV444P8 as i32
+        );
     }
 }

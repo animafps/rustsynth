@@ -247,3 +247,40 @@ impl fmt::Display for CoreInfo {
         )
     }
 }
+
+/// Builder for creating a [CoreRef] with custom options.
+pub struct CoreBuilder {
+    flags: CoreCreationFlags,
+}
+
+impl<'core> CoreBuilder {
+    /// Creates a new `CoreBuilder` with default flags.
+    pub fn new() -> Self {
+        Self {
+            flags: CoreCreationFlags::NONE,
+        }
+    }
+
+    /// Enables graph inspection API functions.
+    pub fn with_graph_inspection(mut self) -> Self {
+        self.flags |= CoreCreationFlags::ENABLE_GRAPH_INSPECTION;
+        self
+    }
+
+    /// Disables autoloading of user plugins.
+    pub fn disable_auto_loading(mut self) -> Self {
+        self.flags |= CoreCreationFlags::DISABLE_AUTO_LOADING;
+        self
+    }
+
+    /// Disables unloading of plugin libraries when the core is destroyed.
+    pub fn disable_library_unloading(mut self) -> Self {
+        self.flags |= CoreCreationFlags::DISABLE_LIBRARY_UNLOADING;
+        self
+    }
+
+    /// Builds and returns a [CoreRef].
+    pub fn build(self) -> CoreRef<'core> {
+        CoreRef::new(self.flags)
+    }
+}
