@@ -223,6 +223,7 @@ impl Environment {
     }
 }
 
+/// Additional functions added in VSScript 4.2
 #[cfg(feature = "script-api-42")]
 impl Environment {
     /// List of set output index values to dst but at most size values

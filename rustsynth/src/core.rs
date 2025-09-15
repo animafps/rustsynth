@@ -194,22 +194,31 @@ impl<'core> CoreRef<'core> {
     }
 }
 
+/// Additional API functions added in VapourSynth 4.1
 #[cfg(feature = "api-41")]
 impl<'core> CoreRef<'core> {
+    /// Clears all caches associated with the core.
     pub fn clear_caches(&self) {
         unsafe {
             API::get_cached().clear_core_caches(self.ptr());
         }
     }
 
-    pub fn get_node_timing(&self) -> i32 {
-        unsafe { API::get_cached().get_core_node_timing(self.ptr()) }
+    /// Returns true if node timing is enabled.
+    pub fn get_node_timing(&self) -> bool {
+        if unsafe { API::get_cached().get_core_node_timing(self.ptr()) } > 0 {
+            true
+        } else {
+            false
+        }
     }
 
+    /// Note that disabling simply stops the counters from incrementing
     pub fn set_node_timing(&self, enable: bool) {
         unsafe { API::get_cached().set_core_node_timing(self.ptr(), enable as i32) }
     }
 
+    /// Time spent processing frames in nanoseconds in all destroyed nodes, reset sets the counter to 0 again
     pub fn get_freeed_node_processing_time(&self, reset: bool) -> i64 {
         unsafe { API::get_cached().get_freed_node_processing_time(self.ptr(), reset as i32) }
     }

@@ -322,6 +322,7 @@ impl Node {
 
 #[cfg(feature = "api-41")]
 impl Node {
+    /// Clears all cached frames for this node.
     pub fn clear_cache(&self) {
         unsafe {
             API::get_cached().clear_node_cache(self.ptr());
@@ -350,6 +351,7 @@ impl Node {
         unsafe { API::get_cached().get_num_node_dependencies(self.ptr()) }
     }
 
+    /// Retrieves a dependency of this node.
     pub fn get_dependency(&self, n: i32) -> Option<FilterDependency> {
         let ptr = unsafe { API::get_cached().get_node_dependency(self.ptr(), n) };
         if ptr.is_null() {
@@ -359,6 +361,7 @@ impl Node {
         }
     }
 
+    /// Time spent processing frames in nanoseconds, reset sets the counter to 0 again
     pub fn get_node_processing_time(&self, reset: bool) -> i64 {
         unsafe { API::get_cached().get_node_processing_time(self.ptr(), reset as i32) }
     }
