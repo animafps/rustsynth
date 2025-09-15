@@ -1,3 +1,4 @@
+use rustsynth::format::ColorFamily;
 use rustsynth::{format::VideoInfo, frame::Frame};
 use std::fs::File;
 use std::io::{self, BufWriter, Write};
@@ -48,30 +49,31 @@ impl OutputWriter {
 
     fn write_y4m_header(&mut self, video_info: &VideoInfo) -> io::Result<()> {
         // Y4M header format: YUV4MPEG2 W<width> H<height> F<fps_num>:<fps_den> Ip A0:0 C420jpeg XYSCSS=420JPEG
-        let format_tag = match (video_info.format.color_family, video_info.format.bits_per_sample, video_info.format.sub_sampling_w, video_info.format.sub_sampling_h) {
-            (rustsynth::format::ColorFamily::YUV, 8, 1, 1) => "C420jpeg",
-            (rustsynth::format::ColorFamily::YUV, 8, 1, 0) => "C422",
-            (rustsynth::format::ColorFamily::YUV, 8, 0, 0) => "C444",
-            (rustsynth::format::ColorFamily::YUV, 10, 1, 1) => "C420p10",
-            (rustsynth::format::ColorFamily::YUV, 10, 1, 0) => "C422p10",
-            (rustsynth::format::ColorFamily::YUV, 10, 0, 0) => "C444p10",
-            (rustsynth::format::ColorFamily::YUV, 12, 1, 1) => "C420p12",
-            (rustsynth::format::ColorFamily::YUV, 12, 1, 0) => "C422p12",
-            (rustsynth::format::ColorFamily::YUV, 12, 0, 0) => "C444p12",
-            (rustsynth::format::ColorFamily::YUV, 16, 1, 1) => "C420p16",
-            (rustsynth::format::ColorFamily::YUV, 16, 1, 0) => "C422p16",
-            (rustsynth::format::ColorFamily::YUV, 16, 0, 0) => "C444p16",
-            _ => "C420jpeg" // default fallback
+        let format_tag = match (
+            video_info.format.color_family,
+            video_info.format.bits_per_sample,
+            video_info.format.sub_sampling_w,
+            video_info.format.sub_sampling_h,
+        ) {
+            (ColorFamily::YUV, 8, 1, 1) => "C420jpeg",
+            (ColorFamily::YUV, 8, 1, 0) => "C422",
+            (ColorFamily::YUV, 8, 0, 0) => "C444",
+            (ColorFamily::YUV, 10, 1, 1) => "C420p10",
+            (ColorFamily::YUV, 10, 1, 0) => "C422p10",
+            (ColorFamily::YUV, 10, 0, 0) => "C444p10",
+            (ColorFamily::YUV, 12, 1, 1) => "C420p12",
+            (ColorFamily::YUV, 12, 1, 0) => "C422p12",
+            (ColorFamily::YUV, 12, 0, 0) => "C444p12",
+            (ColorFamily::YUV, 16, 1, 1) => "C420p16",
+            (ColorFamily::YUV, 16, 1, 0) => "C422p16",
+            (ColorFamily::YUV, 16, 0, 0) => "C444p16",
+            _ => "C420jpeg", // default fallback
         };
 
         write!(
             self.writer,
             "YUV4MPEG2 W{} H{} F{}:{} Ip A0:0 {}\n",
-            video_info.width,
-            video_info.height,
-            video_info.fps_num,
-            video_info.fps_den,
-            format_tag
+            video_info.width, video_info.height, video_info.fps_num, video_info.fps_den, format_tag
         )?;
 
         Ok(())
@@ -87,7 +89,12 @@ impl OutputWriter {
                         "Audio containers not yet implemented",
                     ));
                 }
-                _ => return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid container")),
+                _ => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "Invalid container",
+                    ));
+                }
             }
         } else {
             self.write_raw_frame(frame)?;

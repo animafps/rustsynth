@@ -1,8 +1,8 @@
 use clap::{Arg, ArgAction, Command};
 use rustsynth::{
     core::{CoreCreationFlags, CoreRef},
-    vsscript::Environment,
     map::OwnedMap,
+    vsscript::Environment,
 };
 use std::collections::HashMap;
 use std::io::{self, BufWriter, Write};
@@ -72,7 +72,7 @@ fn main() {
                 .long("requests")
                 .help("Set number of concurrent frame requests")
                 .value_name("N")
-                .value_parser(clap::value_parser!(usize))
+                .value_parser(clap::value_parser!(usize)),
         )
         .arg(
             Arg::new("container")
@@ -213,8 +213,17 @@ fn main() {
     let mut progress = ProgressTracker::new(total_frames, matches.get_flag("progress"));
 
     // Process frames concurrently
-    let num_requests = *matches.get_one::<usize>("requests").unwrap_or(&environment.get_core().info().num_threads);
-    process_frames_concurrent(&node, &mut writer, start_frame, end_frame, num_requests, &mut progress);
+    let num_requests = *matches
+        .get_one::<usize>("requests")
+        .unwrap_or(&environment.get_core().info().num_threads);
+    process_frames_concurrent(
+        &node,
+        &mut writer,
+        start_frame,
+        end_frame,
+        num_requests,
+        &mut progress,
+    );
 
     progress.finish();
 
@@ -233,17 +242,17 @@ fn process_frames_concurrent(
     progress: &mut ProgressTracker,
 ) {
     use std::sync::mpsc;
-    
+
     let total_frames = end_frame - start_frame + 1;
     let (tx, rx) = mpsc::channel::<(usize, Result<rustsynth::frame::Frame, String>)>();
     let node_clone = node.clone();
-    
+
     // Track pending requests
     let pending_requests = Arc::new(Mutex::new(0));
-    
+
     // Start initial batch of async frame requests
     let mut next_request = start_frame;
-    
+
     // Request initial batch
     for _ in 0..num_requests.min(total_frames) {
         *pending_requests.lock().unwrap() += 1;
@@ -252,7 +261,7 @@ fn process_frames_concurrent(
         let pending_clone = Arc::clone(&pending_requests);
         let frame_num = next_request;
         next_request += 1;
-        
+
         node_clone.get_frame_async(frame_num, move |result, n, _| {
             let result_owned = match result {
                 Ok(frame) => Ok(frame),
@@ -262,18 +271,18 @@ fn process_frames_concurrent(
             *pending_clone.lock().unwrap() -= 1;
         });
     }
-    
+
     // Collect and write frames in order
     let mut frames_received = HashMap::new();
     let mut next_frame = start_frame;
     let mut frames_written = 0;
-    
+
     while frames_written < total_frames {
         if let Ok((frame_num, result)) = rx.recv() {
             match result {
                 Ok(frame) => {
                     frames_received.insert(frame_num, frame);
-                    
+
                     // Request next frame if we haven't requested all frames yet
                     if next_request <= end_frame {
                         *pending_requests.lock().unwrap() += 1;
@@ -282,7 +291,7 @@ fn process_frames_concurrent(
                         let pending_clone = Arc::clone(&pending_requests);
                         let frame_num_to_request = next_request;
                         next_request += 1;
-                        
+
                         node_clone.get_frame_async(frame_num_to_request, move |result, n, _| {
                             let result_owned = match result {
                                 Ok(frame) => Ok(frame),
@@ -292,17 +301,17 @@ fn process_frames_concurrent(
                             *pending_clone.lock().unwrap() -= 1;
                         });
                     }
-                    
+
                     // Write frames in sequential order
                     while let Some(frame) = frames_received.remove(&next_frame) {
                         if let Err(e) = writer.write_frame(&frame) {
                             eprintln!("Failed to write frame {}: {}", next_frame, e);
                             process::exit(1);
                         }
-                        
+
                         frames_written += 1;
                         next_frame += 1;
-                        
+
                         progress.update(frames_written);
                     }
                 }
@@ -323,23 +332,74 @@ fn print_node_info(node: &rustsynth::node::Node) {
         writeln!(writer, "Height: {}", video_info.height).unwrap();
         writeln!(writer, "Frames: {}", video_info.num_frames).unwrap();
         writeln!(writer, "FPS: {}/{}", video_info.fps_num, video_info.fps_den).unwrap();
-        writeln!(writer, "Format Name: {}", video_info.format.get_name().unwrap_or("Unknown".to_string())).unwrap();
+        writeln!(
+            writer,
+            "Format Name: {}",
+            video_info
+                .format
+                .get_name()
+                .unwrap_or("Unknown".to_string())
+        )
+        .unwrap();
         writeln!(writer, "Color Family: {:?}", video_info.format.color_family).unwrap();
         writeln!(writer, "Sample Type: {:?}", video_info.format.sample_type).unwrap();
-        writeln!(writer, "Bits Per Sample: {}", video_info.format.bits_per_sample).unwrap();
-        writeln!(writer, "Bytes Per Sample: {}", video_info.format.bytes_per_sample).unwrap();
-        writeln!(writer, "Subsampling W: {}", video_info.format.sub_sampling_w).unwrap();
-        writeln!(writer, "Subsampling H: {}", video_info.format.sub_sampling_h).unwrap();
+        writeln!(
+            writer,
+            "Bits Per Sample: {}",
+            video_info.format.bits_per_sample
+        )
+        .unwrap();
+        writeln!(
+            writer,
+            "Bytes Per Sample: {}",
+            video_info.format.bytes_per_sample
+        )
+        .unwrap();
+        writeln!(
+            writer,
+            "Subsampling W: {}",
+            video_info.format.sub_sampling_w
+        )
+        .unwrap();
+        writeln!(
+            writer,
+            "Subsampling H: {}",
+            video_info.format.sub_sampling_h
+        )
+        .unwrap();
         writeln!(writer, "Num Planes: {}", video_info.format.num_planes).unwrap();
     } else if let Some(audio_info) = node.audio_info() {
         writeln!(writer, "Sample Rate: {}", audio_info.sample_rate).unwrap();
         writeln!(writer, "Num Samples: {}", audio_info.num_samples).unwrap();
         writeln!(writer, "Num Channels: {}", audio_info.format.num_channels).unwrap();
-        writeln!(writer, "Channel Layout: {}", audio_info.format.channel_layout).unwrap();
-        writeln!(writer, "Format Name: {}", audio_info.format.get_name().unwrap_or("Unknown".to_string())).unwrap();
+        writeln!(
+            writer,
+            "Channel Layout: {}",
+            audio_info.format.channel_layout
+        )
+        .unwrap();
+        writeln!(
+            writer,
+            "Format Name: {}",
+            audio_info
+                .format
+                .get_name()
+                .unwrap_or("Unknown".to_string())
+        )
+        .unwrap();
         writeln!(writer, "Sample Type: {:?}", audio_info.format.sample_type).unwrap();
-        writeln!(writer, "Bits Per Sample: {}", audio_info.format.bits_per_sample).unwrap();
-        writeln!(writer, "Bytes Per Sample: {}", audio_info.format.bytes_per_sample).unwrap();
+        writeln!(
+            writer,
+            "Bits Per Sample: {}",
+            audio_info.format.bits_per_sample
+        )
+        .unwrap();
+        writeln!(
+            writer,
+            "Bytes Per Sample: {}",
+            audio_info.format.bytes_per_sample
+        )
+        .unwrap();
     }
 
     writer.flush().unwrap();

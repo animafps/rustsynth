@@ -788,6 +788,69 @@ impl API {
         }
     }
 
+    pub(crate) fn query_video_format(
+        &self,
+        format: *mut ffi::VSVideoFormat,
+        color_family: i32,
+        sample_type: i32,
+        bits_per_sample: i32,
+        sub_sampling_w: i32,
+        sub_sampling_h: i32,
+        core: *mut ffi::VSCore,
+    ) -> i32 {
+        unsafe {
+            self.handle.as_ref().queryVideoFormat.unwrap()(
+                format,
+                color_family,
+                sample_type,
+                bits_per_sample,
+                sub_sampling_w,
+                sub_sampling_h,
+                core,
+            )
+        }
+    }
+
+    pub(crate) fn query_audio_format(
+        &self,
+        format: *mut ffi::VSAudioFormat,
+        sample_type: i32,
+        bits_per_sample: i32,
+        channel_layout: u64,
+        core: *mut ffi::VSCore,
+    ) -> i32 {
+        unsafe {
+            self.handle.as_ref().queryAudioFormat.unwrap()(
+                format,
+                sample_type,
+                bits_per_sample,
+                channel_layout,
+                core,
+            )
+        }
+    }
+
+    pub(crate) fn query_video_format_id(
+        &self,
+        color_family: i32,
+        sample_type: i32,
+        bits_per_sample: i32,
+        sub_sampling_w: i32,
+        sub_sampling_h: i32,
+        core: *mut ffi::VSCore,
+    ) -> u32 {
+        unsafe {
+            self.handle.as_ref().queryVideoFormatID.unwrap()(
+                color_family,
+                sample_type,
+                bits_per_sample,
+                sub_sampling_w,
+                sub_sampling_h,
+                core,
+            )
+        }
+    }
+
     pub(crate) fn add_log_handler(
         &self,
         handler: unsafe extern "C" fn(

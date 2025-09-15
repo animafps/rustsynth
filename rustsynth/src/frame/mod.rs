@@ -1,3 +1,5 @@
+mod enums;
+
 use std::{ffi::CStr, marker::PhantomData, ops::Deref, ptr::NonNull};
 
 use rustsynth_sys as ffi;
@@ -8,45 +10,6 @@ use crate::{
     format::{AudioFormat, MediaType, VideoFormat},
     map::{MapRef, MapRefMut},
 };
-
-/// Chroma sample position in YUV formats
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ChromaLocation {
-    Left = 0,
-    Center = 1,
-    TopLeft = 2,
-    Top = 3,
-    BottomLeft = 4,
-    Bottom = 5,
-}
-
-/// Full or limited range (PC/TV range)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ColorRange {
-    Full = 0,
-    Limited = 1,
-}
-
-/// If the frame is composed of two independent fields (interlaced)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FieldBased {
-    Progressive = 0,
-    BottomFieldFirst = 1,
-    TopFieldFirst = 2,
-}
-
-/// Which field was used to generate this frame
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Field {
-    Bottom = 0,
-    Top = 1,
-}
-
-///
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Transfer {
-    Unknown(u32),
-}
 
 // One frame of a clip.
 // This type is intended to be publicly used only in reference form.
@@ -319,26 +282,29 @@ impl<'core> Frame<'core> {
     }
 
     /// Get color primaries as specified in ITU-T H.273 Table 2
-    pub fn primaries(&self) -> Option<i64> {
-        unsafe {
+    pub fn primaries(&self) -> ColorPrimaries {
+        let res = unsafe {
             self.properties()
                 .get_int_raw_unchecked(PRIMARIES_KEY, 0)
-                .ok()
-        }
+                .unwrap_or(2)
+        };
+        ColorPrimaries::from(res)
     }
 
     /// Get matrix coefficients as specified in ITU-T H.273 Table 4
-    pub fn matrix(&self) -> Option<i64> {
-        unsafe { self.properties().get_int_raw_unchecked(MATRIX_KEY, 0).ok() }
+    pub fn matrix(&self) -> MatrixCoefficients {
+        let res = unsafe {
+            self.properties()
+                .get_int_raw_unchecked(MATRIX_KEY, 0)
+                .unwrap_or(2)
+        };
+        MatrixCoefficients::from(res)
     }
 
     /// Get transfer characteristics as specified in ITU-T H.273 Table 3
-    pub fn transfer(&self) -> Option<i64> {
-        unsafe {
-            self.properties()
-                .get_int_raw_unchecked(TRANSFER_KEY, 0)
-                .ok()
-        }
+    pub fn transfer(&self) -> TransferCharacteristics {
+        let res = unsafe { self.properties().get_int_raw_unchecked(TRANSFER_KEY, 2) }.unwrap_or(0);
+        TransferCharacteristics::from(res)
     }
 
     /// Get field based information (interlaced)
@@ -477,28 +443,31 @@ impl<'core> Frame<'core> {
     }
 
     /// Set color primaries as specified in ITU-T H.273 Table 2
-    pub fn set_primaries(&mut self, primaries: i64) -> Result<(), crate::map::Error> {
+    pub fn set_primaries(&mut self, primaries: ColorPrimaries) -> Result<(), crate::map::Error> {
         unsafe {
             self.properties_mut()
-                .set_int_raw_unchecked(PRIMARIES_KEY, primaries);
+                .set_int_raw_unchecked(PRIMARIES_KEY, primaries as i64);
         }
         Ok(())
     }
 
     /// Set matrix coefficients as specified in ITU-T H.273 Table 4
-    pub fn set_matrix(&mut self, matrix: i64) -> Result<(), crate::map::Error> {
+    pub fn set_matrix(&mut self, matrix: MatrixCoefficients) -> Result<(), crate::map::Error> {
         unsafe {
             self.properties_mut()
-                .set_int_raw_unchecked(MATRIX_KEY, matrix);
+                .set_int_raw_unchecked(MATRIX_KEY, matrix as i64);
         }
         Ok(())
     }
 
     /// Set transfer characteristics as specified in ITU-T H.273 Table 3
-    pub fn set_transfer(&mut self, transfer: i64) -> Result<(), crate::map::Error> {
+    pub fn set_transfer(
+        &mut self,
+        transfer: TransferCharacteristics,
+    ) -> Result<(), crate::map::Error> {
         unsafe {
             self.properties_mut()
-                .set_int_raw_unchecked(TRANSFER_KEY, transfer);
+                .set_int_raw_unchecked(TRANSFER_KEY, transfer as i64);
         }
         Ok(())
     }
@@ -659,3 +628,8 @@ pub struct Plane {
     pub width: i32,
     pub height: i32,
 }
+
+pub use enums::{
+    ChromaLocation, ColorPrimaries, ColorRange, Field, FieldBased, MatrixCoefficients,
+    TransferCharacteristics,
+};
