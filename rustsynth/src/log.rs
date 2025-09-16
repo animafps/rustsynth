@@ -1,3 +1,4 @@
+//! Module for logging functionality and integration with the `log` crate.
 use log::{debug, error, info, warn};
 use rustsynth_sys as ffi;
 use std::{

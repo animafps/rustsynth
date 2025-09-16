@@ -1,3 +1,4 @@
+//! Interface for VapourSynth plugins and their functions.
 use bitflags::bitflags;
 use ffi::VSPluginFunction;
 use rustsynth_sys::{self as ffi, VSPluginConfigFlags};

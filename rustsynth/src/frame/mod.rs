@@ -1,3 +1,4 @@
+//! Module for frame related types and functionality.
 mod enums;
 
 use std::{ffi::CStr, marker::PhantomData, ops::Deref, ptr::NonNull};

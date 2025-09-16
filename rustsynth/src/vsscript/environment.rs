@@ -211,6 +211,7 @@ impl Environment {
         unsafe { CoreRef::from_ptr(ptr) }
     }
 
+    /// Loads the VSAPI into the global API instance. This is only necessary if you want to use the API functions before creating a script environment.
     pub fn load_api(version: i32) {
         unsafe {
             init_api(ScriptAPI::get_cached().get_vsapi(version));
@@ -221,11 +222,9 @@ impl Environment {
     pub fn get_exit_code(&self) -> i32 {
         unsafe { ScriptAPI::get_cached().get_exit_code(self.handle.as_ptr()) }
     }
-}
 
-/// Additional functions added in VSScript 4.2
-#[cfg(feature = "script-api-42")]
-impl Environment {
+    #[cfg(feature = "script-api-42")]
+    #[doc(cfg(feature = "script-api-42"))]
     /// List of set output index values to dst but at most size values
     /// Always returns the total number of available output index values.
     pub fn get_available_output_nodes(&self, size: i32) -> (&[i32], i32) {

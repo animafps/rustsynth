@@ -1,3 +1,4 @@
+//! Module for filter related types and traits.
 use rustsynth_sys::{VSActivationReason, VSFilterMode};
 
 use crate::ffi;
@@ -40,6 +41,7 @@ pub enum RequestPattern {
     StrictSpatial,
     /// This modes is basically identical NoFrameReuse except that it hints the last frame may be requested multiple times
     #[cfg(feature = "api-41")]
+    #[doc(cfg(feature = "api-41"))]
     FrameReuseLastOnly,
 }
 

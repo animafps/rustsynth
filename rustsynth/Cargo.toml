@@ -27,5 +27,6 @@ vsscript-functions = ["rustsynth-sys/vsscript-functions"]
 
 api-41 = ["rustsynth-sys/api-41"]
 script-api-42 = ["rustsynth-sys/script-api-42"]
+graph-api = ["rustsynth-sys/vs-graph-api"]
 
 default = ["vapoursynth-functions", "vsscript-functions", "api-41", "script-api-42"]

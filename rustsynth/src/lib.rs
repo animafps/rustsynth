@@ -3,6 +3,7 @@
 //! The primary goal is safety (that is, safe Rust code should not trigger undefined behavior), and secondary goals include performance and ease of use.
 //!
 //! [VapourSynth]: https://github.com/vapoursynth/vapoursynth
+#![feature(doc_cfg)]
 pub extern crate rustsynth_sys;
 pub use rustsynth_sys as ffi;
 
@@ -17,6 +18,7 @@ pub mod map;
 pub mod node;
 pub mod plugin;
 #[cfg(feature = "vsscript-functions")]
+#[doc(cfg(feature = "vsscript-functions"))]
 pub mod vsscript;
 pub use api::init_api;
 

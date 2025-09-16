@@ -1,3 +1,4 @@
+//! A reference to a VapourSynth core and related functionality.
 use crate::{
     api::API,
     format::VideoFormat,
@@ -21,6 +22,7 @@ mod tests;
 bitflags! {
     /// Options when creating a core.
     pub struct CoreCreationFlags: u32 {
+        /// No flags.
         const NONE = 0b00000000;
         /// Required to use the graph inspection api functions. Increases memory usage due to the extra information stored.
         const ENABLE_GRAPH_INSPECTION = 0b00000001;
@@ -230,8 +232,11 @@ pub struct CoreInfo {
     pub version_string: &'static str,
     pub core_version: i32,
     pub api_version: i32,
+    /// Number of worker threads.
     pub num_threads: usize,
+    /// Maximum size of the framebuffer cache in bytes.
     pub max_framebuffer_size: u64,
+    /// Current size of the framebuffer cache in bytes.
     pub used_framebuffer_size: u64,
 }
 

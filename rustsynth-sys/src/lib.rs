@@ -1,3 +1,20 @@
+//! Low level VapourSynth bindings to Rust
+//!
+//! This crate provides raw unsafe FFI bindings to the VapourSynth API.
+//! For a safe wrapper, see [rustsynth](https://crates.io/crates/rustsynth).
+//!
+//! ## Feature Flags
+//!
+//! The bindings are conditionally compiled based on feature flags:
+//!
+//! - **`api-41`** - Enables VapourSynth API version 4.1 headers (`VS_USE_API_41`)
+//! - **`vs-graph-api`** - Enables the experimental graph API (`VS_GRAPH_API`)
+//! - **`script-api-42`** - Enables VSScript API 4.2 headers (`VSSCRIPT_USE_API_42`)
+//! - **`vapoursynth-functions`** - Links to the main VapourSynth functions library
+//! - **`vsscript-functions`** - Links to the VSScript functions library
+//!
+//! Different feature combinations will expose different functions and types in the generated bindings.
+
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]

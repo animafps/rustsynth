@@ -162,4 +162,5 @@ pub use self::errors::{ScriptError, VSScriptError};
 mod environment;
 pub use self::environment::Environment;
 
+#[cfg(test)]
 pub mod tests;

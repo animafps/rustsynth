@@ -1,3 +1,4 @@
+//! Module for audio and video format definitions and related functionality.
 mod audio;
 mod enums;
 mod errors;
@@ -44,7 +45,7 @@ unsafe impl Component for u32 {
 #[cfg(feature = "f16-pixel-type")]
 unsafe impl Component for f16 {
     #[inline]
-    fn is_valid(format: Format) -> bool {
+    fn is_valid(format: VideoFormat) -> bool {
         format.sample_type == SampleType::Float && format.bytes_per_sample == 2
     }
 }

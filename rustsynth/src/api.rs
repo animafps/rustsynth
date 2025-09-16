@@ -941,6 +941,30 @@ impl API {
     }
 }
 
+#[cfg(feature = "graph-api")]
+impl API {
+    pub fn get_node_creation_function_name(
+        &self,
+        node: *mut ffi::VSNode,
+        level: i32,
+    ) -> *const c_char {
+        unsafe { self.handle.as_ref().getNodeCreationFunctionName.unwrap()(node, level) }
+    }
+
+    pub fn get_node_creation_function_arguments(
+        &self,
+        node: *mut ffi::VSNode,
+        level: i32,
+    ) -> *const ffi::VSMap {
+        unsafe {
+            self.handle
+                .as_ref()
+                .getNodeCreationFunctionArguments
+                .unwrap()(node, level)
+        }
+    }
+}
+
 /// Initialize the global API pointer (for use in derive macros)
 #[inline]
 pub unsafe fn init_api(vsapi: *const ffi::VSAPI) {

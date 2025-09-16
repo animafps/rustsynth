@@ -14,6 +14,8 @@ use crate::api::API;
 use crate::filter::{FilterDependency, FilterMode};
 use crate::format::{AudioInfo, MediaType, VideoInfo};
 use crate::frame::{Frame, FrameContext};
+#[cfg(feature = "graph-api")]
+use crate::map::MapRef;
 
 mod errors;
 pub use self::errors::GetFrameError;
@@ -321,6 +323,7 @@ impl Node {
 }
 
 #[cfg(feature = "api-41")]
+#[doc(cfg(feature = "api-41"))]
 impl Node {
     /// Clears all cached frames for this node.
     pub fn clear_cache(&self) {
@@ -364,6 +367,41 @@ impl Node {
     /// Time spent processing frames in nanoseconds, reset sets the counter to 0 again
     pub fn get_node_processing_time(&self, reset: bool) -> i64 {
         unsafe { API::get_cached().get_node_processing_time(self.ptr(), reset as i32) }
+    }
+}
+
+/// !!! Experimental/expensive graph information, these function require both the major and minor version to match exactly when using them !!!
+///
+/// These functions only exist to retrieve internal details for debug purposes and graph visualization
+/// They will only only work properly when used on a core created with ccfEnableGraphInspection and are
+/// not safe to use concurrently with frame requests or other API functions. Because of this they are
+/// unsuitable for use in plugins and filters.
+///
+#[cfg(feature = "graph-api")]
+#[doc(cfg(feature = "graph-api"))]
+impl Node {
+    pub fn get_creation_function_name(&self, level: i32) -> Option<String> {
+        unsafe {
+            if API::get_cached().version() != ffi::VAPOURSYNTH_API_VERSION {
+                return None;
+            }
+            let ptr = API::get_cached().get_node_creation_function_name(self.ptr(), level);
+            if ptr.is_null() {
+                None
+            } else {
+                Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
+            }
+        }
+    }
+
+    pub fn get_creation_function_arguments(&'_ self, level: i32) -> Option<MapRef<'_, '_>> {
+        unsafe {
+            if API::get_cached().version() != ffi::VAPOURSYNTH_API_VERSION {
+                return None;
+            }
+            let ptr = API::get_cached().get_node_creation_function_arguments(self.ptr(), level);
+            Some(MapRef::from_ptr(ptr))
+        }
     }
 }
 

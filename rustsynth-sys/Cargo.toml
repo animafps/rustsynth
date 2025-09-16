@@ -16,3 +16,6 @@ vs-graph-api = []
 script-api-42 = []
 vapoursynth-functions = []
 vsscript-functions = []
+
+[package.metadata.docs.rs]
+all-features = true
