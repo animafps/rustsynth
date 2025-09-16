@@ -55,7 +55,8 @@ pub const VSSCRIPT_API_VERSION: i32 =
 #[inline]
 pub unsafe fn isConstantVideoFormat(vi: *const VSVideoInfo) -> i32 {
     let vi = &*vi;
-    (vi.height > 0 && vi.width > 0 && vi.format.colorFamily != VSColorFamily::cfUndefined as i32) as i32
+    (vi.height > 0 && vi.width > 0 && vi.format.colorFamily != VSColorFamily::cfUndefined as i32)
+        as i32
 }
 
 /// Convenience function to check if two clips have the same format
@@ -166,7 +167,6 @@ pub unsafe fn addRational(num: *mut i64, den: *mut i64, addnum: i64, addden: i64
 
         *num = scaled_num + scaled_addnum;
         *den = original_den * addden;
-
         reduceRational(num, den);
     }
 }

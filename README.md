@@ -1,47 +1,53 @@
 # RustSynth
 
-Fork of [vapoursynth-rs](https://github.com/YaLTeR/vapoursynth-rs) for the latest api versions
+[![crates.io](https://img.shields.io/crates/v/rustsynth.svg)](https://crates.io/crates/rustsynth)
+[![docs.rs](https://docs.rs/rustsynth/badge.svg)](https://docs.rs/rustsynth)
+[![License: LGPL v2.1](https://img.shields.io/badge/License-LGPL%20v2.1-blue.svg)](https://www.gnu.org/licenses/lgpl-2.1)
 
-**[support and dev discord](https://discord.com/invite/5z3YhWstQr)**
+Safe & performant Rust bindings for VapourSynth video processing framework.
 
-[Docs for main branch](https://animafps.github.io/rustsynth/rustsynth/index.html)
+A modern fork of [vapoursynth-rs](https://github.com/YaLTeR/vapoursynth-rs) with support for the latest VapourSynth API versions.
 
-## rustsynth
+## Quick Start
 
-> **Warning**
-> 
-> VapourSynth API coverage is limited and is still in early devlopment so breaking changes will occur to the API before v1.0
->
-> [Roadmap](https://github.com/animafps/rustsynth/issues/1)
+Add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+rustsynth = "0.5"
+```
+
+## Documentation
+
+- [API Documentation](https://docs.rs/rustsynth)
+- [Development Documentation](https://animafps.github.io/rustsynth/rustsynth/index.html)
+
+## Packages
+
+This workspace contains three main packages:
+
+### `rustsynth`
 
 [![crates.io](https://img.shields.io/crates/v/rustsynth.svg)](https://crates.io/crates/rustsynth)
 
-Safe wrapper for VapourSynth, written in Rust
+High-level safe wrapper for VapourSynth with a Rust-friendly API.
 
-[Documentation](https://docs.rs/rustsynth)
-
-see [rustsynth/README.md](./rustsynth/README.md) for more details
-
-## rustsynth-sys
+### `rustsynth-sys`
 
 [![crates.io](https://img.shields.io/crates/v/rustsynth-sys.svg)](https://crates.io/crates/rustsynth-sys)
 
-Low level VapourSynth bindings to Rust
+Low-level FFI bindings to VapourSynth C API.
 
-[Documentation](https://docs.rs/rustsynth-sys)
-
-see [rustsynth-sys/README.md](./rustsynth-sys/README.md) for more details
-
-## rustsynth-derive
+### `rustsynth-derive`
 
 [![crates.io](https://img.shields.io/crates/v/rustsynth-derive.svg)](https://crates.io/crates/rustsynth-derive)
 
-Procedual macro helpers for rustsynth
+Procedural macros for creating VapourSynth plugins.
 
-[Documentation](https://docs.rs/rustsynth-derive)
+## Community
 
-see [rustsynth-derive/README.md](./rustsynth-derive/README.md) for more details
+Join our [Discord server](https://discord.com/invite/5z3YhWstQr) for support and development discussions.
 
 ## License
 
-This repository and associated libraries are licensed under LGPL-2.1 see [LICENSE](./LICENSE) for details
+Licensed under LGPL-2.1. See [LICENSE](./LICENSE) for details.
