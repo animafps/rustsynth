@@ -28,7 +28,7 @@ pub mod prelude {
     //! Contains the types you most likely want to import anyway.
     pub use super::{
         core::{CoreCreationFlags, CoreRef},
-        filter::{traits::Filter, FilterMode, RequestPattern},
+        filter::{Filter, FilterMode, RequestPattern},
         format::{VideoFormat, VideoInfo},
         frame::Frame,
         node::Node,

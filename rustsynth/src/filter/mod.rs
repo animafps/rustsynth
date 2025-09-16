@@ -1,6 +1,6 @@
 //! Module for filter related types and traits.
 use rustsynth_sys::{VSActivationReason, VSFilterMode};
-
+mod traits;
 use crate::ffi;
 use crate::ffi::VSRequestPattern;
 use crate::node::Node;
@@ -144,8 +144,6 @@ impl From<i32> for FilterMode {
     }
 }
 
-pub mod traits;
-
 // Macro to automatically register filters
 #[macro_export]
 macro_rules! register_filters {
@@ -160,3 +158,4 @@ macro_rules! register_filters {
         }
     };
 }
+pub use traits::*;

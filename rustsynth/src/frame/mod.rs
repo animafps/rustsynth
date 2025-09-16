@@ -247,6 +247,22 @@ impl<'core> Frame<'core> {
         unsafe { API::get_cached().get_frame_write_ptr(self.handle.as_ptr(), plane) }
     }
 
+    /// Get mutable slice to plane data (only for owned frames)
+    pub fn get_write_slice(&mut self, plane: i32) -> &mut [u8] {
+        let height = self.get_height(plane) as usize;
+        let stride = self.get_stride(plane) as usize;
+        let ptr = self.get_write_ptr(plane);
+        unsafe { std::slice::from_raw_parts_mut(ptr, height * stride) }
+    }
+
+    /// Get read-only slice to plane data
+    pub fn get_read_slice(&self, plane: i32) -> &[u8] {
+        let height = self.get_height(plane) as usize;
+        let stride = self.get_stride(plane) as usize;
+        let ptr = self.get_read_ptr(plane);
+        unsafe { std::slice::from_raw_parts(ptr, height * stride) }
+    }
+
     /// Get read-only access to frame properties
     #[inline]
     pub fn properties(&self) -> MapRef<'_, 'core> {

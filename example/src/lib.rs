@@ -1,6 +1,6 @@
 use rustsynth::{
     core::CoreRef,
-    filter::{traits::Filter, FilterDependency, FilterMode, RequestPattern},
+    filter::{Filter, FilterDependency, FilterMode, RequestPattern},
     frame::{Frame, FrameContext},
     map::Map,
     node::Node,
