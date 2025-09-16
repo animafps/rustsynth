@@ -6,7 +6,7 @@ use std::ffi::{c_int, CStr, CString};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
-use std::slice;
+use std::{mem, slice};
 
 use crate::api::API;
 use crate::frame::Frame;
@@ -1090,4 +1090,109 @@ impl<'elem> Map<'elem> {
 
         debug_assert!(error == 0);
     }
+
+    fn consume_frame(
+        self,
+        frame: Frame<'elem>,
+        key: &str,
+        append: ffi::VSMapAppendMode,
+    ) -> MapResult<()> {
+        let key = Map::make_raw_key(key)?;
+        let frame = mem::ManuallyDrop::new(frame);
+        let frame_ptr = frame.as_ptr();
+        let res = unsafe {
+            API::get_cached().map_consume_frame(
+                self.handle.as_ptr(),
+                key.as_ptr(),
+                frame_ptr,
+                append as i32,
+            )
+        };
+        if res == 0 {
+            Ok(())
+        } else {
+            Err(MapError::Error)
+        }
+    }
+
+    /// Consumes a frame and appends or sets it in the map.
+    #[inline]
+    pub fn append_consume_frame(self, frame: Frame<'elem>, key: &str) -> MapResult<()> {
+        self.consume_frame(frame, key, ffi::VSMapAppendMode::maAppend)
+    }
+
+    /// Consumes a frame and sets it in the map. Replaces any existing values.
+    #[inline]
+    pub fn set_consume_frame(self, frame: Frame<'elem>, key: &str) -> MapResult<()> {
+        self.consume_frame(frame, key, ffi::VSMapAppendMode::maReplace)
+    }
+
+    fn consume_node(self, node: Node, key: &str, append: ffi::VSMapAppendMode) -> MapResult<()> {
+        let key = Map::make_raw_key(key)?;
+        let node = mem::ManuallyDrop::new(node);
+        let node_ptr = node.ptr();
+        let res = unsafe {
+            API::get_cached().map_consume_node(
+                self.handle.as_ptr(),
+                key.as_ptr(),
+                node_ptr,
+                append as i32,
+            )
+        };
+        if res == 0 {
+            Ok(())
+        } else {
+            Err(MapError::Error)
+        }
+    }
+
+    /// Consumes a node and appends or sets it in the map.
+    #[inline]
+    pub fn append_consume_node(self, node: Node, key: &str) -> MapResult<()> {
+        self.consume_node(node, key, ffi::VSMapAppendMode::maAppend)
+    }
+
+    /// Consumes a node and sets it in the map. Replaces any existing values.
+    #[inline]
+    pub fn set_consume_node(self, node: Node, key: &str) -> MapResult<()> {
+        self.consume_node(node, key, ffi::VSMapAppendMode::maReplace)
+    }
+
+    fn consume_function(
+        self,
+        func: Function<'elem>,
+        key: &str,
+        append: ffi::VSMapAppendMode,
+    ) -> MapResult<()> {
+        let key = Map::make_raw_key(key)?;
+        let func = mem::ManuallyDrop::new(func);
+        let func_ptr = func.ptr();
+        let res = unsafe {
+            API::get_cached().map_consume_function(
+                self.handle.as_ptr(),
+                key.as_ptr(),
+                func_ptr,
+                append as i32,
+            )
+        };
+        if res == 0 {
+            Ok(())
+        } else {
+            Err(MapError::Error)
+        }
+    }
+
+    /// Consumes a function and appends or sets it in the map.
+    #[inline]
+    pub fn append_consume_function(self, func: Function<'elem>, key: &str) -> MapResult<()> {
+        self.consume_function(func, key, ffi::VSMapAppendMode::maAppend)
+    }
+
+    /// Consumes a function and sets it in the map. Replaces any existing values.
+    #[inline]
+    pub fn set_consume_function(self, func: Function<'elem>, key: &str) -> MapResult<()> {
+        self.consume_function(func, key, ffi::VSMapAppendMode::maReplace)
+    }
+
+    // TODO: Saturated retrival
 }

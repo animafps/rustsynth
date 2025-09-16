@@ -412,9 +412,8 @@ fn generate_vs_filter(
 
                         match filter.process_frame(n, frame_data_array, frame_ctx_wrapper, core_ref) {
                             Ok(output_frame) => {
-                                let out = output_frame.as_ptr();
-                                std::mem::forget(output_frame);
-                                out
+                                let out = std::mem::ManuallyDrop::new(output_frame);
+                                out.as_ptr()
                             },
                             Err(error_msg) => {
                                 let error_cstr = std::ffi::CString::new(error_msg).unwrap_or_else(|_| {

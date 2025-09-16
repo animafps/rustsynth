@@ -12,7 +12,7 @@ use crate::core::CoreRef;
 use crate::map::{Map, MapRef, MapRefMut};
 
 /// Holds a reference to a function that may be called.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Function<'core> {
     handle: NonNull<ffi::VSFunction>,
     _owner: PhantomData<&'core ()>,

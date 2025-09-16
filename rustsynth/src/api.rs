@@ -880,6 +880,36 @@ impl API {
         unsafe { self.handle.as_ref().setFilterError.unwrap()(msg, frame_ctx) }
     }
 
+    pub(crate) fn map_consume_frame(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+        frame: *const ffi::VSFrame,
+        append: i32,
+    ) -> i32 {
+        unsafe { self.handle.as_ref().mapConsumeFrame.unwrap()(map, key, frame, append) }
+    }
+
+    pub(crate) fn map_consume_function(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+        function: *mut ffi::VSFunction,
+        append: i32,
+    ) -> i32 {
+        unsafe { self.handle.as_ref().mapConsumeFunction.unwrap()(map, key, function, append) }
+    }
+
+    pub(crate) fn map_consume_node(
+        &self,
+        map: *mut ffi::VSMap,
+        key: *const c_char,
+        node: *mut ffi::VSNode,
+        append: i32,
+    ) -> i32 {
+        unsafe { self.handle.as_ref().mapConsumeNode.unwrap()(map, key, node, append) }
+    }
+
     map_get_something!(map_get_int, mapGetInt, i64);
     map_get_something!(map_get_float, mapGetFloat, f64);
     map_get_something!(map_get_data, mapGetData, *const c_char);
