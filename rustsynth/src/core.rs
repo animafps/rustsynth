@@ -196,8 +196,8 @@ impl<'core> CoreRef<'core> {
     }
 }
 
-/// Additional API functions added in VapourSynth 4.1
 #[cfg(feature = "api-41")]
+#[doc(cfg(feature = "api-41"))]
 impl<'core> CoreRef<'core> {
     /// Clears all caches associated with the core.
     pub fn clear_caches(&self) {
