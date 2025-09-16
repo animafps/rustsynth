@@ -1,0 +1,5 @@
+[book]
+authors = ["Anima"]
+language = "en"
+src = "src"
+title = "Rustsynth Book"
