@@ -1,7 +1,7 @@
 [package]
 name = "rustsynth-sys"
 description = "Low level bindings to VapourSynth"
-version = "0.5.3"
+version = "0.5.4"
 edition = "2021"
 license = "LGPL-2.1"
 authors = ["Anima <contact@animafps.xyz>"]
