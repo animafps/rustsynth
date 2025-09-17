@@ -40,14 +40,14 @@ impl Into<i32> for MessageType {
     }
 }
 
-pub struct LogHandle {
+pub struct LogHandle<H: LogHandler> {
     /// mut
     handle: NonNull<ffi::VSLogHandle>,
-    _handler: Box<dyn LogHandler>,
+    _handler: H,
 }
 
-impl LogHandle {
-    pub fn from_ptr(ptr: *mut ffi::VSLogHandle, handler: Box<dyn LogHandler>) -> Self {
+impl<H: LogHandler> LogHandle<H> {
+    pub fn from_ptr(ptr: *mut ffi::VSLogHandle, handler: H) -> Self {
         Self {
             handle: unsafe { NonNull::new_unchecked(ptr) },
             _handler: handler,

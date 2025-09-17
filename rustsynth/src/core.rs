@@ -1,19 +1,12 @@
 //! A reference to a VapourSynth core and related functionality.
 use crate::{
-    api::API,
-    format::VideoFormat,
-    frame::Frame,
-    log::{log_handler_callback, LogHandle, LogHandler, MessageType},
-    plugin::Plugin,
+    api::API, filter::{Filter}, format::VideoFormat, frame::{Frame, FrameContext}, log::{log_handler_callback, LogHandle, LogHandler, MessageType}, map::OwnedMap, plugin::Plugin
 };
 use bitflags::bitflags;
 use core::fmt;
 use rustsynth_sys as ffi;
 use std::{
-    ffi::{CStr, CString},
-    marker::PhantomData,
-    ops::Deref,
-    ptr::NonNull,
+    ffi::{CStr, CString}, marker::PhantomData, mem, ptr::NonNull
 };
 
 #[cfg(test)]
@@ -164,8 +157,8 @@ impl<'core> CoreRef<'core> {
     /// If no log handler is installed up to a few hundred messages are cached and will be delivered as soon as a log handler is attached. This behavior exists mostly so that warnings when auto-loading plugins (default behavior) won’t disappear
     ///
     /// See the example handler [crate::log::LogRS]
-    pub fn add_log_handler(&self, handler: Box<dyn LogHandler>) -> LogHandle {
-        let handler_ptr = &handler.deref() as *const &dyn LogHandler as *mut std::ffi::c_void;
+    pub fn add_log_handler<H: LogHandler>(&self, handler: H) -> LogHandle<H> {
+        let handler_ptr = &handler as *const H as *mut std::ffi::c_void;
         let ptr = unsafe {
             API::get_cached().add_log_handler(
                 log_handler_callback,
@@ -177,7 +170,7 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Removes a custom handler.
-    pub fn remove_log_handler(&self, handle: LogHandle) -> Result<(), i32> {
+    pub fn remove_log_handler<H: LogHandler>(&self, handle: LogHandle<H>) -> Result<(), i32> {
         let ret =
             unsafe { API::get_cached().remove_log_handler(handle.as_ptr(), self.handle.as_ptr()) };
         if ret != 0 {
@@ -187,12 +180,262 @@ impl<'core> CoreRef<'core> {
         }
     }
 
-    /// Send a message through VapourSynth’s logging framework
+    /// Send a message through VapourSynth's logging framework
     pub fn log_mesage(&self, msg_type: MessageType, msg: &str) {
         let cstr = CString::new(msg).unwrap();
         unsafe {
             API::get_cached().log_message(msg_type.into(), cstr.as_ptr(), self.handle.as_ptr())
         }
+    }
+
+    /// Create a video filter using the Filter trait
+    pub fn create_video_filter<F>(&self, filter: F) -> Result<OwnedMap<'_>, String>
+    where
+        F: Filter + Send + Sync + 'static,
+    {
+        let out = OwnedMap::new();
+        // Get video info from the filter
+        let video_info = filter.get_video_info()?;
+        let dependencies = filter.get_dependencies();
+
+        // Convert dependencies to FFI format
+        let deps_ffi: Vec<ffi::VSFilterDependency> = dependencies.iter()
+            .map(|dep| dep.as_ffi())
+            .collect();
+
+        // Box the filter instance for storage
+        let filter_box = Box::new(filter);
+        let instance_data = Box::into_raw(filter_box) as *mut std::ffi::c_void;
+
+        // Create C strings for name
+        let name_cstr = CString::new(F::NAME).map_err(|_| "Invalid filter name")?;
+
+        unsafe {
+            API::get_cached().create_video_filter(
+                out.as_ptr(),
+                name_cstr.as_ptr(),
+                &video_info.as_ptr(),
+                Some(filter_get_frame::<F>),
+                Some(filter_free::<F>),
+                F::MODE.as_ptr() as *const _ as i32,
+                deps_ffi.as_ptr(),
+                deps_ffi.len() as i32,
+                instance_data,
+                self.ptr(),
+            );
+        }
+
+        Ok(out)
+    }
+
+    /// Create a video filter using the Filter trait (returns node directly)
+    pub fn create_video_filter2<F>(&self, filter: F) -> Result<crate::node::Node, String>
+    where
+        F: Filter + Send + Sync + 'static,
+    {
+        // Get video info from the filter
+        let video_info = filter.get_video_info()?;
+        let dependencies = filter.get_dependencies();
+
+        // Convert dependencies to FFI format
+        let deps_ffi: Vec<ffi::VSFilterDependency> = dependencies.iter()
+            .map(|dep| dep.as_ffi())
+            .collect();
+
+        // Box the filter instance for storage
+        let filter_box = Box::new(filter);
+        let instance_data = Box::into_raw(filter_box) as *mut std::ffi::c_void;
+
+        // Create C strings for name
+        let name_cstr = CString::new(F::NAME).map_err(|_| "Invalid filter name")?;
+
+        let node_ptr = unsafe {
+            API::get_cached().create_video_filter2(
+                name_cstr.as_ptr(),
+                &video_info.as_ptr(),
+                Some(filter_get_frame::<F>),
+                Some(filter_free::<F>),
+                F::MODE.as_ptr() as *const _ as i32,
+                deps_ffi.as_ptr(),
+                deps_ffi.len() as i32,
+                instance_data,
+                self.ptr(),
+            )
+        };
+
+        if node_ptr.is_null() {
+            return Err("Failed to create video filter".to_string());
+        }
+
+        Ok(unsafe { crate::node::Node::from_ptr(node_ptr) })
+    }
+
+    /// Create a audio filter using the Filter trait
+    pub fn create_audio_filter<F>(&self, filter: F) -> Result<OwnedMap<'_>, String>
+    where
+        F: Filter + Send + Sync + 'static,
+    {
+        let out = OwnedMap::new();
+        // Get audio info from the filter
+        let audio_info = filter.get_audio_info()?;
+        let dependencies = filter.get_dependencies();
+
+        // Convert dependencies to FFI format
+        let deps_ffi: Vec<ffi::VSFilterDependency> = dependencies.iter()
+            .map(|dep| dep.as_ffi())
+            .collect();
+
+        // Box the filter instance for storage
+        let filter_box = Box::new(filter);
+        let instance_data = Box::into_raw(filter_box) as *mut std::ffi::c_void;
+
+        // Create C strings for name
+        let name_cstr = CString::new(F::NAME).map_err(|_| "Invalid filter name")?;
+
+        unsafe {
+            API::get_cached().create_audio_filter(
+                out.as_ptr(),
+                name_cstr.as_ptr(),
+                &audio_info.as_ptr(),
+                Some(filter_get_frame::<F>),
+                Some(filter_free::<F>),
+                F::MODE.as_ptr() as *const _ as i32,
+                deps_ffi.as_ptr(),
+                deps_ffi.len() as i32,
+                instance_data,
+                self.ptr(),
+            );
+        }
+
+        Ok(out)
+    }
+
+    /// Create an audio filter using the Filter trait (returns node directly)
+    pub fn create_audio_filter2<F>(&self, filter: F) -> Result<crate::node::Node, String>
+    where
+        F: Filter + Send + Sync + 'static,
+    {
+        // Get audio info from the filter
+        let audio_info = filter.get_audio_info()?;
+        let dependencies = filter.get_dependencies();
+
+        // Convert dependencies to FFI format
+        let deps_ffi: Vec<ffi::VSFilterDependency> = dependencies.iter()
+            .map(|dep| dep.as_ffi())
+            .collect();
+
+        // Box the filter instance for storage
+        let filter_box = Box::new(filter);
+        let instance_data = Box::into_raw(filter_box) as *mut std::ffi::c_void;
+
+        // Create C strings for name
+        let name_cstr = CString::new(F::NAME).map_err(|_| "Invalid filter name")?;
+
+        let node_ptr = unsafe {
+            API::get_cached().create_audio_filter2(
+                name_cstr.as_ptr(),
+                &audio_info.as_ptr() as *const _,
+                Some(filter_get_frame::<F>),
+                Some(filter_free::<F>),
+                F::MODE.as_ptr() as *const _ as i32,
+                deps_ffi.as_ptr(),
+                deps_ffi.len() as i32,
+                instance_data,
+                self.ptr(),
+            )
+        };
+
+        if node_ptr.is_null() {
+            return Err("Failed to create audio filter".to_string());
+        }
+
+        Ok(unsafe { crate::node::Node::from_ptr(node_ptr) })
+    }
+}
+
+// Callback functions for Filter trait integration
+unsafe extern "C" fn filter_get_frame<F>(
+    n: i32,
+    activation_reason: i32,
+    instance_data: *mut std::ffi::c_void,
+    frame_data: *mut *mut std::ffi::c_void,
+    frame_ctx: *mut ffi::VSFrameContext,
+    core: *mut ffi::VSCore,
+    _vs_api: *const ffi::VSAPI,
+) -> *const ffi::VSFrame
+where
+    F: Filter + Send + Sync + 'static,
+{
+    if instance_data.is_null() || frame_ctx.is_null() || core.is_null() {
+        return std::ptr::null();
+    }
+
+    let filter = &mut *(instance_data as *mut F);
+    let frame_context = FrameContext::from_ptr(frame_ctx);
+    let core_ref = CoreRef::from_ptr(core);
+
+    let activation = crate::filter::ActivationReason::from_ffi(activation_reason);
+
+    match activation {
+        crate::filter::ActivationReason::Initial => {
+            // Request input frames
+            filter.request_input_frames(n, &frame_context);
+            std::ptr::null()
+        }
+        crate::filter::ActivationReason::AllFramesReady => {
+            // Process the frame
+            let frame_data_array = if frame_data.is_null() {
+                [0u8; 4]
+            } else {
+                // Convert the frame_data pointer to [u8; 4]
+                let ptr = *frame_data as *const u8;
+                if ptr.is_null() {
+                    [0u8; 4]
+                } else {
+                    std::ptr::read(ptr as *const [u8; 4])
+                }
+            };
+
+            match filter.process_frame(n, &frame_data_array, &frame_context, core_ref) {
+                Ok(frame) => {
+                    let frame = mem::ManuallyDrop::new(frame);
+                    let frame_ptr = frame.as_ptr();
+                    frame_ptr
+                }
+                Err(error) => {
+                    frame_context.set_filter_error(&error);
+                    std::ptr::null()
+                }
+            }
+        }
+        crate::filter::ActivationReason::Error => {
+            // Handle error case - cleanup frame data if needed
+            if !frame_data.is_null() {
+                let frame_data_array = if frame_data.is_null() {
+                    [0u8; 4]
+                } else {
+                    let ptr = *frame_data as *const u8;
+                    if ptr.is_null() {
+                        [0u8; 4]
+                    } else {
+                        std::ptr::read(ptr as *const [u8; 4])
+                    }
+                };
+                filter.cleanup_frame_data(&frame_data_array);
+            }
+            std::ptr::null()
+        }
+    }
+}
+
+unsafe extern "C" fn filter_free<F>(instance_data: *mut std::ffi::c_void, _core: *mut ffi::VSCore, _vs_api: *const ffi::VSAPI)
+where
+    F: Filter + Send + Sync + 'static,
+{
+    if !instance_data.is_null() {
+        let filter = Box::from_raw(instance_data as *mut F);
+        filter.cleanup();
+        // Box is automatically dropped here
     }
 }
 

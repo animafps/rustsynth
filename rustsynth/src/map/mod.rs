@@ -161,6 +161,10 @@ impl<'elem> OwnedMap<'elem> {
             map: Map::from_ptr(handle),
         }
     }
+
+    pub fn as_ptr(&self) -> *mut ffi::VSMap {
+        self.handle.as_ptr()
+    }
 }
 
 impl<'owner, 'elem> MapRef<'owner, 'elem> {

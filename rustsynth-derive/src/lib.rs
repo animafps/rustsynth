@@ -398,7 +398,7 @@ fn generate_vs_filter(
                 match activation {
                     rustsynth::filter::ActivationReason::Initial => {
                         // Request the frames we need
-                        filter.request_input_frames(n, frame_ctx_wrapper);
+                        filter.request_input_frames(n, &frame_ctx_wrapper);
                         std::ptr::null()
                     },
                     rustsynth::filter::ActivationReason::AllFramesReady => {
@@ -410,7 +410,7 @@ fn generate_vs_filter(
                             std::slice::from_raw_parts(*frame_data as *const u8, 4).try_into().unwrap_or(&[0; 4])
                         };
 
-                        match filter.process_frame(n, frame_data_array, frame_ctx_wrapper, core_ref) {
+                        match filter.process_frame(n, frame_data_array, &frame_ctx_wrapper, core_ref) {
                             Ok(output_frame) => {
                                 let out = std::mem::ManuallyDrop::new(output_frame);
                                 out.as_ptr()

@@ -1,8 +1,7 @@
 use crate::{
     core::CoreRef,
-    ffi,
     filter::{FilterDependency, FilterMode},
-    format::VideoInfo,
+    format::{AudioInfo, VideoInfo},
     frame::{Frame, FrameContext},
     map::Map,
 };
@@ -37,12 +36,12 @@ pub trait Filter {
     }
 
     /// Get audio info for audio filters - override for source filters
-    fn get_audio_info(&self) -> Result<ffi::VSAudioInfo, String> {
+    fn get_audio_info(&self) -> Result<AudioInfo, String> {
         // Default: use first dependency's audio info
         let deps = self.get_dependencies();
         if let Some(dep) = deps.first() {
             match dep.source.audio_info() {
-                Some(ai) => Ok(ai.as_ptr()),
+                Some(ai) => Ok(ai),
                 None => Err("Input node has no audio info".to_string()),
             }
         } else {
@@ -51,14 +50,14 @@ pub trait Filter {
     }
 
     /// Request input frames needed for processing frame n
-    fn request_input_frames(&self, n: i32, frame_ctx: FrameContext);
+    fn request_input_frames(&self, n: i32, frame_ctx: &FrameContext);
 
     /// Process frame n and return output frame
     fn process_frame<'core>(
         &mut self,
         n: i32,
         _frame_data: &[u8; 4],
-        frame_ctx: FrameContext,
+        frame_ctx: &FrameContext,
         core: CoreRef<'core>,
     ) -> Result<Frame<'core>, String>;
 

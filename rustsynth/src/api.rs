@@ -350,7 +350,6 @@ impl API {
         self.handle.as_ref().freeFrame.unwrap()(frame)
     }
 
-    #[allow(unused)]
     pub(crate) unsafe fn copy_frame(
         &self,
         frame: &ffi::VSFrame,
@@ -546,12 +545,10 @@ impl API {
         self.handle.as_ref().getFrame.unwrap()(n, node, err_msg.as_mut_ptr(), len)
     }
 
-    #[allow(unused)]
     pub(crate) unsafe fn get_frame_props_ro(&self, frame: &ffi::VSFrame) -> *const ffi::VSMap {
         self.handle.as_ref().getFramePropertiesRO.unwrap()(frame)
     }
 
-    #[allow(unused)]
     pub(crate) unsafe fn get_frame_props_rw(&self, frame: *mut ffi::VSFrame) -> *mut ffi::VSMap {
         self.handle.as_ref().getFramePropertiesRW.unwrap()(frame)
     }
@@ -624,7 +621,6 @@ impl API {
         self.handle.as_ref().callFunction.unwrap()(function, in_map, out_map)
     }
 
-    #[allow(unused)]
     pub(crate) unsafe fn create_video_filter(
         &self,
         out: *mut ffi::VSMap,
@@ -652,7 +648,6 @@ impl API {
         );
     }
 
-    #[allow(unused)]
     pub(crate) unsafe fn create_video_filter2(
         &self,
         name: *const ::std::os::raw::c_char,
@@ -678,7 +673,33 @@ impl API {
         )
     }
 
-    #[allow(unused)]
+    pub(crate) unsafe fn create_audio_filter(
+        &self,
+        out: *mut ffi::VSMap,
+        name: *const ::std::os::raw::c_char,
+        ai: *const ffi::VSAudioInfo,
+        get_frame: ffi::VSFilterGetFrame,
+        free: ffi::VSFilterFree,
+        filter_mode: i32,
+        dependencies: *const ffi::VSFilterDependency,
+        num_deps: i32,
+        instance_data: *mut ::std::os::raw::c_void,
+        core: *mut ffi::VSCore,
+    ) {
+        self.handle.as_ref().createAudioFilter.unwrap()(
+            out,
+            name,
+            ai,
+            get_frame,
+            free,
+            filter_mode,
+            dependencies,
+            num_deps,
+            instance_data,
+            core,
+        );
+    }
+
     pub(crate) unsafe fn create_audio_filter2(
         &self,
         name: *const ::std::os::raw::c_char,

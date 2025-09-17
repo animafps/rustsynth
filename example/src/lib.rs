@@ -42,7 +42,7 @@ mod plugin {
             }]
         }
 
-        fn request_input_frames(&self, n: i32, frame_ctx: FrameContext) {
+        fn request_input_frames(&self, n: i32, frame_ctx: &FrameContext) {
             self.get_dependencies()[0]
                 .source
                 .request_frame_filter(n, &frame_ctx);
@@ -52,7 +52,7 @@ mod plugin {
             &mut self,
             n: i32,
             _frame_data: &[u8; 4],
-            frame_ctx: FrameContext,
+            frame_ctx: &FrameContext,
             core: CoreRef<'core>,
         ) -> Result<Frame<'core>, String> {
             let src = self.input_node.get_frame_filter(n, &frame_ctx).unwrap();
