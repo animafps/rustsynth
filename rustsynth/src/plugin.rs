@@ -3,13 +3,17 @@ use bitflags::bitflags;
 use ffi::VSPluginFunction;
 use rustsynth_sys::{self as ffi, VSPluginConfigFlags};
 use std::{
-    ffi::{CStr, CString},
+    ffi::{c_void, CStr, CString},
     marker::PhantomData,
     ops::Deref,
     ptr::{self, NonNull},
 };
 
-use crate::{api::API, map::Map, map::OwnedMap};
+use crate::{
+    api::API,
+    core::CoreRef,
+    map::{Map, MapRef, OwnedMap},
+};
 
 /// A VapourSynth plugin.
 ///
@@ -138,7 +142,56 @@ impl<'core> Plugin<'core> {
             ))
         }
     }
+
+    /// Function that registers a filter exported by the plugin. A plugin can export any number of filters. This function may only be called during the plugin loading phase unless the [PluginConfigFlags::MODIFIABLE] flag was set.
+    pub fn register_function(
+        &self,
+        name: &str,
+        args: &str,
+        ret_type: &str,
+        func: PublicFunction,
+    ) -> Result<(), ()> {
+        let name_c = CString::new(name).unwrap();
+        let args_c = CString::new(args).unwrap();
+        let ret_type_c = CString::new(ret_type).unwrap();
+        let user_data: Box<PublicFunction> = Box::new(func);
+        let user_data_ptr = Box::into_raw(user_data) as *mut c_void;
+        let res = unsafe {
+            API::get_cached().register_function(
+                name_c.as_ptr(),
+                args_c.as_ptr(),
+                ret_type_c.as_ptr(),
+                Some(public_function),
+                user_data_ptr,
+                self.handle.as_ptr(),
+            )
+        };
+        if res == 0 {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
 }
+
+unsafe extern "C" fn public_function(
+    in_map: *const ffi::VSMap,
+    out_map: *mut ffi::VSMap,
+    user_data: *mut c_void,
+    core: *mut ffi::VSCore,
+    _vs_api: *const ffi::VSAPI,
+) {
+    if in_map.is_null() || user_data.is_null() || core.is_null() {
+        return;
+    }
+    let user_data = unsafe { Box::from_raw(user_data as *mut PublicFunction) };
+    let in_map = unsafe { MapRef::from_ptr(in_map) };
+    let out_map = unsafe { OwnedMap::from_ptr(out_map) };
+    let core = unsafe { CoreRef::from_ptr(core) };
+    (user_data)(&in_map, &out_map, core);
+}
+
+pub type PublicFunction = fn(in_map: &MapRef<'_, '_>, out_map: &OwnedMap<'_>, core: CoreRef);
 
 bitflags! {
     pub struct PluginConfigFlags: i32 {

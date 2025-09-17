@@ -938,6 +938,22 @@ impl API {
         unsafe { self.handle.as_ref().getPluginFunctionReturnType.unwrap()(function) }
     }
 
+    pub(crate) fn register_function(
+        &self,
+        name: *const c_char,
+        args: *const c_char,
+        ret_type: *const c_char,
+        args_func: ffi::VSPublicFunction,
+        user_data: *mut c_void,
+        plugin: *mut ffi::VSPlugin,
+    ) -> i32 {
+        unsafe {
+            self.handle.as_ref().registerFunction.unwrap()(
+                name, args, ret_type, args_func, user_data, plugin,
+            )
+        }
+    }
+
     map_get_something!(map_get_int, mapGetInt, i64);
     map_get_something!(map_get_float, mapGetFloat, f64);
     map_get_something!(map_get_data, mapGetData, *const c_char);
