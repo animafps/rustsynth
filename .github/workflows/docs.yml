@@ -68,6 +68,7 @@ jobs:
           sudo make install
       - name: Run doc
         run: |
+          rustup update nightly && rustup default nightly
           cargo doc --workspace --no-deps --exclude example_plugin --exclude rspipe
       - name: Deploy documentation
         uses: actions/upload-pages-artifact@v3
