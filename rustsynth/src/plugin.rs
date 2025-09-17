@@ -205,4 +205,13 @@ impl<'core> PluginFunction<'core> {
     fn ptr(&self) -> *mut ffi::VSPluginFunction {
         self.ptr.as_ptr()
     }
+
+    pub fn get_return_type(&self) -> Option<String> {
+        let ptr = unsafe { API::get_cached().get_plugin_function_return_type(self.ptr.as_ptr()) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { CStr::from_ptr(ptr).to_string_lossy().into_owned() })
+        }
+    }
 }

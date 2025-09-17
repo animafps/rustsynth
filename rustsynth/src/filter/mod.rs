@@ -101,14 +101,14 @@ impl ActivationReason {
 
 /// Controls how a filter will be multithreaded, if at all.
 pub enum FilterMode {
-    /// Completely parallel execution. Multiple threads will call a filter’s [FilterGetFrame] function, to fetch several frames in parallel.
+    /// Completely parallel execution. Multiple threads will call a filter’s FilterGetFrame function, to fetch several frames in parallel.
     Parallel,
-    /// For filters that are serial in nature but can request in advance one or more frames they need. A filter’s [FilterGetFrame] function will be called from multiple threads at a time with activation reason [ActivationReason::Initial], but only one thread will call it with activation reason [ActivationReason::AllFramesReady] at a time.
+    /// For filters that are serial in nature but can request in advance one or more frames they need. A filter’s FilterGetFrame function will be called from multiple threads at a time with activation reason [ActivationReason::Initial], but only one thread will call it with activation reason [ActivationReason::AllFramesReady] at a time.
     ParallelRequests,
-    /// Only one thread can call the filter’s [FilterGetFrame] function at a time. Useful for filters that modify or examine their internal state to determine which frames to request.
-    /// While the [FilterGetFrame] function will only run in one thread at a time, the calls can happen in any order. For example, it can be called with reason [ActivationReason::Initial] for frame 0, then again with reason [ActivationReason::Initial] for frame 1, then with reason [ActivationReason::AllFramesReady] for frame 0.
+    /// Only one thread can call the filter’s FilterGetFrame function at a time. Useful for filters that modify or examine their internal state to determine which frames to request.
+    /// While the FilterGetFrame function will only run in one thread at a time, the calls can happen in any order. For example, it can be called with reason [ActivationReason::Initial] for frame 0, then again with reason [ActivationReason::Initial] for frame 1, then with reason [ActivationReason::AllFramesReady] for frame 0.
     Unordered,
-    /// For compatibility with other filtering architectures. DO NOT USE IN NEW FILTERS. The filter’s [FilterGetFrame] function only ever gets called from one thread at a time. Unlike fmUnordered, only one frame is processed at a time.
+    /// For compatibility with other filtering architectures. DO NOT USE IN NEW FILTERS. The filter’s FilterGetFrame function only ever gets called from one thread at a time. Unlike fmUnordered, only one frame is processed at a time.
     FrameState,
 }
 

@@ -1,12 +1,21 @@
 //! A reference to a VapourSynth core and related functionality.
 use crate::{
-    api::API, filter::{Filter}, format::VideoFormat, frame::{Frame, FrameContext}, log::{log_handler_callback, LogHandle, LogHandler, MessageType}, map::OwnedMap, plugin::Plugin
+    api::API,
+    filter::Filter,
+    format::VideoFormat,
+    frame::{Frame, FrameContext},
+    log::{log_handler_callback, LogHandle, LogHandler, MessageType},
+    map::OwnedMap,
+    plugin::Plugin,
 };
 use bitflags::bitflags;
 use core::fmt;
 use rustsynth_sys as ffi;
 use std::{
-    ffi::{CStr, CString}, marker::PhantomData, mem, ptr::NonNull
+    ffi::{CStr, CString},
+    marker::PhantomData,
+    mem,
+    ptr::NonNull,
 };
 
 #[cfg(test)]
@@ -199,9 +208,8 @@ impl<'core> CoreRef<'core> {
         let dependencies = filter.get_dependencies();
 
         // Convert dependencies to FFI format
-        let deps_ffi: Vec<ffi::VSFilterDependency> = dependencies.iter()
-            .map(|dep| dep.as_ffi())
-            .collect();
+        let deps_ffi: Vec<ffi::VSFilterDependency> =
+            dependencies.iter().map(|dep| dep.as_ffi()).collect();
 
         // Box the filter instance for storage
         let filter_box = Box::new(filter);
@@ -238,9 +246,8 @@ impl<'core> CoreRef<'core> {
         let dependencies = filter.get_dependencies();
 
         // Convert dependencies to FFI format
-        let deps_ffi: Vec<ffi::VSFilterDependency> = dependencies.iter()
-            .map(|dep| dep.as_ffi())
-            .collect();
+        let deps_ffi: Vec<ffi::VSFilterDependency> =
+            dependencies.iter().map(|dep| dep.as_ffi()).collect();
 
         // Box the filter instance for storage
         let filter_box = Box::new(filter);
@@ -281,9 +288,8 @@ impl<'core> CoreRef<'core> {
         let dependencies = filter.get_dependencies();
 
         // Convert dependencies to FFI format
-        let deps_ffi: Vec<ffi::VSFilterDependency> = dependencies.iter()
-            .map(|dep| dep.as_ffi())
-            .collect();
+        let deps_ffi: Vec<ffi::VSFilterDependency> =
+            dependencies.iter().map(|dep| dep.as_ffi()).collect();
 
         // Box the filter instance for storage
         let filter_box = Box::new(filter);
@@ -320,9 +326,8 @@ impl<'core> CoreRef<'core> {
         let dependencies = filter.get_dependencies();
 
         // Convert dependencies to FFI format
-        let deps_ffi: Vec<ffi::VSFilterDependency> = dependencies.iter()
-            .map(|dep| dep.as_ffi())
-            .collect();
+        let deps_ffi: Vec<ffi::VSFilterDependency> =
+            dependencies.iter().map(|dep| dep.as_ffi()).collect();
 
         // Box the filter instance for storage
         let filter_box = Box::new(filter);
@@ -428,8 +433,11 @@ where
     }
 }
 
-unsafe extern "C" fn filter_free<F>(instance_data: *mut std::ffi::c_void, _core: *mut ffi::VSCore, _vs_api: *const ffi::VSAPI)
-where
+unsafe extern "C" fn filter_free<F>(
+    instance_data: *mut std::ffi::c_void,
+    _core: *mut ffi::VSCore,
+    _vs_api: *const ffi::VSAPI,
+) where
     F: Filter + Send + Sync + 'static,
 {
     if !instance_data.is_null() {

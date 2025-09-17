@@ -931,6 +931,13 @@ impl API {
         unsafe { self.handle.as_ref().mapConsumeNode.unwrap()(map, key, node, append) }
     }
 
+    pub(crate) fn get_plugin_function_return_type(
+        &self,
+        function: *mut ffi::VSPluginFunction,
+    ) -> *const i8 {
+        unsafe { self.handle.as_ref().getPluginFunctionReturnType.unwrap()(function) }
+    }
+
     map_get_something!(map_get_int, mapGetInt, i64);
     map_get_something!(map_get_float, mapGetFloat, f64);
     map_get_something!(map_get_data, mapGetData, *const c_char);
