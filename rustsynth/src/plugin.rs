@@ -8,12 +8,21 @@ use std::{
     ops::Deref,
     ptr::{self, NonNull},
 };
+use thiserror::Error;
 
 use crate::{
     api::API,
     core::CoreRef,
     map::{Map, MapRef, OwnedMap},
 };
+
+#[derive(Error, Debug)]
+pub enum PluginError {
+    #[error("Function '{0}' not found in plugin")]
+    FunctionNotFound(String),
+    #[error("Plugin operation failed")]
+    OperationFailed,
+}
 
 /// A VapourSynth plugin.
 ///
@@ -132,15 +141,28 @@ impl<'core> Plugin<'core> {
     ///
     /// Will panic if there is no function with that name
     pub fn invoke(&self, name: &str, args: &Map<'core>) -> OwnedMap<'core> {
-        self.function(name).expect("No Plugin found");
-        let name = CString::new(name).unwrap();
-        unsafe {
-            OwnedMap::from_ptr(API::get_cached().invoke(
-                self.handle.as_ptr(),
-                name.as_ptr(),
-                args.deref(),
-            ))
-        }
+        let func = self.function(name).expect("No Plugin found");
+        func.call(args)
+    }
+
+    /// Tries to invoke a plugin function, returning a Result instead of panicking
+    pub fn try_invoke(&self, name: &str, args: &Map<'core>) -> PluginResult<OwnedMap<'core>> {
+        let func = self
+            .function(name)
+            .ok_or_else(|| PluginError::FunctionNotFound(name.to_string()))?;
+        Ok(func.call(args))
+    }
+
+    /// Convenience method to invoke a function with no arguments
+    pub fn invoke_no_args(&self, name: &str) -> OwnedMap<'core> {
+        let empty_map = OwnedMap::new();
+        self.invoke(name, &empty_map)
+    }
+
+    /// Convenience method to try invoke a function with no arguments
+    pub fn try_invoke_no_args(&self, name: &str) -> PluginResult<OwnedMap<'core>> {
+        let empty_map = OwnedMap::new();
+        self.try_invoke(name, &empty_map)
     }
 
     /// Function that registers a filter exported by the plugin. A plugin can export any number of filters. This function may only be called during the plugin loading phase unless the [PluginConfigFlags::MODIFIABLE] flag was set.
@@ -150,7 +172,7 @@ impl<'core> Plugin<'core> {
         args: &str,
         ret_type: &str,
         func: PublicFunction,
-    ) -> Result<(), ()> {
+    ) -> PluginResult<()> {
         let name_c = CString::new(name).unwrap();
         let args_c = CString::new(args).unwrap();
         let ret_type_c = CString::new(ret_type).unwrap();
@@ -169,7 +191,7 @@ impl<'core> Plugin<'core> {
         if res == 0 {
             Ok(())
         } else {
-            Err(())
+            Err(PluginError::OperationFailed)
         }
     }
 }
@@ -271,7 +293,7 @@ impl<'a> PluginFunction<'a> {
         }
     }
 
-    pub fn call(&self, args: &Map) -> OwnedMap<'_> {
+    pub fn call<'map>(&self, args: &Map<'map>) -> OwnedMap<'map> {
         let name = self.get_name().expect("Function has no name");
         let name_c = CString::new(name).unwrap();
         unsafe {
@@ -289,3 +311,5 @@ impl<'a> PluginFunction<'a> {
         self.call(&empty_map)
     }
 }
+
+pub type PluginResult<T> = Result<T, PluginError>;
