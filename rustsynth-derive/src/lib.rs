@@ -65,10 +65,10 @@ pub fn init_plugins(_input: TokenStream) -> TokenStream {
             let func_vec: Vec<proc_macro2::TokenStream> = x
                 .functions()
                 .map(|y| {
-                    let name = syn::parse_str::<Ident>(y.name.unwrap()).unwrap_or_else(|_| syn::parse_str::<Ident>(&(y.name.unwrap().to_owned() + "_")).expect("error"));
+                    let name = syn::parse_str::<Ident>(&y.get_name().unwrap()).unwrap_or_else(|_| syn::parse_str::<Ident>(&(y.get_name().unwrap().to_owned() + "_")).expect("error"));
 
                     let args = y
-                        .arguments
+                        .get_arguments()
                         .unwrap();
                     let args_split: Vec<Vec<&str>>  = args
                         .split(";")

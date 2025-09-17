@@ -90,14 +90,14 @@ impl<'core> Plugin<'core> {
     /// Get function struct associated with the name
     ///
     /// returns `None` if no function is found
-    pub fn function(&self, name: &str) -> Option<PluginFunction<'core>> {
+    pub fn function(&self, name: &str) -> Option<PluginFunction<'_>> {
         let name_ptr = CString::new(name).unwrap();
         unsafe {
             let ptr = API::get_cached().get_plugin_function_by_name(name_ptr.as_ptr(), self.ptr());
             if ptr.is_null() {
                 None
             } else {
-                Some(PluginFunction::from_ptr(ptr))
+                Some(PluginFunction::from_ptr(ptr, self))
             }
         }
     }
@@ -110,7 +110,7 @@ impl<'core> Plugin<'core> {
         }
     }
 
-    fn next_function(&self, function: Option<PluginFunction>) -> Option<PluginFunction<'core>> {
+    fn next_function(&self, function: Option<PluginFunction<'_>>) -> Option<PluginFunction<'_>> {
         unsafe {
             let function = if let Some(value) = function {
                 value.ptr()
@@ -121,7 +121,7 @@ impl<'core> Plugin<'core> {
             if ptr.is_null() {
                 None
             } else {
-                Some(PluginFunction::from_ptr(ptr))
+                Some(PluginFunction::from_ptr(ptr, self))
             }
         }
     }
@@ -227,36 +227,39 @@ impl<'core> Iterator for PluginFunctions<'core> {
 
 /// A function of a plugin
 #[derive(Debug, Clone, Copy)]
-pub struct PluginFunction<'core> {
+pub struct PluginFunction<'a> {
     ptr: NonNull<ffi::VSPluginFunction>,
-    pub name: Option<&'core str>,
-    pub arguments: Option<&'core str>,
+    plugin: &'a Plugin<'a>,
 }
 
-impl<'core> PluginFunction<'core> {
-    pub(crate) unsafe fn from_ptr(ptr: *mut VSPluginFunction) -> Self {
-        let name_ptr = unsafe { API::get_cached().get_plugin_function_name(ptr) };
-        let name = if name_ptr.is_null() {
-            None
-        } else {
-            Some(unsafe { CStr::from_ptr(name_ptr).to_str().unwrap() })
-        };
-
-        let arg_ptr = unsafe { API::get_cached().get_plugin_function_arguments(ptr) };
-        let arguments = if arg_ptr.is_null() {
-            None
-        } else {
-            Some(unsafe { CStr::from_ptr(arg_ptr).to_str().unwrap() })
-        };
+impl<'a> PluginFunction<'a> {
+    pub(crate) unsafe fn from_ptr(ptr: *mut VSPluginFunction, plugin: &'a Plugin<'a>) -> Self {
         PluginFunction {
             ptr: NonNull::new_unchecked(ptr),
-            name,
-            arguments,
+            plugin,
         }
     }
 
     fn ptr(&self) -> *mut ffi::VSPluginFunction {
         self.ptr.as_ptr()
+    }
+
+    pub fn get_name(&self) -> Option<String> {
+        let ptr = unsafe { API::get_cached().get_plugin_function_name(self.ptr.as_ptr()) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { CStr::from_ptr(ptr).to_string_lossy().into_owned() })
+        }
+    }
+
+    pub fn get_arguments(&self) -> Option<String> {
+        let ptr = unsafe { API::get_cached().get_plugin_function_arguments(self.ptr.as_ptr()) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { CStr::from_ptr(ptr).to_string_lossy().into_owned() })
+        }
     }
 
     pub fn get_return_type(&self) -> Option<String> {
@@ -266,5 +269,23 @@ impl<'core> PluginFunction<'core> {
         } else {
             Some(unsafe { CStr::from_ptr(ptr).to_string_lossy().into_owned() })
         }
+    }
+
+    pub fn call(&self, args: &Map) -> OwnedMap<'_> {
+        let name = self.get_name().expect("Function has no name");
+        let name_c = CString::new(name).unwrap();
+        unsafe {
+            OwnedMap::from_ptr(API::get_cached().invoke(
+                self.plugin.ptr(),
+                name_c.as_ptr(),
+                args.deref(),
+            ))
+        }
+    }
+
+    /// Convenience method to call the function with an empty argument map
+    pub fn call_no_args(&self) -> OwnedMap<'_> {
+        let empty_map = OwnedMap::new();
+        self.call(&empty_map)
     }
 }
