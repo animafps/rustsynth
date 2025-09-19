@@ -34,7 +34,7 @@ jobs:
         uses: animafps/install-vapoursynth-action@master
         with:
           version: 72
-          cache: true
+          cache: false
       - name: Run doc
         run: |
           rustup update nightly && rustup default nightly
