@@ -30,6 +30,7 @@ jobs:
           cache: true
       - name: Build
         run: |
+          rustup update nightly && rustup default nightly
           cargo build
       - name: Test
         run: |
@@ -61,6 +62,7 @@ jobs:
           brew install vapoursynth
       - name: Build
         run: |
+          rustup update nightly && rustup default nightly
           cargo build
       - name: Test
         run: |
