@@ -364,7 +364,7 @@ fn generate_vs_filter(
         }
         _ => {
             return Err(syn::Error::new_spanned(
-                &arg.to_string(),
+                arg.to_string(),
                 "Unsupported filter type. Use 'video' or 'audio'",
             ))
         }

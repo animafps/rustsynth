@@ -149,11 +149,7 @@ impl<'core> CoreRef<'core> {
     /// The format identifier: one of [crate::format::PresetVideoFormat] or a value gotten from [VideoFormat::query_format_id].
     pub fn get_video_format_by_id(&self, id: u32) -> Option<VideoFormat> {
         let format = unsafe { API::get_cached().get_video_format_by_id(id, self.ptr()) };
-        if format.is_none() {
-            None
-        } else {
-            Some(VideoFormat::from_ptr(format.unwrap()))
-        }
+        format.map(|f| VideoFormat::from_ptr(f))
     }
 
     /// Duplicates the frame (not just the reference). As the frame buffer is shared in a copy-on-write fashion, the frame content is not really duplicated until a write operation occurs. This is transparent for the user.
@@ -175,7 +171,7 @@ impl<'core> CoreRef<'core> {
                 self.handle.as_ptr(),
             )
         };
-        LogHandle::from_ptr(ptr, handler)
+        unsafe { LogHandle::from_ptr(ptr, handler) }
     }
 
     /// Removes a custom handler.
@@ -404,8 +400,7 @@ where
             match filter.process_frame(n, &frame_data_array, &frame_context, core_ref) {
                 Ok(frame) => {
                     let frame = mem::ManuallyDrop::new(frame);
-                    let frame_ptr = frame.as_ptr();
-                    frame_ptr
+                    frame.as_ptr()
                 }
                 Err(error) => {
                     frame_context.set_filter_error(&error);
@@ -459,11 +454,7 @@ impl<'core> CoreRef<'core> {
 
     /// Returns true if node timing is enabled.
     pub fn get_node_timing(&self) -> bool {
-        if unsafe { API::get_cached().get_core_node_timing(self.ptr()) } > 0 {
-            true
-        } else {
-            false
-        }
+        (unsafe { API::get_cached().get_core_node_timing(self.ptr()) } > 0)
     }
 
     /// Note that disabling simply stops the counters from incrementing
@@ -568,5 +559,11 @@ impl<'core> CoreBuilder {
     /// Builds and returns a [CoreRef].
     pub fn build(self) -> CoreRef<'core> {
         CoreRef::new(self.flags)
+    }
+}
+
+impl Default for CoreBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }

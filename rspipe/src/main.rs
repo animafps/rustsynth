@@ -267,7 +267,7 @@ fn process_frames_concurrent(
                 Ok(frame) => Ok(frame),
                 Err(e) => Err(format!("Frame error: {}", e)),
             };
-            tx_clone.send((n as usize, result_owned)).unwrap();
+            tx_clone.send((n, result_owned)).unwrap();
             *pending_clone.lock().unwrap() -= 1;
         });
     }
@@ -297,7 +297,7 @@ fn process_frames_concurrent(
                                 Ok(frame) => Ok(frame),
                                 Err(e) => Err(format!("Frame error: {}", e)),
                             };
-                            tx_clone.send((n as usize, result_owned)).unwrap();
+                            tx_clone.send((n, result_owned)).unwrap();
                             *pending_clone.lock().unwrap() -= 1;
                         });
                     }

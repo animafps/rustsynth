@@ -17,6 +17,7 @@ use std::mem::MaybeUninit;
 ///
 ///
 #[derive(Debug, Clone, Copy)]
+#[allow(clippy::upper_case_acronyms)]
 pub(crate) struct API {
     // Note that this is *const, not *mut.
     handle: NonNull<ffi::VSAPI>,
@@ -63,7 +64,7 @@ impl API {
     /// Creates and or retrieves the VapourSynth API.
     ///
     /// Returns `None` on error
-    #[cfg(all(feature = "vapoursynth-functions"))]
+    #[cfg(feature = "vapoursynth-functions")]
     #[inline]
     pub(crate) fn get() -> Option<Self> {
         // Check if we already have the API.
@@ -72,8 +73,7 @@ impl API {
         let handle = if handle.is_null() {
             // Attempt retrieving it otherwise.
             let handle =
-                unsafe { ffi::getVapourSynthAPI(ffi::VAPOURSYNTH_API_VERSION.try_into().unwrap()) }
-                    as *mut ffi::VSAPI;
+                unsafe { ffi::getVapourSynthAPI(ffi::VAPOURSYNTH_API_VERSION) } as *mut ffi::VSAPI;
 
             if !handle.is_null() {
                 // If we successfully retrieved the API, cache it.
@@ -408,7 +408,7 @@ impl API {
         append: ffi::VSMapAppendMode,
     ) -> i32 {
         let length = value.len();
-        assert!(length <= i32::max_value() as usize);
+        assert!(length <= i32::MAX as usize);
         let length = length as i32;
 
         self.handle.as_ref().mapSetData.unwrap()(
@@ -464,6 +464,7 @@ impl API {
 
     /// Creates a new video frame from the planes of existing frames, optionally copying the properties attached to another frame.
     #[inline]
+    #[allow(clippy::too_many_arguments)]
     pub(crate) unsafe fn new_video_frame2(
         self,
         format: *const ffi::VSVideoFormat,
@@ -540,7 +541,7 @@ impl API {
         err_msg: &mut [c_char],
     ) -> *const ffi::VSFrame {
         let len = err_msg.len();
-        assert!(len <= i32::max_value() as usize);
+        assert!(len <= i32::MAX as usize);
         let len = len as i32;
         self.handle.as_ref().getFrame.unwrap()(n, node, err_msg.as_mut_ptr(), len)
     }
@@ -621,6 +622,7 @@ impl API {
         self.handle.as_ref().callFunction.unwrap()(function, in_map, out_map)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) unsafe fn create_video_filter(
         &self,
         out: *mut ffi::VSMap,
@@ -648,6 +650,7 @@ impl API {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) unsafe fn create_video_filter2(
         &self,
         name: *const ::std::os::raw::c_char,
@@ -673,6 +676,7 @@ impl API {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) unsafe fn create_audio_filter(
         &self,
         out: *mut ffi::VSMap,
@@ -700,6 +704,7 @@ impl API {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) unsafe fn create_audio_filter2(
         &self,
         name: *const ::std::os::raw::c_char,
@@ -783,7 +788,7 @@ impl API {
         id: u32,
         core_ref: *mut ffi::VSCore,
     ) -> Option<*mut ffi::VSVideoFormat> {
-        let not_filled = ptr::null_mut() as *mut ffi::VSVideoFormat;
+        let not_filled = ptr::null_mut();
         let format =
             unsafe { self.handle.as_ref().getVideoFormatByID.unwrap()(not_filled, id, core_ref) };
         if format == 0 {
@@ -809,6 +814,7 @@ impl API {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn query_video_format(
         &self,
         format: *mut ffi::VSVideoFormat,
@@ -1039,7 +1045,12 @@ impl API {
     }
 }
 
-/// Initialize the global API pointer (for use in derive macros)
+/// Initialize the global API pointer (for use in environments where initilising an API is already done(e.g. VapourSynth plugins, script environments).)
+///
+/// It is not necessary to call this function when using the library in a standalone application, as the API will be initialized automatically when creating a Core.
+///
+/// # Safety
+/// This function should only be called once, with a valid pointer to the VapourSynth API
 #[inline]
 pub unsafe fn init_api(vsapi: *const ffi::VSAPI) {
     RAW_API.store(vsapi as *mut ffi::VSAPI, Ordering::Relaxed);

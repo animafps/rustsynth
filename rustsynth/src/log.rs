@@ -28,9 +28,9 @@ impl From<i32> for MessageType {
     }
 }
 
-impl Into<i32> for MessageType {
-    fn into(self) -> i32 {
-        match self {
+impl From<MessageType> for i32 {
+    fn from(msg: MessageType) -> Self {
+        match msg {
             MessageType::Debug => 0,
             MessageType::Information => 1,
             MessageType::Warning => 2,
@@ -47,9 +47,13 @@ pub struct LogHandle<H: LogHandler> {
 }
 
 impl<H: LogHandler> LogHandle<H> {
-    pub fn from_ptr(ptr: *mut ffi::VSLogHandle, handler: H) -> Self {
+    /// Creates a LogHandle from a raw pointer and a handler.
+    ///
+    /// # Safety
+    /// The pointer must be valid and point to a `VSLogHandle`.
+    pub unsafe fn from_ptr(ptr: *mut ffi::VSLogHandle, handler: H) -> Self {
         Self {
-            handle: unsafe { NonNull::new_unchecked(ptr) },
+            handle: NonNull::new_unchecked(ptr),
             _handler: handler,
         }
     }

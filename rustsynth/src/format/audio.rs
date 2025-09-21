@@ -85,7 +85,7 @@ impl AudioInfo {
 
     #[allow(unused)]
     pub(crate) fn as_ptr(&self) -> ffi::VSAudioInfo {
-        let info = ffi::VSAudioInfo {
+        ffi::VSAudioInfo {
             format: ffi::VSAudioFormat {
                 sampleType: self.format.sample_type as i32,
                 bitsPerSample: self.format.bits_per_sample,
@@ -96,8 +96,7 @@ impl AudioInfo {
             sampleRate: self.sample_rate,
             numSamples: self.num_samples,
             numFrames: self.num_frames,
-        };
-        info
+        }
     }
 }
 
@@ -115,7 +114,7 @@ impl AudioFormat {
             bits_per_sample: from.bitsPerSample,
             bytes_per_sample: from.bytesPerSample,
             num_channels: from.numChannels,
-            channel_layout: ChannelLayout(from.channelLayout),
+            channel_layout: ChannelLayout::from_bits_truncate(from.channelLayout),
         }
     }
 

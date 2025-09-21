@@ -70,9 +70,9 @@ impl OutputWriter {
             _ => "C420jpeg", // default fallback
         };
 
-        write!(
+        writeln!(
             self.writer,
-            "YUV4MPEG2 W{} H{} F{}:{} Ip A0:0 {}\n",
+            "YUV4MPEG2 W{} H{} F{}:{} Ip A0:0 {}",
             video_info.width, video_info.height, video_info.fps_num, video_info.fps_den, format_tag
         )?;
 
@@ -104,7 +104,7 @@ impl OutputWriter {
 
     fn write_y4m_frame(&mut self, frame: &Frame) -> io::Result<()> {
         // Y4M frame header
-        write!(self.writer, "FRAME\n")?;
+        writeln!(self.writer, "FRAME")?;
 
         // Write raw frame data
         self.write_raw_frame(frame)?;

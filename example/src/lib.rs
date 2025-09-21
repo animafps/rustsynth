@@ -11,9 +11,9 @@ use rustsynth_derive::vapoursynth_plugin;
 mod plugin {
     use rustsynth::{ffi, plugin::PluginConfigFlags, MakeVersion};
     use rustsynth_derive::vapoursynth_filter;
-    const NAMESPACE: &'static str = "example";
-    const ID: &'static str = "com.example.invert";
-    const NAME: &'static str = "Example Plugin";
+    const NAMESPACE: &str = "example";
+    const ID: &str = "com.example.invert";
+    const NAME: &str = "Example Plugin";
     const PLUGIN_VER: i32 = MakeVersion!(1, 0);
     const API_VER: i32 = ffi::VAPOURSYNTH_API_VERSION;
     const FLAGS: i32 = PluginConfigFlags::NONE.bits();
@@ -45,7 +45,7 @@ mod plugin {
         fn request_input_frames(&self, n: i32, frame_ctx: &FrameContext) {
             self.get_dependencies()[0]
                 .source
-                .request_frame_filter(n, &frame_ctx);
+                .request_frame_filter(n, frame_ctx);
         }
 
         fn process_frame<'core>(
@@ -55,7 +55,7 @@ mod plugin {
             frame_ctx: &FrameContext,
             core: CoreRef<'core>,
         ) -> Result<Frame<'core>, String> {
-            let src = self.input_node.get_frame_filter(n, &frame_ctx).unwrap();
+            let src = self.input_node.get_frame_filter(n, frame_ctx).unwrap();
             let vf = src.get_video_format().unwrap();
             let height = src.get_height(0);
             let width = src.get_width(0);

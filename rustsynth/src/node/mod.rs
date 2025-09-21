@@ -122,12 +122,12 @@ impl Node {
     /// The `'error` lifetime is unbounded because this function always returns owned data.
     ///
     /// # Panics
-    /// Panics is `n` is greater than [i32::max_value()].
+    /// Panics is `n` is greater than [i32::MAX].
     pub fn get_frame<'core, 'error>(
         &self,
         n: usize,
     ) -> Result<Frame<'core>, GetFrameError<'error>> {
-        assert!(n <= i32::max_value() as usize);
+        assert!(n <= i32::MAX as usize);
 
         let vi = &self.video_info().unwrap();
 
@@ -169,7 +169,7 @@ impl Node {
     /// If the callback panics, the process is aborted.
     ///
     /// # Panics
-    /// Panics is `n` is greater than [i32::max_value()].
+    /// Panics is `n` is greater than [i32::MAX].
     pub fn get_frame_async<'core, F>(&self, n: usize, callback: F)
     where
         F: FnOnce(Result<Frame<'core>, GetFrameError>, usize, Node) + Send + 'core,
@@ -237,7 +237,7 @@ impl Node {
             }
         }
 
-        assert!(n <= i32::max_value() as usize);
+        assert!(n <= i32::MAX as usize);
         let n = n as i32;
 
         let user_data = Box::new(CallbackData {
@@ -360,7 +360,7 @@ impl Node {
         if ptr.is_null() {
             None
         } else {
-            FilterDependency::from_ptr(ptr)
+            unsafe { FilterDependency::from_ptr(ptr) }
         }
     }
 

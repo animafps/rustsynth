@@ -171,7 +171,7 @@ impl Environment {
     ///
     /// Returns [None] if there is no node at the requested index.
     pub fn get_output(&self, index: i32) -> Option<Node> {
-        let ptr = unsafe { ScriptAPI::get_cached().get_output(self.handle.as_ptr(), index as i32) };
+        let ptr = unsafe { ScriptAPI::get_cached().get_output(self.handle.as_ptr(), index) };
         if ptr.is_null() {
             None
         } else {
@@ -183,8 +183,7 @@ impl Environment {
     ///
     /// Returns [None] if there is no node at the requested index.
     pub fn get_output_alpha(&self, index: i32) -> Option<Node> {
-        let ptr =
-            unsafe { ScriptAPI::get_cached().get_output_alpha(self.handle.as_ptr(), index as i32) };
+        let ptr = unsafe { ScriptAPI::get_cached().get_output_alpha(self.handle.as_ptr(), index) };
         if ptr.is_null() {
             None
         } else {
@@ -197,7 +196,7 @@ impl Environment {
     ///
     /// Returns 0 if there is no alt output mode set.
     pub fn get_alt_output_mode(&self, index: i32) -> i32 {
-        unsafe { ScriptAPI::get_cached().get_alt_output_mode(self.handle.as_ptr(), index as i32) }
+        unsafe { ScriptAPI::get_cached().get_alt_output_mode(self.handle.as_ptr(), index) }
     }
 
     /// Set whether or not the working directory is temporarily changed to the same location as the script file when evaluateFile is called. Off by default.

@@ -22,6 +22,8 @@ pub enum PluginError {
     FunctionNotFound(String),
     #[error("Plugin operation failed")]
     OperationFailed,
+    #[error("Error: {0}")]
+    InvokeError(String),
 }
 
 /// A VapourSynth plugin.
@@ -37,6 +39,10 @@ unsafe impl<'core> Send for Plugin<'core> {}
 unsafe impl<'core> Sync for Plugin<'core> {}
 
 impl<'core> Plugin<'core> {
+    /// Creates a plugin from a raw pointer.
+    ///
+    /// # Safety
+    /// The pointer must be valid and point to a `VSPlugin`.
     #[inline]
     pub unsafe fn from_ptr(ptr: *mut ffi::VSPlugin) -> Self {
         Plugin {
@@ -150,7 +156,11 @@ impl<'core> Plugin<'core> {
         let func = self
             .function(name)
             .ok_or_else(|| PluginError::FunctionNotFound(name.to_string()))?;
-        Ok(func.call(args))
+        let ret = func.call(args);
+        if let Some(err) = ret.error() {
+            return Err(PluginError::InvokeError(err.to_string()));
+        }
+        Ok(ret)
     }
 
     /// Convenience method to invoke a function with no arguments

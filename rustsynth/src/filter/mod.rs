@@ -18,16 +18,18 @@ impl FilterDependency {
         }
     }
 
-    pub fn from_ptr(ptr: *const ffi::VSFilterDependency) -> Option<Self> {
-        if unsafe { (*ptr).source.is_null() } {
+    /// Creates a FilterDependency from a raw pointer.
+    ///
+    /// # Safety
+    /// The pointer must be valid and point to a `VSFilterDependency`.
+    pub unsafe fn from_ptr(ptr: *const ffi::VSFilterDependency) -> Option<Self> {
+        if (*ptr).source.is_null() {
             None
         } else {
-            unsafe {
-                Some(Self {
-                    source: Node::from_ptr((*ptr).source),
-                    request_pattern: (*ptr).requestPattern.into(),
-                })
-            }
+            Some(Self {
+                source: Node::from_ptr((*ptr).source),
+                request_pattern: (*ptr).requestPattern.into(),
+            })
         }
     }
 }

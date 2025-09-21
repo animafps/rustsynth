@@ -511,7 +511,7 @@ impl<'elem> Map<'elem> {
     }
 
     #[inline]
-    pub fn get_string<'map>(&'map self, key: &str) -> MapResult<String> {
+    pub fn get_string(&self, key: &str) -> MapResult<String> {
         let key = Map::make_raw_key(key)?;
         unsafe { self.get_string_raw_unchecked(&key, 0) }
     }
