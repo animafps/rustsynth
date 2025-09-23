@@ -61,7 +61,22 @@ fn main() {
         builder = builder.clang_arg("-DVSSCRIPT_USE_API_42");
     }
 
+    if env::var("CARGO_FEATURE_VSSCRIPT_FUNCTIONS").is_ok() {
+        builder = builder
+            .allowlist_function("getVSScriptAPI")
+            .allowlist_var("VSSCRIPT.*");
+    }
+
     let bindings = builder
+        // Only include VapourSynth/VSScript items
+        .allowlist_type("VS.*")
+        .allowlist_function("vs.*")
+        .allowlist_function("getVapourSynthAPI")
+        .allowlist_var("VAPOURSYNTH.*")
+        .allowlist_var("VS.*")
+        .allowlist_var("VSH_.*")
+        .allowlist_var("vs.*")
+        .allowlist_var("pf.*") // VSPresetVideoFormat constants
         // https://github.com/rust-lang/rust-bindgen/issues/550
         .blocklist_type("max_align_t")
         .blocklist_function("_.*")
@@ -71,16 +86,16 @@ fn main() {
         .blocklist_item("FP_ZERO")
         .blocklist_item("FP_SUBNORMAL")
         .blocklist_item("FP_NORMAL")
-        // Block long double math functions that use u128 (not FFI-safe)
-        .blocklist_function("nexttoward.*")
-        .blocklist_function(".*l$") // Functions ending in 'l' (long double variants)
+        // Block problematic 128-bit types from system headers
         .blocklist_type("__uint128_t")
-        .blocklist_type("__int128_t") // Often problematic alongside __uint128_t
+        .blocklist_type("__int128_t")
         .blocklist_type("__int128")
         .blocklist_type("__uint128")
+        // Block long double math functions (not used by VapourSynth)
+        .blocklist_function(".*l$")
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .rustified_enum("VSPropertyType")
         .rustified_enum("VSColorFamily")
         .rustified_enum("VSDataTypeHint")
@@ -98,6 +113,7 @@ fn main() {
         .rustified_enum("VSMessageType")
         .rustified_enum("VSSampleType")
         .rustified_enum("VSPresetFormat")
+        .rustified_enum("VSPresetVideoFormat")
         .rustified_enum("VSMapPropertyError")
         .rustified_enum("VSRequestPattern")
         .rustified_enum("VSTransferCharacteristics")
@@ -110,7 +126,7 @@ fn main() {
         .derive_debug(true) // Add Debug derives
         .derive_copy(true) // Add Copy derives where safe
         .derive_hash(true) // Add Hash derives
-        .rustfmt_bindings(true)
+        .formatter(bindgen::Formatter::Rustfmt)
         .size_t_is_usize(true)
         // Finish the builder and generate the bindings.
         .generate()

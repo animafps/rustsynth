@@ -7,6 +7,11 @@
 pub extern crate rustsynth_sys;
 pub use rustsynth_sys as ffi;
 
+#[cfg(feature = "proc-macro")]
+extern crate rustsynth_derive;
+#[doc(cfg(feature = "proc-macro"))]
+pub use rustsynth_derive::*;
+
 mod api;
 pub mod core;
 pub mod filter;
@@ -60,11 +65,6 @@ macro_rules! owned_map {
             temp_map
         }
     };
-}
-
-/// A trait to provide a method to consume a struct and output an `map::OwnedMap`
-pub trait OwnedMap {
-    fn to_map<'elem>(self) -> map::OwnedMap<'elem>;
 }
 
 // Dev notes

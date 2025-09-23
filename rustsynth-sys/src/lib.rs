@@ -43,6 +43,7 @@ macro_rules! version {
     };
 }
 
+
 pub const VAPOURSYNTH_API_VERSION: i32 =
     version!(VAPOURSYNTH_API_MAJOR as i32, VAPOURSYNTH_API_MINOR as i32);
 pub const VSSCRIPT_API_VERSION: i32 =

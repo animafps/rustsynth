@@ -22,7 +22,7 @@ pub use self::iterators::{Keys, ValueIter};
 mod value;
 pub use self::value::{Value, ValueNotArray, ValueType};
 
-pub mod data;
+mod data;
 pub use self::data::{handle_data_hint, Data, DataType};
 
 #[cfg(test)]
@@ -1199,4 +1199,8 @@ impl<'elem> Map<'elem> {
     }
 
     // TODO: Saturated retrival
+}
+
+pub trait IntoOwnedMap {
+    fn into_owned_map<'elem>(self) -> OwnedMap<'elem>;
 }

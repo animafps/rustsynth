@@ -235,7 +235,7 @@ bitflags! {
 
 impl PluginConfigFlags {
     pub fn as_ptr(&self) -> ffi::VSPluginConfigFlags {
-        VSPluginConfigFlags(self.bits.try_into().unwrap())
+        VSPluginConfigFlags(self.bits().try_into().unwrap())
     }
 }
 

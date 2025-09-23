@@ -4,8 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rustsynth = { path = "../rustsynth" }
-rustsynth-derive = {path = "../rustsynth-derive" }
+rustsynth = { path = "../rustsynth", features = ["proc-macro"]}
 
 [features]
 plugin = []

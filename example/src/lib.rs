@@ -4,13 +4,12 @@ use rustsynth::{
     frame::{Frame, FrameContext},
     map::Map,
     node::Node,
+    vapoursynth_plugin,
 };
-use rustsynth_derive::vapoursynth_plugin;
 
 #[vapoursynth_plugin]
 mod plugin {
-    use rustsynth::{ffi, plugin::PluginConfigFlags, MakeVersion};
-    use rustsynth_derive::vapoursynth_filter;
+    use rustsynth::{ffi, plugin::PluginConfigFlags, vapoursynth_filter, MakeVersion};
     const NAMESPACE: &str = "example";
     const ID: &str = "com.example.invert";
     const NAME: &str = "Example Plugin";

@@ -11,6 +11,7 @@ pub enum MediaType {
 
 bitflags! {
     /// Audio channel layout bitmask
+    #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
     pub struct ChannelLayout: u64 {
         // Individual channel constants (1 << VSAudioChannels::*)
         const FRONT_LEFT = 1 << ffi::VSAudioChannels::acFrontLeft as u64;
