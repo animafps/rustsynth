@@ -45,7 +45,7 @@ jobs:
     name: macOS - build, test and lint
     runs-on: macos-latest
     env:
-      VAPOURSYNTH_LIB_DIR: /opt/homebrew/lib/vapoursynth
+      VAPOURSYNTH_LIB_DIR: /opt/homebrew/lib/
     steps:
       - uses: actions/checkout@v5
         with:
