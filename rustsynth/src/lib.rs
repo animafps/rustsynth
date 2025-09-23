@@ -10,6 +10,7 @@ pub use rustsynth_sys as ffi;
 #[cfg(feature = "proc-macro")]
 extern crate rustsynth_derive;
 #[doc(cfg(feature = "proc-macro"))]
+#[cfg(feature = "proc-macro")]
 pub use rustsynth_derive::*;
 
 mod api;
