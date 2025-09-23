@@ -45,7 +45,7 @@ jobs:
     name: macOS - build, test and lint
     runs-on: macos-latest
     env:
-      DYLD_LIBRARY_PATH: /usr/local/lib:/opt/homebrew/lib
+      VAPOURSYNTH_LIB_DIR: /opt/homebrew/lib/vapoursynth
     steps:
       - uses: actions/checkout@v5
         with:
