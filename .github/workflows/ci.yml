@@ -44,6 +44,8 @@ jobs:
   build-test-lint-macos:
     name: macOS - build, test and lint
     runs-on: macos-latest
+    env:
+      DYLD_LIBRARY_PATH: /usr/local/lib:/opt/homebrew/lib
     steps:
       - uses: actions/checkout@v5
         with:
