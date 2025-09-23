@@ -64,7 +64,7 @@ jobs:
           brew install vapoursynth
       - name: Build
         run: |
-          rustup update nightly && rustup default nightly
+          rustup update nightly && rustup default nightly && rustup component add clippy rustfmt
           cargo build
       - name: Test
         run: |
