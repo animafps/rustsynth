@@ -1,6 +1,6 @@
 [package]
 name = "rustsynth"
-version = "0.5.3"
+version = "0.6.0"
 description = "Safe VapourSynth wrapper"
 edition.workspace = true
 license.workspace = true
