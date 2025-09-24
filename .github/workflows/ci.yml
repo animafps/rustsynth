@@ -78,6 +78,8 @@ jobs:
   build-test-lint-windows:
     name: Windows - build, test and lint
     runs-on: windows-latest
+    env:
+      VAPOURSYNTH_LIB_DIR: ${{ github.workspace }}\vapoursynth-portable\sdk\lib64\
     steps:
       - uses: actions/checkout@v5
         with:
@@ -86,7 +88,6 @@ jobs:
         run: |
           curl -L -o vsinstall.ps1 https://github.com/vapoursynth/vapoursynth/releases/download/R72/Install-Portable-VapourSynth-R72.ps1
           powershell -ExecutionPolicy Bypass -File .\vsinstall.ps1 -Unattended
-          echo "VAPOURSYNTH_LIB_DIR=${{ github.workspace }}\vapoursynth-portable" >> $GITHUB_ENV
           echo "${{ github.workspace }}\vapoursynth-portable" >> $GITHUB_PATH
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
