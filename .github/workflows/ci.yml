@@ -101,6 +101,7 @@ jobs:
           cargo build
       - name: Test
         run: |
+          $env:PATH += ";${{ github.workspace }}\vapoursynth-portable"
           cargo test --workspace --lib --bins --tests --benches
       - name: Lint
         run: |
