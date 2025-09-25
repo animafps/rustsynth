@@ -57,7 +57,7 @@ impl<H: LogHandler> LogHandle<H> {
             _handler: handler,
         }
     }
-    pub fn as_ptr(&self) -> *mut ffi::VSLogHandle {
+    pub const fn as_ptr(&self) -> *mut ffi::VSLogHandle {
         self.handle.as_ptr()
     }
 }

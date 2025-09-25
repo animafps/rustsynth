@@ -11,10 +11,10 @@ pub struct FilterDependency {
 }
 
 impl FilterDependency {
-    pub fn as_ffi(&self) -> ffi::VSFilterDependency {
+    pub const fn as_ffi(&self) -> ffi::VSFilterDependency {
         ffi::VSFilterDependency {
-            source: self.source.ptr(),
-            requestPattern: self.request_pattern.as_ptr() as i32,
+            source: self.source.as_ptr(),
+            requestPattern: self.request_pattern.as_ffi() as i32,
         }
     }
 
@@ -58,15 +58,13 @@ impl RequestPattern {
         }
     }
 
-    pub fn as_ptr(&self) -> *const VSRequestPattern {
+    pub const fn as_ffi(&self) -> VSRequestPattern {
         match self {
-            Self::General => &VSRequestPattern::rpGeneral as *const VSRequestPattern,
-            Self::NoFrameReuse => &VSRequestPattern::rpNoFrameReuse as *const VSRequestPattern,
-            Self::StrictSpatial => &VSRequestPattern::rpStrictSpatial as *const VSRequestPattern,
+            Self::General => VSRequestPattern::rpGeneral,
+            Self::NoFrameReuse => VSRequestPattern::rpNoFrameReuse,
+            Self::StrictSpatial => VSRequestPattern::rpStrictSpatial,
             #[cfg(feature = "api-41")]
-            Self::FrameReuseLastOnly => {
-                &VSRequestPattern::rpFrameReuseLastOnly as *const VSRequestPattern
-            }
+            Self::FrameReuseLastOnly => VSRequestPattern::rpFrameReuseLastOnly,
         }
     }
 }
@@ -124,12 +122,12 @@ impl FilterMode {
         }
     }
 
-    pub fn as_ptr(&self) -> *const VSFilterMode {
+    pub const fn as_ffi(&self) -> VSFilterMode {
         match self {
-            Self::Parallel => &VSFilterMode::fmParallel as *const VSFilterMode,
-            Self::ParallelRequests => &VSFilterMode::fmParallelRequests as *const VSFilterMode,
-            Self::Unordered => &VSFilterMode::fmUnordered as *const VSFilterMode,
-            Self::FrameState => &VSFilterMode::fmFrameState as *const VSFilterMode,
+            Self::Parallel => VSFilterMode::fmParallel,
+            Self::ParallelRequests => VSFilterMode::fmParallelRequests,
+            Self::Unordered => VSFilterMode::fmUnordered,
+            Self::FrameState => VSFilterMode::fmFrameState,
         }
     }
 }

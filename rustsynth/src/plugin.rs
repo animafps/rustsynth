@@ -53,13 +53,13 @@ impl<'core> Plugin<'core> {
 
     /// Returns the underlying pointer.
     #[inline]
-    pub(crate) fn ptr(&self) -> *mut ffi::VSPlugin {
+    pub const fn as_ptr(&self) -> *mut ffi::VSPlugin {
         self.handle.as_ptr()
     }
 
     /// The path to the shared object of the plugin or `None` if is a internal VapourSynth plugin
     pub fn path(&self) -> Option<String> {
-        let ptr = unsafe { API::get_cached().get_plugin_path(self.ptr()) };
+        let ptr = unsafe { API::get_cached().get_plugin_path(self.as_ptr()) };
         if ptr.is_null() {
             None
         } else {
@@ -69,7 +69,7 @@ impl<'core> Plugin<'core> {
 
     /// The id associated with the plugin or `None` if it has no id set
     pub fn id(&self) -> Option<String> {
-        let ptr = unsafe { API::get_cached().get_plugin_id(self.ptr()) };
+        let ptr = unsafe { API::get_cached().get_plugin_id(self.as_ptr()) };
         if ptr.is_null() {
             None
         } else {
@@ -79,7 +79,7 @@ impl<'core> Plugin<'core> {
 
     /// The namespace associated with the plugin or `None` if it has no namespace set
     pub fn namespace(&self) -> Option<String> {
-        let ptr = unsafe { API::get_cached().get_plugin_ns(self.ptr()) };
+        let ptr = unsafe { API::get_cached().get_plugin_ns(self.as_ptr()) };
         if ptr.is_null() {
             None
         } else {
@@ -89,7 +89,7 @@ impl<'core> Plugin<'core> {
 
     /// The name associated with the plugin or `None` if it has no name set
     pub fn name(&self) -> Option<String> {
-        let ptr = unsafe { API::get_cached().get_plugin_name(self.ptr()) };
+        let ptr = unsafe { API::get_cached().get_plugin_name(self.as_ptr()) };
         if ptr.is_null() {
             None
         } else {
@@ -99,7 +99,7 @@ impl<'core> Plugin<'core> {
 
     #[inline]
     pub fn version(&self) -> i32 {
-        unsafe { API::get_cached().get_plugin_version(self.ptr()) }
+        unsafe { API::get_cached().get_plugin_version(self.as_ptr()) }
     }
 
     /// Get function struct associated with the name
@@ -108,7 +108,8 @@ impl<'core> Plugin<'core> {
     pub fn function(&self, name: &str) -> Option<PluginFunction<'_>> {
         let name_ptr = CString::new(name).unwrap();
         unsafe {
-            let ptr = API::get_cached().get_plugin_function_by_name(name_ptr.as_ptr(), self.ptr());
+            let ptr =
+                API::get_cached().get_plugin_function_by_name(name_ptr.as_ptr(), self.as_ptr());
             if ptr.is_null() {
                 None
             } else {
@@ -128,11 +129,11 @@ impl<'core> Plugin<'core> {
     fn next_function(&self, function: Option<PluginFunction<'_>>) -> Option<PluginFunction<'_>> {
         unsafe {
             let function = if let Some(value) = function {
-                value.ptr()
+                value.as_ptr()
             } else {
                 ptr::null_mut()
             };
-            let ptr = API::get_cached().get_next_plugin_function(function, self.ptr());
+            let ptr = API::get_cached().get_next_plugin_function(function, self.as_ptr());
             if ptr.is_null() {
                 None
             } else {
@@ -234,8 +235,8 @@ bitflags! {
 }
 
 impl PluginConfigFlags {
-    pub fn as_ptr(&self) -> ffi::VSPluginConfigFlags {
-        VSPluginConfigFlags(self.bits().try_into().unwrap())
+    pub const fn as_ffi(&self) -> ffi::VSPluginConfigFlags {
+        VSPluginConfigFlags(self.bits() as u32)
     }
 }
 
@@ -272,7 +273,7 @@ impl<'a> PluginFunction<'a> {
         }
     }
 
-    fn ptr(&self) -> *mut ffi::VSPluginFunction {
+    pub const fn as_ptr(&self) -> *mut ffi::VSPluginFunction {
         self.ptr.as_ptr()
     }
 
@@ -308,7 +309,7 @@ impl<'a> PluginFunction<'a> {
         let name_c = CString::new(name).unwrap();
         unsafe {
             OwnedMap::from_ptr(API::get_cached().invoke(
-                self.plugin.ptr(),
+                self.plugin.as_ptr(),
                 name_c.as_ptr(),
                 args.deref(),
             ))

@@ -54,7 +54,7 @@ impl Node {
     /// # Safety
     /// The caller must ensure `handle` and the lifetime is valid and API is cached.
     #[inline]
-    pub(crate) unsafe fn from_ptr(handle: *mut ffi::VSNode) -> Self {
+    pub unsafe fn from_ptr(handle: *mut ffi::VSNode) -> Self {
         Self {
             handle: NonNull::new_unchecked(handle),
         }
@@ -62,7 +62,7 @@ impl Node {
 
     /// Returns the underlying pointer.
     #[inline]
-    pub(crate) fn ptr(&self) -> *mut ffi::VSNode {
+    pub const fn as_ptr(&self) -> *mut ffi::VSNode {
         self.handle.as_ptr()
     }
 
@@ -71,7 +71,7 @@ impl Node {
     ///Resets the cache to default options when called, discarding [Node::set_cache_options] changes.
     #[inline]
     pub fn set_cache_mode(&self, mode: CacheMode) {
-        unsafe { API::get_cached().set_cache_mode(self.ptr(), mode as i32) }
+        unsafe { API::get_cached().set_cache_mode(self.as_ptr(), mode as i32) }
     }
 
     /// Call after [Node::set_cache_mode] or the changes will be discarded. Sets internal details of a node’s associated cache.
@@ -83,7 +83,12 @@ impl Node {
     #[inline]
     pub fn set_cache_options(&self, fixed_size: i32, max_size: i32, max_history_size: i32) {
         unsafe {
-            API::get_cached().set_cache_options(self.ptr(), fixed_size, max_size, max_history_size)
+            API::get_cached().set_cache_options(
+                self.as_ptr(),
+                fixed_size,
+                max_size,
+                max_history_size,
+            )
         }
     }
 
@@ -151,7 +156,7 @@ impl Node {
             let error = unsafe { CStr::from_ptr(err_buf.as_ptr()) }.to_owned();
             Err(GetFrameError::new(Cow::Owned(error)))
         } else {
-            Ok(Frame::from_ptr(handle))
+            Ok(unsafe { Frame::from_ptr(handle) })
         }
     }
 
@@ -278,7 +283,7 @@ impl Node {
     #[inline]
     pub fn request_frame_filter(&self, n: i32, frame_ctx: &FrameContext) {
         unsafe {
-            API::get_cached().request_frame_filter(n, self.ptr(), frame_ctx.as_ptr());
+            API::get_cached().request_frame_filter(n, self.as_ptr(), frame_ctx.as_ptr());
         }
     }
 
@@ -289,17 +294,18 @@ impl Node {
         n: i32,
         frame_ctx: &FrameContext,
     ) -> Option<Frame<'core>> {
-        let ptr = unsafe { API::get_cached().get_frame_filter(n, self.ptr(), frame_ctx.as_ptr()) };
+        let ptr =
+            unsafe { API::get_cached().get_frame_filter(n, self.as_ptr(), frame_ctx.as_ptr()) };
         if ptr.is_null() {
             None
         } else {
-            Some(Frame::from_ptr(ptr))
+            Some(unsafe { Frame::from_ptr(ptr) })
         }
     }
 
     #[inline]
     pub fn media_type(&self) -> MediaType {
-        let int = unsafe { API::get_cached().get_node_type(self.ptr()) };
+        let int = unsafe { API::get_cached().get_node_type(self.as_ptr()) };
         match int {
             x if x == ffi::VSMediaType::mtAudio as i32 => MediaType::Audio,
             x if x == ffi::VSMediaType::mtVideo as i32 => MediaType::Video,
@@ -309,7 +315,7 @@ impl Node {
 
     /// Must be called immediately after audio or video filter creation. Returns the upper bound of how many additional frames it is reasonable to pass to [Frame::cache_frame] when trying to make a request more linear.
     pub fn set_linear_filter(&self) -> i32 {
-        unsafe { API::get_cached().set_linear_filter(self.ptr()) }
+        unsafe { API::get_cached().set_linear_filter(self.as_ptr()) }
     }
 
     /// By default all requested frames are referenced until a filter’s frame request is done. In extreme cases where a filter needs to reduce 20+ frames into a single output frame it may be beneficial to request these in batches and incrementally process the data instead.
@@ -317,7 +323,7 @@ impl Node {
     ///Should rarely be needed.
     pub fn release_frame_early(&self, n: i32, frame_ctx: &FrameContext) {
         unsafe {
-            API::get_cached().release_frame_early(self.ptr(), n, frame_ctx.as_ptr());
+            API::get_cached().release_frame_early(self.as_ptr(), n, frame_ctx.as_ptr());
         }
     }
 }
@@ -328,13 +334,13 @@ impl Node {
     /// Clears all cached frames for this node.
     pub fn clear_cache(&self) {
         unsafe {
-            API::get_cached().clear_node_cache(self.ptr());
+            API::get_cached().clear_node_cache(self.as_ptr());
         }
     }
 
     pub fn get_name(&self) -> Option<String> {
         unsafe {
-            let ptr = API::get_cached().get_node_name(self.ptr());
+            let ptr = API::get_cached().get_node_name(self.as_ptr());
             if ptr.is_null() {
                 None
             } else {
@@ -343,20 +349,20 @@ impl Node {
         }
     }
 
-    pub fn get_fiter_mode(&self) -> FilterMode {
+    pub fn get_filter_mode(&self) -> FilterMode {
         unsafe {
-            let ptr = API::get_cached().get_node_filter_mode(self.ptr());
+            let ptr = API::get_cached().get_node_filter_mode(self.as_ptr());
             ptr.into()
         }
     }
 
     pub fn get_num_dependencies(&self) -> i32 {
-        unsafe { API::get_cached().get_num_node_dependencies(self.ptr()) }
+        unsafe { API::get_cached().get_num_node_dependencies(self.as_ptr()) }
     }
 
     /// Retrieves a dependency of this node.
     pub fn get_dependency(&self, n: i32) -> Option<FilterDependency> {
-        let ptr = unsafe { API::get_cached().get_node_dependency(self.ptr(), n) };
+        let ptr = unsafe { API::get_cached().get_node_dependency(self.as_ptr(), n) };
         if ptr.is_null() {
             None
         } else {
@@ -364,9 +370,18 @@ impl Node {
         }
     }
 
+    /// Returns an iterator over the dependencies of this node.
+    pub fn dependencies(&self) -> FilterDependencies<'_> {
+        FilterDependencies {
+            node: self,
+            index: 0,
+            total: self.get_num_dependencies(),
+        }
+    }
+
     /// Time spent processing frames in nanoseconds, reset sets the counter to 0 again
     pub fn get_node_processing_time(&self, reset: bool) -> i64 {
-        unsafe { API::get_cached().get_node_processing_time(self.ptr(), reset as i32) }
+        unsafe { API::get_cached().get_node_processing_time(self.as_ptr(), reset as i32) }
     }
 }
 
@@ -385,7 +400,7 @@ impl Node {
             if API::get_cached().version() != ffi::VAPOURSYNTH_API_VERSION {
                 return None;
             }
-            let ptr = API::get_cached().get_node_creation_function_name(self.ptr(), level);
+            let ptr = API::get_cached().get_node_creation_function_name(self.as_ptr(), level);
             if ptr.is_null() {
                 None
             } else {
@@ -399,7 +414,7 @@ impl Node {
             if API::get_cached().version() != ffi::VAPOURSYNTH_API_VERSION {
                 return None;
             }
-            let ptr = API::get_cached().get_node_creation_function_arguments(self.ptr(), level);
+            let ptr = API::get_cached().get_node_creation_function_arguments(self.as_ptr(), level);
             Some(MapRef::from_ptr(ptr))
         }
     }
@@ -416,11 +431,45 @@ pub enum CacheMode {
 }
 
 impl CacheMode {
-    pub fn to_ptr(&self) -> *const ffi::VSCacheMode {
+    pub const fn as_ffi(&self) -> ffi::VSCacheMode {
         match self {
-            CacheMode::Auto => &ffi::VSCacheMode::cmAuto,
-            CacheMode::ForceDisable => &ffi::VSCacheMode::cmForceDisable,
-            CacheMode::ForceEnable => &ffi::VSCacheMode::cmForceEnable,
+            CacheMode::Auto => ffi::VSCacheMode::cmAuto,
+            CacheMode::ForceDisable => ffi::VSCacheMode::cmForceDisable,
+            CacheMode::ForceEnable => ffi::VSCacheMode::cmForceEnable,
         }
     }
 }
+
+/// Iterator over the dependencies of a node.
+#[cfg(feature = "api-41")]
+#[doc(cfg(feature = "api-41"))]
+pub struct FilterDependencies<'a> {
+    node: &'a Node,
+    index: i32,
+    total: i32,
+}
+
+#[cfg(feature = "api-41")]
+#[doc(cfg(feature = "api-41"))]
+impl<'a> Iterator for FilterDependencies<'a> {
+    type Item = FilterDependency;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.total {
+            None
+        } else {
+            let dep = self.node.get_dependency(self.index);
+            self.index += 1;
+            dep
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = (self.total - self.index) as usize;
+        (remaining, Some(remaining))
+    }
+}
+
+#[cfg(feature = "api-41")]
+#[doc(cfg(feature = "api-41"))]
+impl<'a> ExactSizeIterator for FilterDependencies<'a> {}

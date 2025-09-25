@@ -73,7 +73,7 @@ pub struct AudioFormat {
 }
 
 impl AudioInfo {
-    pub(crate) unsafe fn from_ptr(from: *const ffi::VSAudioInfo) -> Self {
+    pub unsafe fn from_ptr(from: *const ffi::VSAudioInfo) -> Self {
         let from = &*from;
         Self {
             format: AudioFormat::from_ptr(&from.format as *const ffi::VSAudioFormat),
@@ -83,16 +83,9 @@ impl AudioInfo {
         }
     }
 
-    #[allow(unused)]
-    pub(crate) fn as_ptr(&self) -> ffi::VSAudioInfo {
+    pub const fn as_ffi(&self) -> ffi::VSAudioInfo {
         ffi::VSAudioInfo {
-            format: ffi::VSAudioFormat {
-                sampleType: self.format.sample_type as i32,
-                bitsPerSample: self.format.bits_per_sample,
-                bytesPerSample: self.format.bytes_per_sample,
-                numChannels: self.format.num_channels,
-                channelLayout: self.format.channel_layout.bits(),
-            },
+            format: self.format.as_ffi(),
             sampleRate: self.sample_rate,
             numSamples: self.num_samples,
             numFrames: self.num_frames,
@@ -101,7 +94,7 @@ impl AudioInfo {
 }
 
 impl AudioFormat {
-    pub(crate) unsafe fn from_ptr(from: *const ffi::VSAudioFormat) -> Self {
+    pub unsafe fn from_ptr(from: *const ffi::VSAudioFormat) -> Self {
         let from = &*from;
         let sample_type = if from.sampleType == 0 {
             SampleType::Integer
@@ -140,7 +133,7 @@ impl AudioFormat {
                 sample_type as i32,
                 bits_per_sample,
                 channel_layout,
-                core.ptr(),
+                core.as_ptr(),
             )
         };
 
@@ -155,7 +148,7 @@ impl AudioFormat {
         }
     }
 
-    pub(crate) fn as_ptr(&self) -> ffi::VSAudioFormat {
+    pub const fn as_ffi(&self) -> ffi::VSAudioFormat {
         ffi::VSAudioFormat {
             sampleType: self.sample_type as i32,
             bitsPerSample: self.bits_per_sample,
@@ -166,7 +159,7 @@ impl AudioFormat {
     }
 
     pub fn get_name(&self) -> Option<String> {
-        unsafe { API::get_cached().get_audio_format_name(&self.as_ptr()) }
+        unsafe { API::get_cached().get_audio_format_name(&self.as_ffi()) }
     }
 
     pub const STEREO16: Self = Self {

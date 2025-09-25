@@ -5,8 +5,8 @@ use crate::{
 use rustsynth_sys as ffi;
 
 impl VideoFormat {
-    pub(crate) fn from_ptr(from: *const ffi::VSVideoFormat) -> Self {
-        let info = unsafe { &*from };
+    pub unsafe fn from_ptr(from: *const ffi::VSVideoFormat) -> Self {
+        let info = &*from;
 
         let sample_type = if info.sampleType == ffi::VSSampleType::stInteger as i32 {
             SampleType::Integer
@@ -60,12 +60,12 @@ impl VideoFormat {
                 bits_per_sample,
                 sub_sampling_w,
                 sub_sampling_h,
-                core.ptr(),
+                core.as_ptr(),
             )
         };
 
         if success != 0 {
-            Ok(Self::from_ptr(&format))
+            Ok(unsafe { Self::from_ptr(&format) })
         } else {
             Err(FormatError::InvalidVideoFormat {
                 color_family,
@@ -86,12 +86,12 @@ impl VideoFormat {
                 self.bits_per_sample,
                 self.sub_sampling_w,
                 self.sub_sampling_h,
-                core.ptr(),
+                core.as_ptr(),
             )
         }
     }
 
-    pub(crate) fn as_ptr(&self) -> ffi::VSVideoFormat {
+    pub const fn as_ffi(&self) -> ffi::VSVideoFormat {
         ffi::VSVideoFormat {
             colorFamily: self.color_family as i32,
             sampleType: self.sample_type as i32,
@@ -104,7 +104,7 @@ impl VideoFormat {
     }
 
     pub fn get_name(&self) -> Option<String> {
-        unsafe { API::get_cached().get_video_format_name(&self.as_ptr()) }
+        unsafe { API::get_cached().get_video_format_name(&self.as_ffi()) }
     }
 
     pub const YUV420P8: Self = Self {
@@ -149,7 +149,7 @@ impl VideoFormat {
 }
 
 impl VideoInfo {
-    pub(crate) unsafe fn from_ptr(from: *const ffi::VSVideoInfo) -> Self {
+    pub unsafe fn from_ptr(from: *const ffi::VSVideoInfo) -> Self {
         let from = &*from;
 
         Self {
@@ -162,18 +162,9 @@ impl VideoInfo {
         }
     }
 
-    #[allow(unused)]
-    pub fn as_ptr(&self) -> ffi::VSVideoInfo {
+    pub const fn as_ffi(&self) -> ffi::VSVideoInfo {
         ffi::VSVideoInfo {
-            format: ffi::VSVideoFormat {
-                colorFamily: self.format.color_family as i32,
-                sampleType: self.format.sample_type as i32,
-                bitsPerSample: self.format.bits_per_sample,
-                bytesPerSample: self.format.bytes_per_sample,
-                subSamplingW: self.format.sub_sampling_w,
-                subSamplingH: self.format.sub_sampling_h,
-                numPlanes: self.format.num_planes,
-            },
+            format: self.format.as_ffi(),
             fpsNum: self.fps_num,
             fpsDen: self.fps_den,
             width: self.width,

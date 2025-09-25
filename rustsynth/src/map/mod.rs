@@ -156,7 +156,7 @@ impl<'elem> OwnedMap<'elem> {
     /// The caller needs to ensure the pointer and the lifetime is valid and that this is an owned
     /// map pointer.
     #[inline]
-    pub(crate) unsafe fn from_ptr(handle: *mut ffi::VSMap) -> Self {
+    pub unsafe fn from_ptr(handle: *mut ffi::VSMap) -> Self {
         Self {
             map: Map::from_ptr(handle),
         }
@@ -834,7 +834,7 @@ impl<'elem> Map<'elem> {
         let error = API::get_cached().map_set_node(
             self,
             key.as_ptr(),
-            x.ptr(),
+            x.as_ptr(),
             ffi::VSMapAppendMode::maAppend,
         );
 
@@ -874,7 +874,7 @@ impl<'elem> Map<'elem> {
         let error = API::get_cached().map_set_func(
             self,
             key.as_ptr(),
-            x.ptr(),
+            x.as_ptr(),
             ffi::VSMapAppendMode::maAppend,
         );
 
@@ -1056,7 +1056,7 @@ impl<'elem> Map<'elem> {
         let error = API::get_cached().map_set_node(
             self,
             key.as_ptr(),
-            x.ptr(),
+            x.as_ptr(),
             ffi::VSMapAppendMode::maReplace,
         );
 
@@ -1088,7 +1088,7 @@ impl<'elem> Map<'elem> {
         let error = API::get_cached().map_set_func(
             self,
             key.as_ptr(),
-            x.ptr(),
+            x.as_ptr(),
             ffi::VSMapAppendMode::maReplace,
         );
 
@@ -1134,7 +1134,7 @@ impl<'elem> Map<'elem> {
     fn consume_node(self, node: Node, key: &str, append: ffi::VSMapAppendMode) -> MapResult<()> {
         let key = Map::make_raw_key(key)?;
         let node = mem::ManuallyDrop::new(node);
-        let node_ptr = node.ptr();
+        let node_ptr = node.as_ptr();
         let res = unsafe {
             API::get_cached().map_consume_node(
                 self.handle.as_ptr(),
@@ -1170,7 +1170,7 @@ impl<'elem> Map<'elem> {
     ) -> MapResult<()> {
         let key = Map::make_raw_key(key)?;
         let func = mem::ManuallyDrop::new(func);
-        let func_ptr = func.ptr();
+        let func_ptr = func.as_ptr();
         let res = unsafe {
             API::get_cached().map_consume_function(
                 self.handle.as_ptr(),

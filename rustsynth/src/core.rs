@@ -81,7 +81,7 @@ impl<'core> CoreRef<'core> {
 
     /// Returns the underlying pointer.
     #[inline]
-    pub(crate) fn ptr(&self) -> *mut ffi::VSCore {
+    pub const fn as_ptr(&self) -> *mut ffi::VSCore {
         self.handle.as_ptr()
     }
 
@@ -91,7 +91,7 @@ impl<'core> CoreRef<'core> {
     ///
     /// Will panic if core configuration is not valid
     pub fn info(&self) -> CoreInfo {
-        let core_info = unsafe { API::get_cached().get_core_info(self.ptr()) };
+        let core_info = unsafe { API::get_cached().get_core_info(self.as_ptr()) };
         let version_string = unsafe { CStr::from_ptr(core_info.versionString).to_str().unwrap() };
         debug_assert!(core_info.numThreads >= 0);
         debug_assert!(core_info.maxFramebufferSize >= 0);
@@ -129,7 +129,7 @@ impl<'core> CoreRef<'core> {
     /// Sets the number of threads used for processing. Pass 0 to automatically detect. Returns the number of threads that will be used for processing.
     #[inline]
     pub fn set_thread_count(&self, count: usize) -> i32 {
-        unsafe { API::get_cached().set_thread_count(self.ptr(), count as i32) }
+        unsafe { API::get_cached().set_thread_count(self.as_ptr(), count as i32) }
     }
 
     /// Consumes and frees the core and core reference
@@ -143,19 +143,19 @@ impl<'core> CoreRef<'core> {
 
     /// Sets the maximum size of the framebuffer cache. Returns the new maximum size.
     pub fn set_max_cache_size(&self, size: i64) -> i64 {
-        unsafe { API::get_cached().set_max_cache_size(self.ptr(), size) }
+        unsafe { API::get_cached().set_max_cache_size(self.as_ptr(), size) }
     }
 
     /// The format identifier: one of [crate::format::PresetVideoFormat] or a value gotten from [VideoFormat::query_format_id].
     pub fn get_video_format_by_id(&self, id: u32) -> Option<VideoFormat> {
-        let format = unsafe { API::get_cached().get_video_format_by_id(id, self.ptr()) };
-        format.map(|f| VideoFormat::from_ptr(f))
+        let format = unsafe { API::get_cached().get_video_format_by_id(id, self.as_ptr()) };
+        format.map(|f| unsafe { VideoFormat::from_ptr(f) })
     }
 
     /// Duplicates the frame (not just the reference). As the frame buffer is shared in a copy-on-write fashion, the frame content is not really duplicated until a write operation occurs. This is transparent for the user.
     pub fn copy_frame(&'_ self, frame: &Frame) -> Frame<'_> {
-        let new_frame = unsafe { API::get_cached().copy_frame(frame, self.ptr()) };
-        Frame::from_ptr(new_frame)
+        let new_frame = unsafe { API::get_cached().copy_frame(frame, self.as_ptr()) };
+        unsafe { Frame::from_ptr(new_frame) }
     }
 
     /// Installs a custom handler for the various error messages VapourSynth emits. The message handler is per Core instance. Returns a unique handle.
@@ -218,14 +218,14 @@ impl<'core> CoreRef<'core> {
             API::get_cached().create_video_filter(
                 out.as_ptr(),
                 name_cstr.as_ptr(),
-                &video_info.as_ptr(),
+                &video_info.as_ffi(),
                 Some(filter_get_frame::<F>),
                 Some(filter_free::<F>),
-                F::MODE.as_ptr() as *const _ as i32,
+                &F::MODE.as_ffi() as *const _ as i32,
                 deps_ffi.as_ptr(),
                 deps_ffi.len() as i32,
                 instance_data,
-                self.ptr(),
+                self.as_ptr(),
             );
         }
 
@@ -255,14 +255,14 @@ impl<'core> CoreRef<'core> {
         let node_ptr = unsafe {
             API::get_cached().create_video_filter2(
                 name_cstr.as_ptr(),
-                &video_info.as_ptr(),
+                &video_info.as_ffi(),
                 Some(filter_get_frame::<F>),
                 Some(filter_free::<F>),
-                F::MODE.as_ptr() as *const _ as i32,
+                &F::MODE.as_ffi() as *const _ as i32,
                 deps_ffi.as_ptr(),
                 deps_ffi.len() as i32,
                 instance_data,
-                self.ptr(),
+                self.as_ptr(),
             )
         };
 
@@ -298,14 +298,14 @@ impl<'core> CoreRef<'core> {
             API::get_cached().create_audio_filter(
                 out.as_ptr(),
                 name_cstr.as_ptr(),
-                &audio_info.as_ptr(),
+                &audio_info.as_ffi(),
                 Some(filter_get_frame::<F>),
                 Some(filter_free::<F>),
-                F::MODE.as_ptr() as *const _ as i32,
+                &F::MODE.as_ffi() as *const _ as i32,
                 deps_ffi.as_ptr(),
                 deps_ffi.len() as i32,
                 instance_data,
-                self.ptr(),
+                self.as_ptr(),
             );
         }
 
@@ -335,14 +335,14 @@ impl<'core> CoreRef<'core> {
         let node_ptr = unsafe {
             API::get_cached().create_audio_filter2(
                 name_cstr.as_ptr(),
-                &audio_info.as_ptr() as *const _,
+                &audio_info.as_ffi() as *const _,
                 Some(filter_get_frame::<F>),
                 Some(filter_free::<F>),
-                F::MODE.as_ptr() as *const _ as i32,
+                &F::MODE.as_ffi() as *const _ as i32,
                 deps_ffi.as_ptr(),
                 deps_ffi.len() as i32,
                 instance_data,
-                self.ptr(),
+                self.as_ptr(),
             )
         };
 
@@ -448,23 +448,23 @@ impl<'core> CoreRef<'core> {
     /// Clears all caches associated with the core.
     pub fn clear_caches(&self) {
         unsafe {
-            API::get_cached().clear_core_caches(self.ptr());
+            API::get_cached().clear_core_caches(self.as_ptr());
         }
     }
 
     /// Returns true if node timing is enabled.
     pub fn get_node_timing(&self) -> bool {
-        (unsafe { API::get_cached().get_core_node_timing(self.ptr()) } > 0)
+        (unsafe { API::get_cached().get_core_node_timing(self.as_ptr()) } > 0)
     }
 
     /// Note that disabling simply stops the counters from incrementing
     pub fn set_node_timing(&self, enable: bool) {
-        unsafe { API::get_cached().set_core_node_timing(self.ptr(), enable as i32) }
+        unsafe { API::get_cached().set_core_node_timing(self.as_ptr(), enable as i32) }
     }
 
     /// Time spent processing frames in nanoseconds in all destroyed nodes, reset sets the counter to 0 again
     pub fn get_freeed_node_processing_time(&self, reset: bool) -> i64 {
-        unsafe { API::get_cached().get_freed_node_processing_time(self.ptr(), reset as i32) }
+        unsafe { API::get_cached().get_freed_node_processing_time(self.as_ptr(), reset as i32) }
     }
 }
 

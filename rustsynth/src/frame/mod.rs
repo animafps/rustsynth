@@ -49,7 +49,7 @@ impl FrameContext {
     }
 
     #[inline]
-    pub(crate) fn as_ptr(&self) -> *mut ffi::VSFrameContext {
+    pub const fn as_ptr(&self) -> *mut ffi::VSFrameContext {
         self.handle.as_ptr()
     }
 
@@ -66,15 +66,15 @@ impl FrameContext {
 
 impl<'core> Frame<'core> {
     #[inline]
-    pub fn from_ptr(ptr: *const ffi::VSFrame) -> Self {
+    pub unsafe fn from_ptr(ptr: *const ffi::VSFrame) -> Self {
         Self {
-            handle: unsafe { NonNull::new_unchecked(ptr as *mut ffi::VSFrame) },
+            handle: NonNull::new_unchecked(ptr as *mut ffi::VSFrame),
             _owner: PhantomData,
         }
     }
 
     #[inline]
-    pub fn as_ptr(&self) -> *const ffi::VSFrame {
+    pub const fn as_ptr(&self) -> *const ffi::VSFrame {
         self.handle.as_ptr()
     }
 
@@ -109,7 +109,7 @@ impl<'core> Frame<'core> {
         if ptr.is_null() {
             None
         } else {
-            Some(VideoFormat::from_ptr(ptr))
+            Some(unsafe { VideoFormat::from_ptr(ptr) })
         }
     }
 
@@ -132,14 +132,14 @@ impl<'core> Frame<'core> {
     ) -> Self {
         let ptr = unsafe {
             API::get_cached().new_video_frame(
-                &format.as_ptr() as *const ffi::VSVideoFormat,
+                &format.as_ffi() as *const ffi::VSVideoFormat,
                 width,
                 height,
                 prop_src.map_or(std::ptr::null(), |f| f.as_ptr()),
-                core.ptr(),
+                core.as_ptr(),
             )
         };
-        Frame::from_ptr(ptr)
+        unsafe { Frame::from_ptr(ptr) }
     }
 
     /// Creates a new video frame from the planes of existing frames, optionally copying the properties attached to another frame
@@ -158,16 +158,16 @@ impl<'core> Frame<'core> {
                 planesrcptr[i] = frame.as_ptr();
             }
             API::get_cached().new_video_frame2(
-                &format.as_ptr() as *const ffi::VSVideoFormat,
+                &format.as_ffi() as *const ffi::VSVideoFormat,
                 width,
                 height,
                 planesrcptr.as_mut_ptr(),
                 planes.as_ptr(),
                 propsrc.map_or(std::ptr::null(), |f| f.as_ptr()),
-                core.ptr(),
+                core.as_ptr(),
             )
         };
-        Frame::from_ptr(ptr)
+        unsafe { Frame::from_ptr(ptr) }
     }
 
     /// Creates a new audio frame, optionally copying the properties attached to another frame. It is a fatal error to pass invalid arguments to this function
@@ -179,13 +179,13 @@ impl<'core> Frame<'core> {
     ) -> Self {
         let ptr = unsafe {
             API::get_cached().new_audio_frame(
-                &format.as_ptr() as *const ffi::VSAudioFormat,
+                &format.as_ffi() as *const ffi::VSAudioFormat,
                 prop_src.map_or(std::ptr::null(), |f| f.as_ptr()),
                 length,
-                core.ptr(),
+                core.as_ptr(),
             )
         };
-        Frame::from_ptr(ptr)
+        unsafe { Frame::from_ptr(ptr) }
     }
 
     /// Creates a new audio frame, optionally copying the properties attached to another frame. It is a fatal error to pass invalid arguments to this function.
@@ -205,15 +205,15 @@ impl<'core> Frame<'core> {
                 channelsrcptr[i] = frame.as_ptr();
             }
             API::get_cached().new_audio_frame2(
-                &format.as_ptr() as *const ffi::VSAudioFormat,
+                &format.as_ffi() as *const ffi::VSAudioFormat,
                 num_samples,
                 channelsrcptr.as_mut_ptr(),
                 channels.as_ptr(),
                 propsrc.map_or(std::ptr::null(), |f| f.as_ptr()),
-                core.ptr(),
+                core.as_ptr(),
             )
         };
-        Frame::from_ptr(ptr)
+        unsafe { Frame::from_ptr(ptr) }
     }
 
     /// Get read-only access to plane data
@@ -585,17 +585,7 @@ impl<'core> Frame<'core> {
     where
         F: FnOnce(&[Plane]) -> R,
     {
-        let num_planes = self.get_video_format().map_or(0, |vf| vf.num_planes);
-        let mut planes = Vec::with_capacity(num_planes as usize);
-        for i in 0..num_planes {
-            let plane = Plane {
-                data: self.get_read_ptr(i),
-                stride: self.get_stride(i),
-                width: self.get_width(i),
-                height: self.get_height(i),
-            };
-            planes.push(plane);
-        }
+        let planes: Vec<_> = self.planes().collect();
         f(&planes)
     }
 
@@ -616,6 +606,14 @@ impl<'core> Frame<'core> {
             }
         }
     }
+
+    pub fn planes(&self) -> Planes<'_> {
+        Planes {
+            frame: self,
+            total: self.get_video_format().map_or(0, |vf| vf.num_planes),
+            current: 0,
+        }
+    }
 }
 
 impl<'core> Deref for Frame<'core> {
@@ -631,6 +629,38 @@ pub struct Plane {
     pub width: i32,
     pub height: i32,
 }
+
+pub struct Planes<'a> {
+    frame: &'a Frame<'a>,
+    total: i32,
+    current: i32,
+}
+
+impl<'a> Iterator for Planes<'a> {
+    type Item = Plane;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current >= self.total {
+            None
+        } else {
+            let plane = Plane {
+                data: self.frame.get_read_ptr(self.current),
+                stride: self.frame.get_stride(self.current),
+                width: self.frame.get_width(self.current),
+                height: self.frame.get_height(self.current),
+            };
+            self.current += 1;
+            Some(plane)
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = (self.total - self.current) as usize;
+        (remaining, Some(remaining))
+    }
+}
+
+impl<'a> ExactSizeIterator for Planes<'a> {}
 
 pub use enums::{
     ChromaLocation, ColorPrimaries, ColorRange, Field, FieldBased, MatrixCoefficients,

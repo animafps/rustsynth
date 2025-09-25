@@ -132,11 +132,11 @@ impl API {
     ) -> Option<Plugin<'core>> {
         unsafe {
             let pluginptr = if let Some(value) = plugin {
-                value.ptr()
+                value.as_ptr()
             } else {
                 ptr::null_mut()
             };
-            let handle = self.handle.as_ref().getNextPlugin.unwrap()(pluginptr, core.ptr());
+            let handle = self.handle.as_ref().getNextPlugin.unwrap()(pluginptr, core.as_ptr());
             if handle.is_null() {
                 None
             } else {
@@ -153,7 +153,7 @@ impl API {
         unsafe {
             let ns = CString::new(namespace).unwrap();
             let handle =
-                self.handle.as_ref().getPluginByNamespace.unwrap()(ns.as_ptr(), core.ptr());
+                self.handle.as_ref().getPluginByNamespace.unwrap()(ns.as_ptr(), core.as_ptr());
             if handle.is_null() {
                 None
             } else {
@@ -169,7 +169,7 @@ impl API {
     ) -> Option<Plugin<'core>> {
         unsafe {
             let id = CString::new(id).unwrap();
-            let handle = self.handle.as_ref().getPluginByID.unwrap()(id.as_ptr(), core.ptr());
+            let handle = self.handle.as_ref().getPluginByID.unwrap()(id.as_ptr(), core.as_ptr());
             if handle.is_null() {
                 None
             } else {

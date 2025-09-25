@@ -47,7 +47,7 @@ impl<'core> Function<'core> {
     /// # Safety
     /// The caller must ensure `handle` and the lifetime are valid and API is cached.
     #[inline]
-    pub(crate) unsafe fn from_ptr(handle: *mut ffi::VSFunction) -> Self {
+    pub unsafe fn from_ptr(handle: *mut ffi::VSFunction) -> Self {
         Self {
             handle: NonNull::new_unchecked(handle),
             _owner: PhantomData,
@@ -56,7 +56,7 @@ impl<'core> Function<'core> {
 
     /// Returns the underlying pointer.
     #[inline]
-    pub(crate) fn ptr(&self) -> *mut ffi::VSFunction {
+    pub const fn as_ptr(&self) -> *mut ffi::VSFunction {
         self.handle.as_ptr()
     }
 
@@ -104,7 +104,7 @@ impl<'core> Function<'core> {
                 Some(c_callback::<'core, F>),
                 Box::into_raw(data) as _,
                 Some(c_free::<F>),
-                core.ptr(),
+                core.as_ptr(),
             )
         };
 

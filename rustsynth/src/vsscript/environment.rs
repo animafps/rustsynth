@@ -64,7 +64,7 @@ impl Environment {
     pub fn new(core: &CoreRef) -> ScriptResult<Self> {
         let api = ScriptAPI::get().unwrap();
 
-        let handle = unsafe { api.create_script(core.ptr()) };
+        let handle = unsafe { api.create_script(core.as_ptr()) };
         let environment = Self {
             handle: unsafe { NonNull::new_unchecked(handle) },
         };
