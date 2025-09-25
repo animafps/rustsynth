@@ -56,7 +56,6 @@ To follow along with the examples, you'll need:
 ```toml
 [dependencies]
 rustsynth = "0.5"
-rustsynth-derive = "0.5"
 ```
 
 For plugin development, also add:

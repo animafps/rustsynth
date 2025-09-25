@@ -17,6 +17,8 @@ Add this to your `Cargo.toml`:
 rustsynth = "0.5"
 ```
 
+Further guide see [the book](https://rustsynth.anima.nz)
+
 ## Documentation
 
 - [API Documentation](https://docs.rs/rustsynth)
