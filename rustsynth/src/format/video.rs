@@ -5,6 +5,8 @@ use crate::{
 use rustsynth_sys as ffi;
 
 impl VideoFormat {
+    /// # Safety
+    /// The pointer must be valid and point to a [ffi::VSVideoFormat]
     pub unsafe fn from_ptr(from: *const ffi::VSVideoFormat) -> Self {
         let info = &*from;
 
@@ -149,6 +151,8 @@ impl VideoFormat {
 }
 
 impl VideoInfo {
+    /// # Safety
+    /// The pointer must be valid and point to a [ffi::VSVideoInfo]
     pub unsafe fn from_ptr(from: *const ffi::VSVideoInfo) -> Self {
         let from = &*from;
 

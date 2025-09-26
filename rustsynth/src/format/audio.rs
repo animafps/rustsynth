@@ -73,6 +73,8 @@ pub struct AudioFormat {
 }
 
 impl AudioInfo {
+    /// # Safety
+    /// The pointer must be valid and point to a [ffi::VSAudioInfo]
     pub unsafe fn from_ptr(from: *const ffi::VSAudioInfo) -> Self {
         let from = &*from;
         Self {
@@ -94,6 +96,8 @@ impl AudioInfo {
 }
 
 impl AudioFormat {
+    /// # Safety
+    /// The pointer must be valid and point to a [ffi::VSAudioFormat]
     pub unsafe fn from_ptr(from: *const ffi::VSAudioFormat) -> Self {
         let from = &*from;
         let sample_type = if from.sampleType == 0 {

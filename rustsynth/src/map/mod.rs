@@ -162,8 +162,8 @@ impl<'elem> OwnedMap<'elem> {
         }
     }
 
-    pub fn as_ptr(&self) -> *mut ffi::VSMap {
-        self.handle.as_ptr()
+    pub const fn as_ptr(&self) -> *mut ffi::VSMap {
+        self.map.as_ptr()
     }
 }
 
@@ -231,6 +231,10 @@ impl<'elem> Default for OwnedMap<'elem> {
 }
 
 impl<'elem> Map<'elem> {
+    pub const fn as_ptr(&self) -> *mut ffi::VSMap {
+        self.handle.as_ptr()
+    }
+
     /// Wraps pointer into `Map`.
     ///
     /// # Safety

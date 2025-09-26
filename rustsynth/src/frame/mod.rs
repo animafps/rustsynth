@@ -40,7 +40,7 @@ impl FrameContext {
     /// Creates a FrameContext from a raw pointer.
     ///
     /// # Safety
-    /// The pointer must be valid and point to a `VSFrameContext`.
+    /// The pointer must be valid and point to a [ffi::VSFrameContext].
     #[inline]
     pub unsafe fn from_ptr(ptr: *mut ffi::VSFrameContext) -> Self {
         Self {
@@ -65,6 +65,8 @@ impl FrameContext {
 }
 
 impl<'core> Frame<'core> {
+    /// # Safety
+    /// The pointer must be valid and point to a [ffi::VSFrame]
     #[inline]
     pub unsafe fn from_ptr(ptr: *const ffi::VSFrame) -> Self {
         Self {
@@ -217,13 +219,13 @@ impl<'core> Frame<'core> {
     }
 
     /// Get read-only access to plane data
-    #[inline]
+    #[inline(always)]
     pub fn get_read_ptr(&self, plane: i32) -> *const u8 {
         unsafe { API::get_cached().get_frame_read_ptr(self.handle.as_ref(), plane) }
     }
 
     /// Get mutable access to plane data (only for owned frames)
-    #[inline]
+    #[inline(always)]
     pub fn get_write_ptr(&mut self, plane: i32) -> *mut u8 {
         unsafe { API::get_cached().get_frame_write_ptr(self.handle.as_ptr(), plane) }
     }
