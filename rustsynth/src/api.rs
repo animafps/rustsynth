@@ -1,7 +1,7 @@
 //! Module for interacting with the VapourSynth API
 use rustsynth_sys as ffi;
 use std::{
-    ffi::{c_char, c_int, c_void, CString},
+    ffi::{c_char, c_int, c_void},
     ptr::{self, NonNull},
     sync::atomic::{AtomicPtr, Ordering},
 };
@@ -147,13 +147,12 @@ impl API {
 
     pub(crate) fn plugin_by_namespace<'core>(
         &self,
-        namespace: &str,
+        namespace: *const c_char,
         core: &CoreRef<'core>,
     ) -> Option<Plugin<'core>> {
         unsafe {
-            let ns = CString::new(namespace).unwrap();
             let handle =
-                self.handle.as_ref().getPluginByNamespace.unwrap()(ns.as_ptr(), core.as_ptr());
+                self.handle.as_ref().getPluginByNamespace.unwrap()(namespace, core.as_ptr());
             if handle.is_null() {
                 None
             } else {
@@ -164,12 +163,11 @@ impl API {
 
     pub(crate) fn plugin_by_id<'core>(
         &self,
-        id: &str,
+        id: *const c_char,
         core: &'core CoreRef<'core>,
     ) -> Option<Plugin<'core>> {
         unsafe {
-            let id = CString::new(id).unwrap();
-            let handle = self.handle.as_ref().getPluginByID.unwrap()(id.as_ptr(), core.as_ptr());
+            let handle = self.handle.as_ref().getPluginByID.unwrap()(id, core.as_ptr());
             if handle.is_null() {
                 None
             } else {
@@ -940,7 +938,7 @@ impl API {
     pub(crate) fn get_plugin_function_return_type(
         &self,
         function: *mut ffi::VSPluginFunction,
-    ) -> *const i8 {
+    ) -> *const c_char {
         unsafe { self.handle.as_ref().getPluginFunctionReturnType.unwrap()(function) }
     }
 

@@ -24,12 +24,6 @@ pub struct Frame<'core> {
 unsafe impl<'core> Send for Frame<'core> {}
 unsafe impl<'core> Sync for Frame<'core> {}
 
-impl<'core> Drop for Frame<'core> {
-    fn drop(&mut self) {
-        unsafe { API::get_cached().free_frame(self.handle.as_ptr()) }
-    }
-}
-
 /// Represents a reference to the obscure object
 #[derive(Debug)]
 pub struct FrameContext {
@@ -73,6 +67,12 @@ impl<'core> Frame<'core> {
             handle: NonNull::new_unchecked(ptr as *mut ffi::VSFrame),
             _owner: PhantomData,
         }
+    }
+
+    /// # Safety
+    /// The frame must be owned (not borrowed) and not passed to vapoursynth core.
+    pub unsafe fn free(self) {
+        API::get_cached().free_frame(self.handle.as_ptr());
     }
 
     #[inline]

@@ -548,14 +548,17 @@ impl<'elem> Map<'elem> {
     ///
     /// This function retrieves the first value associated with the key.
     #[inline]
-    pub fn get_node(&self, key: &str) -> MapResult<Node> {
+    pub fn get_node(&self, key: &str) -> MapResult<Node<'elem>> {
         let key = Map::make_raw_key(key)?;
         unsafe { self.get_node_raw_unchecked(&key, 0) }
     }
 
     /// Retrieves nodes from a map.
     #[inline]
-    pub fn get_node_iter<'map>(&'map self, key: &str) -> MapResult<ValueIter<'map, 'elem, Node>> {
+    pub fn get_node_iter<'map>(
+        &'map self,
+        key: &str,
+    ) -> MapResult<ValueIter<'map, 'elem, Node<'elem>>> {
         let key = Map::make_raw_key(key)?;
         unsafe { ValueIter::new_node(self, key) }
     }
@@ -674,7 +677,11 @@ impl<'elem> Map<'elem> {
     /// # Safety
     /// The caller must ensure `key` is valid.
     #[inline]
-    pub(crate) unsafe fn get_node_raw_unchecked(&self, key: &CStr, index: i32) -> MapResult<Node> {
+    pub(crate) unsafe fn get_node_raw_unchecked(
+        &self,
+        key: &CStr,
+        index: i32,
+    ) -> MapResult<Node<'elem>> {
         let mut error = 0;
         let value = API::get_cached().map_get_node(self, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;

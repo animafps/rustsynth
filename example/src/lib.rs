@@ -18,23 +18,24 @@ mod plugin {
     const FLAGS: i32 = PluginConfigFlags::NONE.bits();
 
     #[vapoursynth_filter(video)]
-    struct Invert {
-        input_node: Node,
+    #[derive(Clone)]
+    struct Invert<'core> {
+        input_node: Node<'core>,
     }
 
     // Just implement the trait methods and the macro handles all C FFI
-    impl Filter for Invert {
+    impl<'core> Filter<'core> for Invert<'core> {
         const NAME: &'static str = "Invert";
         const ARGS: &'static str = "clip:vnode;";
         const RETURNTYPE: &'static str = "clip:vnode;";
         const MODE: FilterMode = FilterMode::Parallel;
 
-        fn from_args(args: &Map, _core: &CoreRef) -> Result<Self, String> {
+        fn from_args(args: &Map<'core>, _core: &CoreRef<'core>) -> Result<Self, String> {
             let input_node = args.get_node("clip")?;
             Ok(Self { input_node })
         }
 
-        fn get_dependencies(&self) -> Vec<FilterDependency> {
+        fn get_dependencies(&self) -> Vec<FilterDependency<'core>> {
             vec![FilterDependency {
                 source: self.input_node.clone(),
                 request_pattern: RequestPattern::StrictSpatial,
@@ -47,13 +48,13 @@ mod plugin {
                 .request_frame_filter(n, frame_ctx);
         }
 
-        fn process_frame<'core>(
+        fn process_frame<'frame>(
             &mut self,
             n: i32,
             _frame_data: &[u8; 4],
             frame_ctx: &FrameContext,
-            core: CoreRef<'core>,
-        ) -> Result<Frame<'core>, String> {
+            core: CoreRef<'frame>,
+        ) -> Result<Frame<'frame>, String> {
             let src = self.input_node.get_frame_filter(n, frame_ctx).unwrap();
             let vf = src.get_video_format().unwrap();
             let height = src.get_height(0);

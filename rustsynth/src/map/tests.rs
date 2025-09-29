@@ -42,12 +42,12 @@ mod tests {
         let mut map = OwnedMap::new();
 
         // Set a float value
-        map.set("pi", &3.14159f64)
+        map.set("pi", &std::f64::consts::PI)
             .expect("Failed to set float value");
 
         // Get the value back
         let value: f64 = map.get("pi").expect("Failed to get float value");
-        assert!((value - 3.14159).abs() < f64::EPSILON);
+        assert!((value - std::f64::consts::PI).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -122,13 +122,13 @@ mod tests {
         // Test the owned_map! macro
         let map = crate::owned_map! {
             {"int": &42i64},
-            {"float": &3.14f64},
+            {"float": &std::f64::consts::PI},
             {"string": &"test".to_string()}
         };
 
         assert_eq!(map.key_count(), 3);
         assert_eq!(map.get::<i64>("int").unwrap(), 42);
-        assert_eq!(map.get::<f64>("float").unwrap(), 3.14);
+        assert_eq!(map.get::<f64>("float").unwrap(), std::f64::consts::PI);
         assert_eq!(map.get::<String>("string").unwrap(), "test");
     }
 }

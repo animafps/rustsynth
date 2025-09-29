@@ -125,6 +125,23 @@ fn generate_vs_filter(
 ) -> syn::Result<proc_macro2::TokenStream> {
     let struct_name = &input.ident;
 
+    // Create a clean version of the input without the vapoursynth_filter attribute
+    let mut clean_input = input.clone();
+    clean_input
+        .attrs
+        .retain(|attr| !attr.path().is_ident("vapoursynth_filter"));
+
+    // Extract lifetime parameters
+    let lifetimes = &input.generics.params;
+    let has_lifetime = !lifetimes.is_empty();
+
+    // Create the struct type with lifetimes
+    let struct_type = if has_lifetime {
+        quote! { #struct_name<'_> }
+    } else {
+        quote! { #struct_name }
+    };
+
     // Generate unique C function names based on struct name
     let create_name = format!("{}Create", struct_name);
     let getframe_name = format!("{}GetFrame", struct_name);
@@ -134,135 +151,135 @@ fn generate_vs_filter(
     let getframe_ident = syn::Ident::new(&getframe_name, struct_name.span());
     let free_ident = syn::Ident::new(&free_name, struct_name.span());
 
+    // Common function signature for both video and audio filters
+    let function_signature = quote! {
+        #[no_mangle]
+        pub unsafe extern "C" fn #create_ident(
+            in_: *const rustsynth::ffi::VSMap,
+            out: *mut rustsynth::ffi::VSMap,
+            user_data: *mut std::os::raw::c_void,
+            core: *mut rustsynth::ffi::VSCore,
+            vsapi: *const rustsynth::ffi::VSAPI,
+        )
+    };
+
     let create = match arg.to_string().as_str() {
         "video" => {
             quote! {
-                // Filter creation function - the real workhorse
-            #[no_mangle]
-            pub unsafe extern "C" fn #create_ident(
-                in_: *const rustsynth::ffi::VSMap,
-                out: *mut rustsynth::ffi::VSMap,
-                user_data: *mut std::os::raw::c_void,
-                core: *mut rustsynth::ffi::VSCore,
-                vsapi: *const rustsynth::ffi::VSAPI,
-            ) {
-                rustsynth::init_api(vsapi);
-                let api = &*vsapi;
-                    let core_ref = rustsynth::core::CoreRef::from_ptr(core);
-                    let in_map = rustsynth::map::Map::from_ptr(in_);
-                    // Create filter instance from arguments
-                    match #struct_name::from_args(&in_map, &core_ref) {
-                        Ok(filter_data) => {
-                            let deps = filter_data.get_dependencies();
-                            let deps_ffi: Vec<rustsynth::ffi::VSFilterDependency> = deps.iter()
-                                .map(|d| d.as_ffi())
-                                .collect();
+                #function_signature {
+                    rustsynth::init_api(vsapi);
+                    let api = &*vsapi;
+                    std::panic::catch_unwind(|| {
+                        let core_ref = rustsynth::core::CoreRef::from_ptr(core);
+                        let in_map = rustsynth::map::Map::from_ptr(in_);
+                        // Create filter instance from arguments
+                        match <#struct_type>::from_args(&in_map, &core_ref) {
+                            Ok(filter_data) => {
+                                let deps = filter_data.get_dependencies();
+                                let deps_ffi: Vec<rustsynth::ffi::VSFilterDependency> = deps.iter()
+                                    .map(|d| d.as_ffi())
+                                    .collect();
 
-                            // Get filter mode from const
-                            let filter_mode = #struct_name::MODE;
-                            let media_info = match filter_data.get_video_info() {
-                                        Ok(ai) => ai,
-                                        Err(error_msg) => {
-                                            let error_cstr = std::ffi::CString::new(error_msg).unwrap_or_else(|_| {
-                                                std::ffi::CString::new("Failed to video info").unwrap()
-                                            });
-                                            api.mapSetError.unwrap()(out, error_cstr.as_ptr());
-                                            return;
-                                        }
-                                    };
+                                // Get filter mode from const
+                                let filter_mode = <#struct_type>::MODE;
+                                let media_info = match filter_data.get_video_info() {
+                                    Ok(ai) => ai,
+                                    Err(error_msg) => {
+                                        let error_cstr = std::ffi::CString::new(error_msg).unwrap_or_else(|_| {
+                                            std::ffi::CString::new("Failed to get video info").unwrap()
+                                        });
+                                        api.mapSetError.unwrap()(out, error_cstr.as_ptr());
+                                        return;
+                                    }
+                                };
 
-                            // Allocate filter data on heap
-                            let data_ptr = Box::into_raw(Box::new(filter_data)) as *mut std::os::raw::c_void;
+                                // Allocate filter data on heap
+                                let data_ptr = Box::into_raw(Box::new(filter_data)) as *mut std::os::raw::c_void;
+                                let filter_name = std::ffi::CString::new(<#struct_type>::NAME).unwrap();
 
-                                    let filter_name = std::ffi::CString::new(#struct_name::NAME).unwrap();
-                                    api.createVideoFilter.unwrap()(
-                                        out,
-                                        filter_name.as_ptr(),
-                                        &media_info.as_ffi() as *const rustsynth::ffi::VSVideoInfo,
-                                        Some(#getframe_ident),
-                                        Some(#free_ident),
-                                        filter_mode.as_ffi() as i32,
-                                        deps_ffi.as_ptr(),
-                                        deps_ffi.len() as i32,
-                                        data_ptr,
-                                        core,
-                                    );
-
-                        },
-                        Err(error_msg) => {
-                           eprintln!("{}", error_msg);
+                                api.createVideoFilter.unwrap()(
+                                    out,
+                                    filter_name.as_ptr(),
+                                    &media_info.as_ffi() as *const rustsynth::ffi::VSVideoInfo,
+                                    Some(#getframe_ident),
+                                    Some(#free_ident),
+                                    filter_mode.as_ffi() as i32,
+                                    deps_ffi.as_ptr(),
+                                    deps_ffi.len() as i32,
+                                    data_ptr,
+                                    core,
+                                );
+                            },
+                            Err(error_msg) => {
+                                let error_cstr = std::ffi::CString::new(error_msg).unwrap_or_else(|_| {
+                                    std::ffi::CString::new("Filter creation failed").unwrap()
+                                });
+                                api.mapSetError.unwrap()(out, error_cstr.as_ptr());
+                            }
                         }
-                    }
-            }
+                    }).unwrap_or_else(|_| {
+                        api.mapSetError.unwrap()(out, b"Filter creation panicked\0".as_ptr() as *const std::os::raw::c_char);
+                    });
+                }
             }
         }
         "audio" => {
             quote! {
-                // Filter creation function - the real workhorse
-            #[no_mangle]
-            pub unsafe extern "C" fn #create_ident(
-                in_: *const rustsynth::ffi::VSMap,
-                out: *mut rustsynth::ffi::VSMap,
-                user_data: *mut std::os::raw::c_void,
-                core: *mut rustsynth::ffi::VSCore,
-                vsapi: *const rustsynth::ffi::VSAPI,
-            ) {
-                let api = &*vsapi;
-                rustsynth::init_api(vsapi);
-                std::panic::catch_unwind(|| {
-                    // Create rustsynth wrapper objects
-                    let core_ref = rustsynth::core::CoreRef::from_ptr(core);
-                    let in_map = rustsynth::map::Map::from_ptr(in_);
+                #function_signature {
+                    rustsynth::init_api(vsapi);
+                    let api = &*vsapi;
+                    std::panic::catch_unwind(|| {
+                        let core_ref = rustsynth::core::CoreRef::from_ptr(core);
+                        let in_map = rustsynth::map::Map::from_ptr(in_);
+                        // Create filter instance from arguments
+                        match <#struct_type>::from_args(&in_map, &core_ref) {
+                            Ok(filter_data) => {
+                                let deps = filter_data.get_dependencies();
+                                let deps_ffi: Vec<rustsynth::ffi::VSFilterDependency> = deps.iter()
+                                    .map(|d| d.as_ffi())
+                                    .collect();
 
-                    // Create filter instance from arguments
-                    match #struct_name::from_args(&in_map, &core_ref) {
-                        Ok(filter_data) => {
-                            let deps = filter_data.get_dependencies();
-                            let deps_ffi: Vec<rustsynth::ffi::VSFilterDependency> = deps.iter()
-                                .map(|d| d.as_ffi())
-                                .collect();
+                                // Get filter mode from const
+                                let filter_mode = <#struct_type>::MODE;
+                                let media_info = match filter_data.get_audio_info() {
+                                    Ok(ai) => ai,
+                                    Err(error_msg) => {
+                                        let error_cstr = std::ffi::CString::new(error_msg).unwrap_or_else(|_| {
+                                            std::ffi::CString::new("Failed to get audio info").unwrap()
+                                        });
+                                        api.mapSetError.unwrap()(out, error_cstr.as_ptr());
+                                        return;
+                                    }
+                                };
 
-                            // Get filter mode from const
-                            let filter_mode = #struct_name::MODE;
-                            let media_info = match filter_data.get_audio_info() {
-                                        Ok(ai) => ai,
-                                        Err(error_msg) => {
-                                            let error_cstr = std::ffi::CString::new(error_msg).unwrap_or_else(|_| {
-                                                std::ffi::CString::new("Failed to get audio info").unwrap()
-                                            });
-                                            api.mapSetError.unwrap()(out, error_cstr.as_ptr());
-                                            return;
-                                        }
-                                    };
-                            // Allocate filter data on heap
-                            let data_ptr = Box::into_raw(Box::new(filter_data)) as *mut std::os::raw::c_void;
+                                // Allocate filter data on heap
+                                let data_ptr = Box::into_raw(Box::new(filter_data)) as *mut std::os::raw::c_void;
+                                let filter_name = std::ffi::CString::new(<#struct_type>::NAME).unwrap();
 
-
-                            let filter_name = std::ffi::CString::new(#struct_name::NAME).unwrap();
-                            api.createAudioFilter.unwrap()(
-                                        out,
-                                        filter_name.as_ptr(),
-                                        &media_info,
-                                        Some(#getframe_ident),
-                                        Some(#free_ident),
-                                        filter_mode.as_ffi(),
-                                        deps_ffi.as_ptr(),
-                                        deps_ffi.len() as i32,
-                                        data_ptr,
-                                        core,
-                                    );
-                        },
-                        Err(error_msg) => {
-                            let error_cstr = std::ffi::CString::new(error_msg).unwrap_or_else(|_| {
-                                std::ffi::CString::new("Filter creation failed").unwrap()
-                            });
-                            api.mapSetError.unwrap()(out, error_cstr.as_ptr());
+                                api.createAudioFilter.unwrap()(
+                                    out,
+                                    filter_name.as_ptr(),
+                                    &media_info,
+                                    Some(#getframe_ident),
+                                    Some(#free_ident),
+                                    filter_mode.as_ffi(),
+                                    deps_ffi.as_ptr(),
+                                    deps_ffi.len() as i32,
+                                    data_ptr,
+                                    core,
+                                );
+                            },
+                            Err(error_msg) => {
+                                let error_cstr = std::ffi::CString::new(error_msg).unwrap_or_else(|_| {
+                                    std::ffi::CString::new("Filter creation failed").unwrap()
+                                });
+                                api.mapSetError.unwrap()(out, error_cstr.as_ptr());
+                            }
                         }
-                    }
-                }).unwrap_or_else(|_| {
-                    api.mapSetError.unwrap()(out, b"Filter creation panicked\0".as_ptr() as *const std::os::raw::c_char);
-                });
-            }
+                    }).unwrap_or_else(|_| {
+                        api.mapSetError.unwrap()(out, b"Filter creation panicked\0".as_ptr() as *const std::os::raw::c_char);
+                    });
+                }
             }
         }
         _ => {
@@ -293,7 +310,7 @@ fn generate_vs_filter(
             let api = &*vsapi;
 
             std::panic::catch_unwind(|| {
-                let filter = &mut *(instance_data as *mut #struct_name);
+                let filter = &mut *(instance_data as *mut #struct_type);
                 let core_ref = rustsynth::core::CoreRef::from_ptr(core);
                 let frame_ctx_wrapper = rustsynth::frame::FrameContext::from_ptr(frame_ctx);
                 let activation = rustsynth::filter::ActivationReason::from_ffi(activation_reason);
@@ -315,8 +332,7 @@ fn generate_vs_filter(
 
                         match filter.process_frame(n, frame_data_array, &frame_ctx_wrapper, core_ref) {
                             Ok(output_frame) => {
-                                let out = std::mem::ManuallyDrop::new(output_frame);
-                                out.as_ptr()
+                                output_frame.as_ptr()
                             },
                             Err(error_msg) => {
                                 let error_cstr = std::ffi::CString::new(error_msg).unwrap_or_else(|_| {
@@ -365,7 +381,7 @@ fn generate_vs_filter(
         ) {
             if !instance_data.is_null() {
                 let _ = std::panic::catch_unwind(|| {
-                    let filter = Box::from_raw(instance_data as *mut #struct_name);
+                    let filter = Box::from_raw(instance_data as *mut #struct_type);
                     filter.cleanup();
                     // Box drop handles memory cleanup
                 });
@@ -373,16 +389,16 @@ fn generate_vs_filter(
         }
 
         // Register this filter in the plugin
-        impl #struct_name {
+        impl<#lifetimes> #struct_name<#lifetimes> {
             fn register_filter(
                 plugin: *mut rustsynth::ffi::VSPlugin,
                 vspapi: *const rustsynth::ffi::VSPLUGINAPI
             ) {
                 unsafe {
                     let api = &*vspapi;
-                    let filter_name = std::ffi::CString::new(#struct_name::NAME).unwrap();
-                    let args_spec = std::ffi::CString::new(#struct_name::ARGS).unwrap();
-                    let return_spec = std::ffi::CString::new(#struct_name::RETURNTYPE).unwrap();
+                    let filter_name = std::ffi::CString::new(Self::NAME).unwrap();
+                    let args_spec = std::ffi::CString::new(Self::ARGS).unwrap();
+                    let return_spec = std::ffi::CString::new(Self::RETURNTYPE).unwrap();
 
                     if let Some(register_fn) = api.registerFunction {
                         let ret = register_fn(
@@ -394,10 +410,10 @@ fn generate_vs_filter(
                             plugin
                         );
                         if ret == 0 {
-                            eprintln!("Failed to register filter '{}'", #struct_name::NAME);
+                            eprintln!("Failed to register filter '{}'", Self::NAME);
                         }
                     } else {
-                        eprintln!("registerFunction API is NULL - cannot register filter '{}'", #struct_name::NAME);
+                        eprintln!("registerFunction API is NULL - cannot register filter '{}'", Self::NAME);
                     }
                 }
             }

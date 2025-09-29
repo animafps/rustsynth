@@ -14,7 +14,6 @@ use rustsynth_sys as ffi;
 use std::{
     ffi::{CStr, CString},
     marker::PhantomData,
-    mem,
     ptr::NonNull,
 };
 
@@ -36,7 +35,7 @@ bitflags! {
 }
 
 /// A reference to a VapourSynth core.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoreRef<'core> {
     handle: NonNull<ffi::VSCore>,
     _owner: PhantomData<&'core ()>,
@@ -47,11 +46,6 @@ unsafe impl<'core> Sync for CoreRef<'core> {}
 
 impl<'core> CoreRef<'core> {
     /// Creates and returns a new core.
-    ///
-    /// Note that there's currently no safe way of freeing the returned core, and the lifetime is
-    /// unbounded, because it can live for an arbitrary long time. You may use the (unsafe)
-    /// `rustsynth_sys::VSAPI::freeCore()` after ensuring that all frame requests have completed
-    /// and all objects belonging to the core have been released.
     ///
     /// # Example
     ///
@@ -111,14 +105,34 @@ impl<'core> CoreRef<'core> {
     ///
     /// [None] if no plugin is found
     pub fn plugin_by_namespace(&self, namespace: &str) -> Option<Plugin<'core>> {
-        unsafe { API::get_cached() }.plugin_by_namespace(namespace, self)
+        let namespace = CString::new(namespace).unwrap();
+        unsafe { API::get_cached() }.plugin_by_namespace(namespace.as_ptr(), self)
     }
 
     /// Returns an instance of [Some]<[Plugin]> if there exists a plugin loaded associated with the id
     ///
     /// [None] if no plugin is found
     pub fn plugin_by_id(&self, id: &str) -> Option<Plugin<'_>> {
-        unsafe { API::get_cached() }.plugin_by_id(id, self)
+        let id = CString::new(id).unwrap();
+        unsafe { API::get_cached() }.plugin_by_id(id.as_ptr(), self)
+    }
+
+    pub fn std(&self) -> Option<Plugin<'_>> {
+        unsafe {
+            API::get_cached().plugin_by_id(ffi::VSH_STD_PLUGIN_ID.as_ptr() as *const i8, self)
+        }
+    }
+
+    pub fn resize(&self) -> Option<Plugin<'_>> {
+        unsafe {
+            API::get_cached().plugin_by_id(ffi::VSH_RESIZE_PLUGIN_ID.as_ptr() as *const i8, self)
+        }
+    }
+
+    pub fn text(&self) -> Option<Plugin<'_>> {
+        unsafe {
+            API::get_cached().plugin_by_id(ffi::VSH_TEXT_PLUGIN_ID.as_ptr() as *const i8, self)
+        }
     }
 
     /// Returns a iterator over the loaded plugins
@@ -194,9 +208,9 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Create a video filter using the Filter trait
-    pub fn create_video_filter<F>(&self, filter: F) -> Result<OwnedMap<'_>, String>
+    pub fn create_video_filter<F>(&self, filter: &F) -> Result<OwnedMap<'_>, String>
     where
-        F: Filter + Send + Sync + 'static,
+        F: Filter<'core>,
     {
         let out = OwnedMap::new();
         // Get video info from the filter
@@ -233,9 +247,9 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Create a video filter using the Filter trait (returns node directly)
-    pub fn create_video_filter2<F>(&self, filter: F) -> Result<crate::node::Node, String>
+    pub fn create_video_filter2<F>(&self, filter: &F) -> Result<crate::node::Node<'core>, String>
     where
-        F: Filter + Send + Sync + 'static,
+        F: Filter<'core>,
     {
         // Get video info from the filter
         let video_info = filter.get_video_info()?;
@@ -274,9 +288,9 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Create a audio filter using the Filter trait
-    pub fn create_audio_filter<F>(&self, filter: F) -> Result<OwnedMap<'_>, String>
+    pub fn create_audio_filter<F>(&self, filter: &F) -> Result<OwnedMap<'_>, String>
     where
-        F: Filter + Send + Sync + 'static,
+        F: Filter<'core>,
     {
         let out = OwnedMap::new();
         // Get audio info from the filter
@@ -313,9 +327,9 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Create an audio filter using the Filter trait (returns node directly)
-    pub fn create_audio_filter2<F>(&self, filter: F) -> Result<crate::node::Node, String>
+    pub fn create_audio_filter2<F>(&self, filter: &F) -> Result<crate::node::Node<'core>, String>
     where
-        F: Filter + Send + Sync + 'static,
+        F: Filter<'core>,
     {
         // Get audio info from the filter
         let audio_info = filter.get_audio_info()?;
@@ -355,7 +369,7 @@ impl<'core> CoreRef<'core> {
 }
 
 // Callback functions for Filter trait integration
-unsafe extern "C" fn filter_get_frame<F>(
+unsafe extern "C" fn filter_get_frame<'core, F>(
     n: i32,
     activation_reason: i32,
     instance_data: *mut std::ffi::c_void,
@@ -365,7 +379,7 @@ unsafe extern "C" fn filter_get_frame<F>(
     _vs_api: *const ffi::VSAPI,
 ) -> *const ffi::VSFrame
 where
-    F: Filter + Send + Sync + 'static,
+    F: Filter<'core>,
 {
     if instance_data.is_null() || frame_ctx.is_null() || core.is_null() {
         return std::ptr::null();
@@ -398,10 +412,7 @@ where
             };
 
             match filter.process_frame(n, &frame_data_array, &frame_context, core_ref) {
-                Ok(frame) => {
-                    let frame = mem::ManuallyDrop::new(frame);
-                    frame.as_ptr()
-                }
+                Ok(frame) => frame.as_ptr(),
                 Err(error) => {
                     frame_context.set_filter_error(&error);
                     std::ptr::null()
@@ -428,12 +439,12 @@ where
     }
 }
 
-unsafe extern "C" fn filter_free<F>(
+unsafe extern "C" fn filter_free<'core, F>(
     instance_data: *mut std::ffi::c_void,
     _core: *mut ffi::VSCore,
     _vs_api: *const ffi::VSAPI,
 ) where
-    F: Filter + Send + Sync + 'static,
+    F: Filter<'core>,
 {
     if !instance_data.is_null() {
         let filter = Box::from_raw(instance_data as *mut F);

@@ -7,7 +7,7 @@ use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_void};
 use std::process;
 use std::ptr::NonNull;
-use std::{mem, panic};
+use std::panic;
 
 use crate::api::API;
 #[cfg(feature = "api-41")]
@@ -22,33 +22,26 @@ pub use self::errors::GetFrameError;
 
 /// A reference to a node in the constructed filter graph.
 #[derive(Debug)]
-pub struct Node {
+pub struct Node<'core> {
     handle: NonNull<ffi::VSNode>,
+    _owner: std::marker::PhantomData<&'core ()>,
 }
 
-unsafe impl Send for Node {}
-unsafe impl Sync for Node {}
+unsafe impl Send for Node<'_> {}
+unsafe impl Sync for Node<'_> {}
 
-impl Drop for Node {
-    #[inline]
-    fn drop(&mut self) {
-        unsafe {
-            API::get_cached().free_node(self.handle.as_ptr());
-        }
-    }
-}
-
-impl Clone for Node {
+impl Clone for Node<'_> {
     #[inline]
     fn clone(&self) -> Self {
         let handle = unsafe { API::get_cached().clone_node(self.handle.as_ptr()) };
         Self {
             handle: unsafe { NonNull::new_unchecked(handle) },
+            _owner: self._owner,
         }
     }
 }
 
-impl Node {
+impl Node<'_> {
     /// Wraps `handle` in a `Node`.
     ///
     /// # Safety
@@ -57,7 +50,14 @@ impl Node {
     pub unsafe fn from_ptr(handle: *mut ffi::VSNode) -> Self {
         Self {
             handle: NonNull::new_unchecked(handle),
+            _owner: std::marker::PhantomData,
         }
+    }
+
+    /// # Safety
+    /// The node must be owned (not borrowed) and not passed to vapoursynth core
+    pub unsafe fn free(self) {
+        API::get_cached().free_node(self.as_ptr());
     }
 
     /// Returns the underlying pointer.
@@ -259,9 +259,6 @@ impl Node {
                 Box::into_raw(user_data) as *mut c_void,
             );
         }
-
-        // It'll be dropped by the callback.
-        mem::forget(new_node);
     }
 
     /// Returns a future that resolves to the frame at the given index `n`.
@@ -330,7 +327,7 @@ impl Node {
 
 #[cfg(feature = "api-41")]
 #[doc(cfg(feature = "api-41"))]
-impl Node {
+impl Node<'_> {
     /// Clears all cached frames for this node.
     pub fn clear_cache(&self) {
         unsafe {
@@ -361,7 +358,7 @@ impl Node {
     }
 
     /// Retrieves a dependency of this node.
-    pub fn get_dependency(&self, n: i32) -> Option<FilterDependency> {
+    pub fn get_dependency(&'_ self, n: i32) -> Option<FilterDependency<'_>> {
         let ptr = unsafe { API::get_cached().get_node_dependency(self.as_ptr(), n) };
         if ptr.is_null() {
             None
@@ -394,7 +391,7 @@ impl Node {
 ///
 #[cfg(feature = "graph-api")]
 #[doc(cfg(feature = "graph-api"))]
-impl Node {
+impl Node<'_> {
     pub fn get_creation_function_name(&self, level: i32) -> Option<String> {
         unsafe {
             if API::get_cached().version() != ffi::VAPOURSYNTH_API_VERSION {
@@ -443,16 +440,16 @@ impl CacheMode {
 /// Iterator over the dependencies of a node.
 #[cfg(feature = "api-41")]
 #[doc(cfg(feature = "api-41"))]
-pub struct FilterDependencies<'a> {
-    node: &'a Node,
+pub struct FilterDependencies<'core> {
+    node: &'core Node<'core>,
     index: i32,
     total: i32,
 }
 
 #[cfg(feature = "api-41")]
 #[doc(cfg(feature = "api-41"))]
-impl<'a> Iterator for FilterDependencies<'a> {
-    type Item = FilterDependency;
+impl<'core> Iterator for FilterDependencies<'core> {
+    type Item = FilterDependency<'core>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.total {

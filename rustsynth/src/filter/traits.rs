@@ -7,19 +7,19 @@ use crate::{
 };
 
 /// Trait that filter structs must implement
-pub trait Filter {
+pub trait Filter<'core>: Send + Sync + Clone + 'core {
     const NAME: &'static str;
     const ARGS: &'static str;
     const RETURNTYPE: &'static str;
     const MODE: FilterMode;
 
     /// Create filter instance from input arguments and core
-    fn from_args(args: &Map, core: &CoreRef) -> Result<Self, String>
+    fn from_args(args: &Map<'core>, core: &CoreRef<'core>) -> Result<Self, String>
     where
         Self: Sized;
 
     /// Get filter dependencies
-    fn get_dependencies(&self) -> Vec<FilterDependency>;
+    fn get_dependencies(&self) -> Vec<FilterDependency<'core>>;
 
     /// Get video info for video filters - override for source filters
     fn get_video_info(&self) -> Result<VideoInfo, String> {
@@ -53,7 +53,7 @@ pub trait Filter {
     fn request_input_frames(&self, n: i32, frame_ctx: &FrameContext);
 
     /// Process frame n and return output frame
-    fn process_frame<'core>(
+    fn process_frame(
         &mut self,
         n: i32,
         _frame_data: &[u8; 4],

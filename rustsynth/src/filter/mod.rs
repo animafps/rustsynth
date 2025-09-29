@@ -5,12 +5,12 @@ use crate::ffi;
 use crate::ffi::VSRequestPattern;
 use crate::node::Node;
 
-pub struct FilterDependency {
-    pub source: Node,
+pub struct FilterDependency<'core> {
+    pub source: Node<'core>,
     pub request_pattern: RequestPattern,
 }
 
-impl FilterDependency {
+impl FilterDependency<'_> {
     pub const fn as_ffi(&self) -> ffi::VSFilterDependency {
         ffi::VSFilterDependency {
             source: self.source.as_ptr(),

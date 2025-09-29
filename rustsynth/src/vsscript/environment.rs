@@ -170,7 +170,7 @@ impl Environment {
     /// Retrieves a node from the script environment. A node in the script must have been marked for output with the requested index.
     ///
     /// Returns [None] if there is no node at the requested index.
-    pub fn get_output(&self, index: i32) -> Option<Node> {
+    pub fn get_output(&'_ self, index: i32) -> Option<Node<'_>> {
         let ptr = unsafe { ScriptAPI::get_cached().get_output(self.handle.as_ptr(), index) };
         if ptr.is_null() {
             None
@@ -182,7 +182,7 @@ impl Environment {
     /// Retrieves an alpha node from the script environment. A node with associated alpha in the script must have been marked for output with the requested index.
     ///
     /// Returns [None] if there is no node at the requested index.
-    pub fn get_output_alpha(&self, index: i32) -> Option<Node> {
+    pub fn get_output_alpha(&'_ self, index: i32) -> Option<Node<'_>> {
         let ptr = unsafe { ScriptAPI::get_cached().get_output_alpha(self.handle.as_ptr(), index) };
         if ptr.is_null() {
             None

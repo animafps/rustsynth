@@ -63,7 +63,6 @@ impl<'core> Function<'core> {
     /// Creates a new function.
     ///
     /// To indicate an error from the callback, set an error on the output map.
-    #[inline]
     pub fn new<F>(core: CoreRef<'core>, callback: F) -> Self
     where
         F: Fn(CoreRef<'core>, &Map<'core>, &mut Map<'core>) + Send + Sync + 'core,
