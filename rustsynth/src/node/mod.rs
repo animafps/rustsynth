@@ -5,9 +5,9 @@ use rustsynth_sys as ffi;
 use std::borrow::Cow;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_void};
+use std::panic;
 use std::process;
 use std::ptr::NonNull;
-use std::panic;
 
 use crate::api::API;
 #[cfg(feature = "api-41")]

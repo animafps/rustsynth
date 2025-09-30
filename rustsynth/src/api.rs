@@ -1,6 +1,7 @@
 //! Module for interacting with the VapourSynth API
 use rustsynth_sys as ffi;
 use std::{
+    borrow::Cow,
     ffi::{c_char, c_int, c_void},
     ptr::{self, NonNull},
     sync::atomic::{AtomicPtr, Ordering},
@@ -738,7 +739,7 @@ impl API {
     pub(crate) fn get_audio_format_name(
         &self,
         format: *const ffi::VSAudioFormat,
-    ) -> Option<String> {
+    ) -> Option<Cow<'_, str>> {
         let mut buf = [0i8; 32]; // Buffer for up to 32 characters as per API docs
         let result =
             unsafe { self.handle.as_ref().getAudioFormatName.unwrap()(format, buf.as_mut_ptr()) };
@@ -747,7 +748,7 @@ impl API {
         } else {
             // Find the null terminator and create a CStr from the buffer
             let cstr = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) };
-            Some(cstr.to_string_lossy().into_owned())
+            Some(cstr.to_string_lossy())
         }
     }
 

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::api::API;
-    use crate::map::OwnedMap;
+    use crate::map::Map;
 
     fn setup_api() -> API {
         API::get().expect("Failed to get VapourSynth API")
@@ -10,7 +10,7 @@ mod tests {
     #[test]
     fn test_owned_map_creation() {
         let _api = setup_api();
-        let map = OwnedMap::new();
+        let map = Map::new();
 
         // Map should be empty initially
         assert_eq!(map.key_count(), 0);
@@ -19,7 +19,7 @@ mod tests {
     #[test]
     fn test_map_set_and_get_int() {
         let _api = setup_api();
-        let mut map = OwnedMap::new();
+        let mut map = Map::new();
 
         // Set an integer value
         map.set("test_key", &42i64)
@@ -39,7 +39,7 @@ mod tests {
     #[test]
     fn test_map_set_and_get_float() {
         let _api = setup_api();
-        let mut map = OwnedMap::new();
+        let mut map = Map::new();
 
         // Set a float value
         map.set("pi", &std::f64::consts::PI)
@@ -53,7 +53,7 @@ mod tests {
     #[test]
     fn test_map_set_and_get_string() {
         let _api = setup_api();
-        let mut map = OwnedMap::new();
+        let mut map = Map::new();
 
         // Set a string value
         let test_string = "Hello, VapourSynth!".to_string();
@@ -68,7 +68,7 @@ mod tests {
     #[test]
     fn test_map_keys_iterator() {
         let _api = setup_api();
-        let mut map = OwnedMap::new();
+        let mut map = Map::new();
 
         // Add several key-value pairs
         map.set("key1", &1i64).unwrap();
@@ -86,7 +86,7 @@ mod tests {
     #[test]
     fn test_map_key_existence() {
         let _api = setup_api();
-        let mut map = OwnedMap::new();
+        let mut map = Map::new();
 
         // Initially empty
         assert_eq!(map.key_count(), 0);
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn test_map_clear() {
         let _api = setup_api();
-        let mut map = OwnedMap::new();
+        let mut map = Map::new();
 
         // Add some data
         map.set("key1", &1i64).unwrap();

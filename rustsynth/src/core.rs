@@ -5,7 +5,7 @@ use crate::{
     format::VideoFormat,
     frame::{Frame, FrameContext},
     log::{log_handler_callback, LogHandle, LogHandler, MessageType},
-    map::OwnedMap,
+    map::Map,
     plugin::Plugin,
 };
 use bitflags::bitflags;
@@ -208,11 +208,11 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Create a video filter using the Filter trait
-    pub fn create_video_filter<F>(&self, filter: &F) -> Result<OwnedMap<'_>, String>
+    pub fn create_video_filter<F>(&self, filter: &F) -> Result<Map<'_>, String>
     where
         F: Filter<'core>,
     {
-        let out = OwnedMap::new();
+        let out = Map::new();
         // Get video info from the filter
         let video_info = filter.get_video_info()?;
         let dependencies = filter.get_dependencies();
@@ -288,11 +288,11 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Create a audio filter using the Filter trait
-    pub fn create_audio_filter<F>(&self, filter: &F) -> Result<OwnedMap<'_>, String>
+    pub fn create_audio_filter<F>(&self, filter: &F) -> Result<Map<'_>, String>
     where
         F: Filter<'core>,
     {
-        let out = OwnedMap::new();
+        let out = Map::new();
         // Get audio info from the filter
         let audio_info = filter.get_audio_info()?;
         let dependencies = filter.get_dependencies();

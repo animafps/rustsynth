@@ -163,7 +163,11 @@ impl AudioFormat {
     }
 
     pub fn get_name(&self) -> Option<String> {
-        unsafe { API::get_cached().get_audio_format_name(&self.as_ffi()) }
+        unsafe {
+            API::get_cached()
+                .get_audio_format_name(&self.as_ffi())
+                .map(|f| f.into_owned())
+        }
     }
 
     pub const STEREO16: Self = Self {

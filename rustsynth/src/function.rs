@@ -9,7 +9,7 @@ use std::{mem, panic, process};
 
 use crate::api::API;
 use crate::core::CoreRef;
-use crate::map::{Map, MapRef, MapRefMut};
+use crate::map::Map;
 
 /// Holds a reference to a function that may be called.
 #[derive(Debug, PartialEq, Eq)]
@@ -78,8 +78,8 @@ impl<'core> Function<'core> {
         {
             let closure = move || {
                 let core = CoreRef::from_ptr(core);
-                let in_ = MapRef::from_ptr(in_);
-                let mut out = MapRefMut::from_ptr(out);
+                let in_ = Map::from_ptr(in_);
+                let mut out = Map::from_ptr(out);
                 let callback = Box::from_raw(user_data as *mut F);
 
                 callback(core, &in_, &mut out);

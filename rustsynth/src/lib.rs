@@ -59,7 +59,7 @@ pub fn api_version() -> i32 {
 macro_rules! owned_map {
     ($({$key:literal: $x:expr }),*) => {
         {
-            let mut temp_map = $crate::map::OwnedMap::new();
+            let mut temp_map = $crate::map::Map::new();
             $(
                 temp_map.set($key, $x).unwrap();
             )*

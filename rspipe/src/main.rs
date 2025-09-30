@@ -1,7 +1,7 @@
 use clap::{Arg, ArgAction, Command};
 use rustsynth::{
     core::{CoreCreationFlags, CoreRef},
-    map::OwnedMap,
+    map::Map,
     vsscript::Environment,
 };
 use std::collections::HashMap;
@@ -138,7 +138,7 @@ fn main() {
             }
         }
 
-        let mut vars_map = OwnedMap::new();
+        let mut vars_map = Map::new();
         for (key, value) in script_args {
             if let Err(e) = vars_map.set(&key, &value) {
                 eprintln!("Failed to set script variable {}: {}", key, e);

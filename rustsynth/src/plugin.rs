@@ -10,11 +10,7 @@ use std::{
 };
 use thiserror::Error;
 
-use crate::{
-    api::API,
-    core::CoreRef,
-    map::{Map, MapRef, OwnedMap},
-};
+use crate::{api::API, core::CoreRef, map::Map};
 
 #[derive(Error, Debug)]
 pub enum PluginError {
@@ -147,13 +143,13 @@ impl<'core> Plugin<'core> {
     /// # Panics
     ///
     /// Will panic if there is no function with that name
-    pub fn invoke(&self, name: &str, args: &Map<'core>) -> OwnedMap<'core> {
+    pub fn invoke(&self, name: &str, args: &Map<'core>) -> Map<'core> {
         let func = self.function(name).expect("No Plugin found");
         func.call(args)
     }
 
     /// Tries to invoke a plugin function, returning a Result instead of panicking
-    pub fn try_invoke(&self, name: &str, args: &Map<'core>) -> PluginResult<OwnedMap<'core>> {
+    pub fn try_invoke(&self, name: &str, args: &Map<'core>) -> PluginResult<Map<'core>> {
         let func = self
             .function(name)
             .ok_or_else(|| PluginError::FunctionNotFound(name.to_string()))?;
@@ -165,14 +161,14 @@ impl<'core> Plugin<'core> {
     }
 
     /// Convenience method to invoke a function with no arguments
-    pub fn invoke_no_args(&self, name: &str) -> OwnedMap<'core> {
-        let empty_map = OwnedMap::new();
+    pub fn invoke_no_args(&self, name: &str) -> Map<'core> {
+        let empty_map = Map::new();
         self.invoke(name, &empty_map)
     }
 
     /// Convenience method to try invoke a function with no arguments
-    pub fn try_invoke_no_args(&self, name: &str) -> PluginResult<OwnedMap<'core>> {
-        let empty_map = OwnedMap::new();
+    pub fn try_invoke_no_args(&self, name: &str) -> PluginResult<Map<'core>> {
+        let empty_map = Map::new();
         self.try_invoke(name, &empty_map)
     }
 
@@ -218,13 +214,13 @@ unsafe extern "C" fn public_function(
         return;
     }
     let user_data = unsafe { Box::from_raw(user_data as *mut PublicFunction) };
-    let in_map = unsafe { MapRef::from_ptr(in_map) };
-    let out_map = unsafe { OwnedMap::from_ptr(out_map) };
+    let in_map = unsafe { Map::from_ptr(in_map) };
+    let out_map = unsafe { Map::from_ptr(out_map) };
     let core = unsafe { CoreRef::from_ptr(core) };
     (user_data)(&in_map, &out_map, core);
 }
 
-pub type PublicFunction = fn(in_map: &MapRef<'_, '_>, out_map: &OwnedMap<'_>, core: CoreRef);
+pub type PublicFunction = fn(in_map: &Map<'_>, out_map: &Map<'_>, core: CoreRef);
 
 bitflags! {
     pub struct PluginConfigFlags: i32 {
@@ -304,11 +300,11 @@ impl<'a> PluginFunction<'a> {
         }
     }
 
-    pub fn call<'map>(&self, args: &Map<'map>) -> OwnedMap<'map> {
+    pub fn call<'map>(&self, args: &Map<'map>) -> Map<'map> {
         let name = self.get_name().expect("Function has no name");
         let name_c = CString::new(name).unwrap();
         unsafe {
-            OwnedMap::from_ptr(API::get_cached().invoke(
+            Map::from_ptr(API::get_cached().invoke(
                 self.plugin.as_ptr(),
                 name_c.as_ptr(),
                 args.deref(),
@@ -317,8 +313,8 @@ impl<'a> PluginFunction<'a> {
     }
 
     /// Convenience method to call the function with an empty argument map
-    pub fn call_no_args(&self) -> OwnedMap<'_> {
-        let empty_map = OwnedMap::new();
+    pub fn call_no_args(&self) -> Map<'_> {
+        let empty_map = Map::new();
         self.call(&empty_map)
     }
 }

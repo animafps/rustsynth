@@ -171,7 +171,7 @@ impl<'map, 'elem> Iterator for ValueIter<'map, 'elem, String> {
         };
         self.index += 1;
 
-        Some(value)
+        Some(value.into_owned())
     }
 
     #[inline]

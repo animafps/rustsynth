@@ -3,17 +3,19 @@ use std::ops::Deref;
 
 #[derive(Clone, Copy, Debug)]
 pub enum DataType {
-    String,
-    Binary,
-    Unknown,
+    String = 1,
+    Binary = 0,
+    Unknown = -1,
 }
 
-pub fn handle_data_hint(hint: i32) -> DataType {
-    match hint {
-        x if x == ffi::VSDataTypeHint::dtBinary as i32 => DataType::Binary,
-        x if x == ffi::VSDataTypeHint::dtUtf8 as i32 => DataType::String,
-        x if x == ffi::VSDataTypeHint::dtUnknown as i32 => DataType::Unknown,
-        _ => unreachable!(),
+impl DataType {
+    pub fn from_hint(value: i32) -> Self {
+        match value {
+            x if x == ffi::VSDataTypeHint::dtBinary as i32 => DataType::Binary,
+            x if x == ffi::VSDataTypeHint::dtUtf8 as i32 => DataType::String,
+            x if x == ffi::VSDataTypeHint::dtUnknown as i32 => DataType::Unknown,
+            _ => DataType::Unknown,
+        }
     }
 }
 

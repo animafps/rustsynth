@@ -1,7 +1,7 @@
 //! Module for frame related types and functionality.
 mod enums;
 
-use std::{marker::PhantomData, ops::Deref, ptr::NonNull};
+use std::{borrow::Cow, marker::PhantomData, ops::Deref, ptr::NonNull};
 
 use rustsynth_sys as ffi;
 
@@ -9,7 +9,7 @@ use crate::{
     api::API,
     core::CoreRef,
     format::{AudioFormat, MediaType, VideoFormat},
-    map::{MapRef, MapRefMut, MapResult},
+    map::{Map, MapResult},
 };
 
 // One frame of a clip.
@@ -248,16 +248,16 @@ impl<'core> Frame<'core> {
 
     /// Get read-only access to frame properties
     #[inline]
-    pub fn properties(&self) -> MapRef<'_, 'core> {
+    pub fn properties(&self) -> Map<'core> {
         let map_ptr = unsafe { API::get_cached().get_frame_props_ro(self.handle.as_ref()) };
-        unsafe { MapRef::from_ptr(map_ptr) }
+        unsafe { Map::from_ptr(map_ptr) }
     }
 
     /// Get read-write access to frame properties (only for owned frames)
     #[inline]
-    pub fn properties_mut(&mut self) -> MapRefMut<'_, 'core> {
+    pub fn properties_mut(&mut self) -> Map<'core> {
         let map_ptr = unsafe { API::get_cached().get_frame_props_rw(self.handle.as_ptr()) };
-        unsafe { MapRefMut::from_ptr(map_ptr) }
+        unsafe { Map::from_ptr(map_ptr) }
     }
 
     // Standard frame property getters
@@ -384,7 +384,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get picture type (single character describing frame type)
-    pub fn picture_type(&self) -> Option<String> {
+    pub fn picture_type(&self) -> Option<Cow<'core, str>> {
         unsafe {
             self.properties()
                 .get_string_raw_unchecked(c"_PictType", 0)

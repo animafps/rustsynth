@@ -23,7 +23,7 @@ mod value;
 pub use self::value::{Value, ValueNotArray, ValueType};
 
 mod data;
-pub use self::data::{handle_data_hint, Data, DataType};
+pub use self::data::{Data, DataType};
 
 #[cfg(test)]
 mod tests;
@@ -37,29 +37,6 @@ pub struct Map<'elem> {
     // The actual mutability of this depends on whether it's accessed via `&Map` or `&mut Map`.
     handle: NonNull<ffi::VSMap>,
     _elem: PhantomData<&'elem ()>,
-}
-
-/// A reference to a VapourSynth map.
-#[derive(Debug)]
-pub struct MapRef<'owner, 'elem> {
-    // Only immutable references to this are allowed.
-    map: Map<'elem>,
-    _owner: PhantomData<&'owner ()>,
-}
-
-/// A reference to a mutable VapourSynth map.
-#[derive(Debug)]
-pub struct MapRefMut<'owner, 'elem> {
-    // Both mutable and immutable references to this are allowed.
-    map: Map<'elem>,
-    _owner: PhantomData<&'owner ()>,
-}
-
-/// An owned VapourSynth map.
-#[derive(Debug)]
-pub struct OwnedMap<'elem> {
-    // Both mutable and immutable references to this are allowed.
-    map: Map<'elem>,
 }
 
 unsafe impl<'elem> Send for Map<'elem> {}
@@ -80,120 +57,6 @@ impl<'elem> DerefMut for Map<'elem> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { self.handle.as_mut() }
-    }
-}
-
-impl<'owner, 'elem> Deref for MapRef<'owner, 'elem> {
-    type Target = Map<'elem>;
-
-    // Technically this should return `&'owner`.
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.map
-    }
-}
-
-impl<'owner, 'elem> Deref for MapRefMut<'owner, 'elem> {
-    type Target = Map<'elem>;
-
-    // Technically this should return `&'owner`.
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.map
-    }
-}
-
-impl<'owner, 'elem> DerefMut for MapRefMut<'owner, 'elem> {
-    // Technically this should return `&'owner`.
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.map
-    }
-}
-
-impl<'elem> Drop for OwnedMap<'elem> {
-    #[inline]
-    fn drop(&mut self) {
-        unsafe {
-            API::get_cached().free_map(&mut self.map);
-        }
-    }
-}
-
-impl<'elem> Deref for OwnedMap<'elem> {
-    type Target = Map<'elem>;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.map
-    }
-}
-
-impl<'elem> DerefMut for OwnedMap<'elem> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.map
-    }
-}
-
-impl<'elem> OwnedMap<'elem> {
-    /// Creates a new map.
-    ///
-    /// # Panics
-    ///
-    /// If API error
-    #[inline]
-    pub fn new() -> Self {
-        let api = API::get().unwrap();
-        Self {
-            map: unsafe { Map::from_ptr(api.create_map()) },
-        }
-    }
-
-    /// Wraps pointer into `OwnedMap`.
-    ///
-    /// # Safety
-    /// The caller needs to ensure the pointer and the lifetime is valid and that this is an owned
-    /// map pointer.
-    #[inline]
-    pub unsafe fn from_ptr(handle: *mut ffi::VSMap) -> Self {
-        Self {
-            map: Map::from_ptr(handle),
-        }
-    }
-
-    pub const fn as_ptr(&self) -> *mut ffi::VSMap {
-        self.map.as_ptr()
-    }
-}
-
-impl<'owner, 'elem> MapRef<'owner, 'elem> {
-    /// Wraps pointer into `MapRef`.
-    ///
-    /// # Safety
-    /// The caller needs to ensure the pointer and the lifetimes are valid, and that there are no
-    /// mutable references to the given map.
-    #[inline]
-    pub(crate) unsafe fn from_ptr(handle: *const ffi::VSMap) -> Self {
-        Self {
-            map: Map::from_ptr(handle),
-            _owner: PhantomData,
-        }
-    }
-}
-
-impl<'owner, 'elem> MapRefMut<'owner, 'elem> {
-    /// Wraps pointer into `MapRefMut`.
-    ///
-    /// # Safety
-    /// The caller needs to ensure the pointer and the lifetimes are valid, and that there are no
-    /// references to the given map.
-    #[inline]
-    pub(crate) unsafe fn from_ptr(handle: *mut ffi::VSMap) -> Self {
-        Self {
-            map: Map::from_ptr(handle),
-            _owner: PhantomData,
-        }
     }
 }
 
@@ -224,15 +87,27 @@ fn handle_append_prop_error(error: i32) -> MapResult<()> {
     }
 }
 
-impl<'elem> Default for OwnedMap<'elem> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<'elem> Map<'elem> {
+    pub fn new() -> Self {
+        let handle = unsafe { API::get_cached().create_map() };
+        if handle.is_null() {
+            panic!("Failed to create VSMap");
+        }
+
+        Self {
+            handle: NonNull::new(handle).unwrap(),
+            _elem: PhantomData,
+        }
+    }
+
     pub const fn as_ptr(&self) -> *mut ffi::VSMap {
         self.handle.as_ptr()
+    }
+
+    /// # Safety
+    /// The caller must ensure that the map is not used after this call.
+    pub unsafe fn free(mut self) {
+        API::get_cached().free_map(self.handle.as_mut());
     }
 
     /// Wraps pointer into `Map`.
@@ -517,7 +392,7 @@ impl<'elem> Map<'elem> {
     #[inline]
     pub fn get_string(&self, key: &str) -> MapResult<String> {
         let key = Map::make_raw_key(key)?;
-        unsafe { self.get_string_raw_unchecked(&key, 0) }
+        unsafe { Ok(self.get_string_raw_unchecked(&key, 0)?.into_owned()) }
     }
 
     /// Retrieves data from a map.
@@ -529,7 +404,7 @@ impl<'elem> Map<'elem> {
         &self,
         key: &CStr,
         index: i32,
-    ) -> MapResult<String> {
+    ) -> MapResult<Cow<'elem, str>> {
         let mut error = 0;
         let value = API::get_cached().map_get_data(self, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;
@@ -539,9 +414,7 @@ impl<'elem> Map<'elem> {
         debug_assert!(error == 0);
         debug_assert!(length >= 0);
 
-        let slice = slice::from_raw_parts(value as *const u8, length as usize);
-
-        Ok(String::from_utf8(slice.to_vec()).unwrap())
+        Ok(CStr::from_ptr(value).to_string_lossy())
     }
 
     /// Retrieves a node from a map.
@@ -669,7 +542,7 @@ impl<'elem> Map<'elem> {
         let hint = unsafe {
             API::get_cached().map_get_data_type_hint(self.handle.as_ptr(), key.as_ptr(), index)
         };
-        handle_data_hint(hint)
+        DataType::from_hint(hint)
     }
 
     /// Retrieves a node from a map.
@@ -1213,5 +1086,13 @@ impl<'elem> Map<'elem> {
 }
 
 pub trait IntoOwnedMap {
-    fn into_owned_map<'elem>(self) -> OwnedMap<'elem>;
+    fn into_owned_map<'elem>(self) -> Map<'elem>;
+}
+
+
+impl Default for Map<'_> {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
 }
