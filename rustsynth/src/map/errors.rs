@@ -16,8 +16,12 @@ pub enum MapError {
     InvalidKey(#[from] InvalidKeyError),
     #[error("Couldn't convert to a CString")]
     CStringConversion(#[from] NulError),
+    #[error("Failed to create map")]
+    CreationFailed,
     #[error("Unknown error (see Map::error())")]
     Error,
+    #[error("UTF-8 conversion error: {0}")]
+    Utf8Error(#[from] std::string::FromUtf8Error),
 }
 
 impl From<MapError> for String {

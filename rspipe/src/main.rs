@@ -138,7 +138,7 @@ fn main() {
             }
         }
 
-        let mut vars_map = Map::new();
+        let mut vars_map = Map::new().unwrap();
         for (key, value) in script_args {
             if let Err(e) = vars_map.set(&key, &value) {
                 eprintln!("Failed to set script variable {}: {}", key, e);
@@ -181,11 +181,11 @@ fn main() {
     };
 
     // Determine frame range
-    let start_frame = matches.get_one::<usize>("start").copied().unwrap_or(0);
+    let start_frame = matches.get_one::<i32>("start").copied().unwrap_or(0);
     let end_frame = matches
-        .get_one::<usize>("end")
+        .get_one::<i32>("end")
         .copied()
-        .unwrap_or((video_info.num_frames - 1) as usize);
+        .unwrap_or(video_info.num_frames - 1);
 
     if start_frame > end_frame {
         eprintln!("Start frame cannot be greater than end frame");
@@ -236,15 +236,15 @@ fn main() {
 fn process_frames_concurrent(
     node: &rustsynth::node::Node,
     writer: &mut OutputWriter,
-    start_frame: usize,
-    end_frame: usize,
+    start_frame: i32,
+    end_frame: i32,
     num_requests: usize,
     progress: &mut ProgressTracker,
 ) {
     use std::sync::mpsc;
 
     let total_frames = end_frame - start_frame + 1;
-    let (tx, rx) = mpsc::channel::<(usize, Result<rustsynth::frame::Frame, String>)>();
+    let (tx, rx) = mpsc::channel::<(i32, Result<rustsynth::frame::Frame, String>)>();
     let node_clone = node.clone();
 
     // Track pending requests
@@ -254,7 +254,7 @@ fn process_frames_concurrent(
     let mut next_request = start_frame;
 
     // Request initial batch
-    for _ in 0..num_requests.min(total_frames) {
+    for _ in 0..num_requests.min(total_frames.try_into().unwrap()) {
         *pending_requests.lock().unwrap() += 1;
         let tx_clone = tx.clone();
         let node_clone = node_clone.clone();

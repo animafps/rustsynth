@@ -10,7 +10,7 @@ mod tests {
     #[test]
     fn test_owned_map_creation() {
         let _api = setup_api();
-        let map = Map::new();
+        let map = Map::new().unwrap();
 
         // Map should be empty initially
         assert_eq!(map.key_count(), 0);
@@ -19,7 +19,7 @@ mod tests {
     #[test]
     fn test_map_set_and_get_int() {
         let _api = setup_api();
-        let mut map = Map::new();
+        let mut map = Map::new().unwrap();
 
         // Set an integer value
         map.set("test_key", &42i64)
@@ -39,7 +39,7 @@ mod tests {
     #[test]
     fn test_map_set_and_get_float() {
         let _api = setup_api();
-        let mut map = Map::new();
+        let mut map = Map::new().unwrap();
 
         // Set a float value
         map.set("pi", &std::f64::consts::PI)
@@ -53,7 +53,7 @@ mod tests {
     #[test]
     fn test_map_set_and_get_string() {
         let _api = setup_api();
-        let mut map = Map::new();
+        let mut map = Map::new().unwrap();
 
         // Set a string value
         let test_string = "Hello, VapourSynth!".to_string();
@@ -68,7 +68,7 @@ mod tests {
     #[test]
     fn test_map_keys_iterator() {
         let _api = setup_api();
-        let mut map = Map::new();
+        let mut map = Map::new().unwrap();
 
         // Add several key-value pairs
         map.set("key1", &1i64).unwrap();
@@ -86,7 +86,7 @@ mod tests {
     #[test]
     fn test_map_key_existence() {
         let _api = setup_api();
-        let mut map = Map::new();
+        let mut map = Map::new().unwrap();
 
         // Initially empty
         assert_eq!(map.key_count(), 0);
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn test_map_clear() {
         let _api = setup_api();
-        let mut map = Map::new();
+        let mut map = Map::new().unwrap();
 
         // Add some data
         map.set("key1", &1i64).unwrap();

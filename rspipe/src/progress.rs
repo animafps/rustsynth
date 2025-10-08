@@ -2,14 +2,14 @@ use std::io::{self, Write};
 use std::time::Instant;
 
 pub struct ProgressTracker {
-    total_frames: usize,
+    total_frames: i32,
     start_time: Instant,
     last_update: Instant,
     verbose: bool,
 }
 
 impl ProgressTracker {
-    pub fn new(total_frames: usize, verbose: bool) -> Self {
+    pub fn new(total_frames: i32, verbose: bool) -> Self {
         let now = Instant::now();
         ProgressTracker {
             total_frames,
@@ -19,7 +19,7 @@ impl ProgressTracker {
         }
     }
 
-    pub fn update(&mut self, completed_frames: usize) {
+    pub fn update(&mut self, completed_frames: i32) {
         let now = Instant::now();
 
         // Only update progress every 100ms to avoid spam

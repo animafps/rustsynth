@@ -225,7 +225,7 @@ impl<'map, 'elem: 'map> Value<'map, 'elem> for String {
     #[inline]
     fn get_from_map(map: &'map Map<'elem>, key: &str) -> MapResult<Self> {
         match map.get_data(key) {
-            Ok(val) => Ok(String::from_utf8(val.to_vec()).unwrap()),
+            Ok(val) => Ok(String::from_utf8(val.to_vec())?),
             Err(err) => Err(err),
         }
     }

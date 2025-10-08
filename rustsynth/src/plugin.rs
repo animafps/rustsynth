@@ -3,23 +3,33 @@ use bitflags::bitflags;
 use ffi::VSPluginFunction;
 use rustsynth_sys::{self as ffi, VSPluginConfigFlags};
 use std::{
-    ffi::{c_void, CStr, CString},
+    ffi::{c_void, CStr, CString, NulError},
     marker::PhantomData,
     ops::Deref,
     ptr::{self, NonNull},
 };
 use thiserror::Error;
 
-use crate::{api::API, core::CoreRef, map::Map};
+use crate::{
+    api::API,
+    core::CoreRef,
+    map::{Map, MapError},
+};
 
 #[derive(Error, Debug)]
 pub enum PluginError {
     #[error("Function '{0}' not found in plugin")]
     FunctionNotFound(String),
-    #[error("Plugin operation failed")]
-    OperationFailed,
+    #[error("Plugin function call failed: {0}")]
+    FunctionCallFailed(#[from] PluginFunctionError),
     #[error("Error: {0}")]
     InvokeError(String),
+    #[error("Output map error: {0}")]
+    OutputMapError(MapError),
+    #[error("CString conversion error: {0}")]
+    CStringConversion(#[from] NulError),
+    #[error("Failed to register function")]
+    RegistrationFailed,
 }
 
 /// A VapourSynth plugin.
@@ -102,7 +112,7 @@ impl<'core> Plugin<'core> {
     ///
     /// returns `None` if no function is found
     pub fn function(&self, name: &str) -> Option<PluginFunction<'_>> {
-        let name_ptr = CString::new(name).unwrap();
+        let name_ptr = CString::new(name).ok()?;
         unsafe {
             let ptr =
                 API::get_cached().get_plugin_function_by_name(name_ptr.as_ptr(), self.as_ptr());
@@ -143,9 +153,11 @@ impl<'core> Plugin<'core> {
     /// # Panics
     ///
     /// Will panic if there is no function with that name
-    pub fn invoke(&self, name: &str, args: &Map<'core>) -> Map<'core> {
-        let func = self.function(name).expect("No Plugin found");
-        func.call(args)
+    pub fn invoke(&self, name: &str, args: &Map<'core>) -> PluginResult<Map<'core>> {
+        let func = self
+            .function(name)
+            .ok_or(PluginError::FunctionNotFound(name.to_string()))?;
+        Ok(func.call(args)?)
     }
 
     /// Tries to invoke a plugin function, returning a Result instead of panicking
@@ -153,22 +165,22 @@ impl<'core> Plugin<'core> {
         let func = self
             .function(name)
             .ok_or_else(|| PluginError::FunctionNotFound(name.to_string()))?;
-        let ret = func.call(args);
-        if let Some(err) = ret.error() {
+        let ret = func.call(args)?;
+        if let Ok(err) = ret.error() {
             return Err(PluginError::InvokeError(err.to_string()));
         }
         Ok(ret)
     }
 
     /// Convenience method to invoke a function with no arguments
-    pub fn invoke_no_args(&self, name: &str) -> Map<'core> {
-        let empty_map = Map::new();
-        self.invoke(name, &empty_map)
+    pub fn invoke_no_args(&self, name: &str) -> PluginResult<Map<'core>> {
+        let empty_map = Map::new().map_err(PluginError::OutputMapError)?;
+        self.try_invoke(name, &empty_map)
     }
 
     /// Convenience method to try invoke a function with no arguments
     pub fn try_invoke_no_args(&self, name: &str) -> PluginResult<Map<'core>> {
-        let empty_map = Map::new();
+        let empty_map = Map::new().map_err(PluginError::OutputMapError)?;
         self.try_invoke(name, &empty_map)
     }
 
@@ -180,9 +192,9 @@ impl<'core> Plugin<'core> {
         ret_type: &str,
         func: PublicFunction,
     ) -> PluginResult<()> {
-        let name_c = CString::new(name).unwrap();
-        let args_c = CString::new(args).unwrap();
-        let ret_type_c = CString::new(ret_type).unwrap();
+        let name_c = CString::new(name)?;
+        let args_c = CString::new(args)?;
+        let ret_type_c = CString::new(ret_type)?;
         let user_data: Box<PublicFunction> = Box::new(func);
         let user_data_ptr = Box::into_raw(user_data) as *mut c_void;
         let res = unsafe {
@@ -198,7 +210,7 @@ impl<'core> Plugin<'core> {
         if res == 0 {
             Ok(())
         } else {
-            Err(PluginError::OperationFailed)
+            Err(PluginError::RegistrationFailed)
         }
     }
 }
@@ -262,7 +274,9 @@ pub struct PluginFunction<'a> {
 }
 
 impl<'a> PluginFunction<'a> {
-    pub(crate) unsafe fn from_ptr(ptr: *mut VSPluginFunction, plugin: &'a Plugin<'a>) -> Self {
+    /// # Safety
+    /// The pointer must be valid and point to a `VSPluginFunction`.
+    pub unsafe fn from_ptr(ptr: *mut VSPluginFunction, plugin: &'a Plugin<'a>) -> Self {
         PluginFunction {
             ptr: NonNull::new_unchecked(ptr),
             plugin,
@@ -300,23 +314,35 @@ impl<'a> PluginFunction<'a> {
         }
     }
 
-    pub fn call<'map>(&self, args: &Map<'map>) -> Map<'map> {
-        let name = self.get_name().expect("Function has no name");
-        let name_c = CString::new(name).unwrap();
+    pub fn call<'map>(&self, args: &Map<'map>) -> Result<Map<'map>, PluginFunctionError> {
+        let name = self.get_name().ok_or(PluginFunctionError::NoName)?;
+        let name_c = CString::new(name).map_err(PluginFunctionError::NulError)?;
         unsafe {
-            Map::from_ptr(API::get_cached().invoke(
+            Ok(Map::from_ptr(API::get_cached().invoke(
                 self.plugin.as_ptr(),
                 name_c.as_ptr(),
                 args.deref(),
-            ))
+            )))
         }
     }
 
     /// Convenience method to call the function with an empty argument map
-    pub fn call_no_args(&self) -> Map<'_> {
-        let empty_map = Map::new();
+    pub fn call_no_args(&self) -> Result<Map<'_>, PluginFunctionError> {
+        let empty_map = Map::new().map_err(|_| PluginFunctionError::CreateMapFailed)?;
         self.call(&empty_map)
     }
 }
 
 pub type PluginResult<T> = Result<T, PluginError>;
+
+#[derive(thiserror::Error, Debug)]
+pub enum PluginFunctionError {
+    #[error("Fuction has no name")]
+    NoName,
+    #[error("Nul error in string: {0}")]
+    NulError(#[from] NulError),
+    #[error("Function call failed")]
+    CallFailed,
+    #[error("Failed to create output map")]
+    CreateMapFailed,
+}

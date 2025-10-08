@@ -5,8 +5,6 @@ use rustsynth_sys as ffi;
 use std::borrow::Cow;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_void};
-use std::panic;
-use std::process;
 use std::ptr::NonNull;
 
 use crate::api::API;
@@ -15,7 +13,7 @@ use crate::filter::{FilterDependency, FilterMode};
 use crate::format::{AudioInfo, MediaType, VideoInfo};
 use crate::frame::{Frame, FrameContext};
 #[cfg(feature = "graph-api")]
-use crate::map::MapRef;
+use crate::map::Map;
 
 mod errors;
 pub use self::errors::GetFrameError;
@@ -125,19 +123,11 @@ impl Node<'_> {
     /// Generates a frame directly.
     ///
     /// The `'error` lifetime is unbounded because this function always returns owned data.
-    ///
-    /// # Panics
-    /// Panics is `n` is greater than [i32::MAX].
-    pub fn get_frame<'core, 'error>(
-        &self,
-        n: usize,
-    ) -> Result<Frame<'core>, GetFrameError<'error>> {
-        assert!(n <= i32::MAX as usize);
-
+    pub fn get_frame<'core, 'error>(&self, n: i32) -> Result<Frame<'core>, GetFrameError<'error>> {
         let vi = &self.video_info().unwrap();
 
         let total = vi.num_frames;
-        if n >= total as usize {
+        if n >= total {
             let err_cstring = CString::new("Requested frame number beyond the last one").unwrap();
             return Err(GetFrameError::new(Cow::Owned(err_cstring)));
         }
@@ -148,8 +138,7 @@ impl Node<'_> {
         let err_buf = vec![0; ERROR_BUF_CAPACITY];
         let mut err_buf = err_buf.into_boxed_slice();
 
-        let handle =
-            unsafe { API::get_cached().get_frame(n as i32, self.handle.as_ptr(), &mut err_buf) };
+        let handle = unsafe { API::get_cached().get_frame(n, self.handle.as_ptr(), &mut err_buf) };
 
         if handle.is_null() {
             // TODO: remove this extra allocation by reusing `Box<[c_char]>`.
@@ -170,14 +159,9 @@ impl Node<'_> {
     /// - the generated frame or an error message if the generation failed,
     /// - the frame number (equal to `n`),
     /// - the node that generated the frame (the same as `self`).
-    ///
-    /// If the callback panics, the process is aborted.
-    ///
-    /// # Panics
-    /// Panics is `n` is greater than [i32::MAX].
-    pub fn get_frame_async<'core, F>(&self, n: usize, callback: F)
+    pub fn get_frame_async<'core, F>(&self, n: i32, callback: F)
     where
-        F: FnOnce(Result<Frame<'core>, GetFrameError>, usize, Node) + Send + 'core,
+        F: FnOnce(Result<Frame<'core>, GetFrameError>, i32, Node) + Send + 'core,
     {
         struct CallbackData<'core> {
             callback: Box<dyn CallbackFn<'core> + 'core>,
@@ -188,20 +172,20 @@ impl Node<'_> {
             fn call(
                 self: Box<Self>,
                 frame: Result<Frame<'core>, GetFrameError>,
-                n: usize,
+                n: i32,
                 node: Node,
             );
         }
 
         impl<'core, F> CallbackFn<'core> for F
         where
-            F: FnOnce(Result<Frame<'core>, GetFrameError>, usize, Node),
+            F: FnOnce(Result<Frame<'core>, GetFrameError>, i32, Node),
         {
             #[allow(clippy::boxed_local)]
             fn call(
                 self: Box<Self>,
                 frame: Result<Frame<'core>, GetFrameError>,
-                n: usize,
+                n: i32,
                 node: Node,
             ) {
                 (self)(frame, n, node)
@@ -215,35 +199,18 @@ impl Node<'_> {
             node: *mut ffi::VSNode,
             error_msg: *const c_char,
         ) {
-            // The actual lifetime isn't 'static, it's 'core, but we don't really have a way of
-            // retrieving it.
-            let user_data = Box::from_raw(user_data as *mut CallbackData<'static>);
+            let user_data = Box::from_raw(user_data as *mut CallbackData);
+            let frame = if frame.is_null() {
+                let error_msg = Cow::Borrowed(CStr::from_ptr(error_msg));
+                Err(GetFrameError::new(error_msg))
+            } else {
+                Ok(Frame::from_ptr(frame))
+            };
 
-            let closure = panic::AssertUnwindSafe(move || {
-                let frame = if frame.is_null() {
-                    debug_assert!(!error_msg.is_null());
-                    let error_msg = Cow::Borrowed(CStr::from_ptr(error_msg));
-                    Err(GetFrameError::new(error_msg))
-                } else {
-                    debug_assert!(error_msg.is_null());
-                    Ok(Frame::from_ptr(frame))
-                };
+            let node = Node::from_ptr(node);
 
-                let node = Node::from_ptr(node);
-
-                debug_assert!(n >= 0);
-                let n = n as usize;
-
-                user_data.callback.call(frame, n, node);
-            });
-
-            if panic::catch_unwind(closure).is_err() {
-                process::abort();
-            }
+            user_data.callback.call(frame, n, node);
         }
-
-        assert!(n <= i32::MAX as usize);
-        let n = n as i32;
 
         let user_data = Box::new(CallbackData {
             callback: Box::new(callback),
@@ -264,7 +231,7 @@ impl Node<'_> {
     /// Returns a future that resolves to the frame at the given index `n`.
     pub fn get_frame_future<'core>(
         &self,
-        n: usize,
+        n: i32,
     ) -> impl std::future::Future<Output = Result<Frame<'core>, String>> + 'core {
         let (sender, receiver) = oneshot::channel();
         self.get_frame_async(n, move |result, _, _| {
@@ -406,13 +373,13 @@ impl Node<'_> {
         }
     }
 
-    pub fn get_creation_function_arguments(&'_ self, level: i32) -> Option<MapRef<'_, '_>> {
+    pub fn get_creation_function_arguments(&'_ self, level: i32) -> Option<Map<'_>> {
         unsafe {
             if API::get_cached().version() != ffi::VAPOURSYNTH_API_VERSION {
                 return None;
             }
             let ptr = API::get_cached().get_node_creation_function_arguments(self.as_ptr(), level);
-            Some(MapRef::from_ptr(ptr))
+            Some(Map::from_ptr(ptr))
         }
     }
 }

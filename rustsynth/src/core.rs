@@ -5,20 +5,40 @@ use crate::{
     format::VideoFormat,
     frame::{Frame, FrameContext},
     log::{log_handler_callback, LogHandle, LogHandler, MessageType},
-    map::Map,
+    map::{Map, MapError},
+    node::Node,
     plugin::Plugin,
 };
 use bitflags::bitflags;
-use core::fmt;
 use rustsynth_sys as ffi;
+use std::fmt;
 use std::{
-    ffi::{CStr, CString},
+    ffi::{CStr, CString, NulError},
     marker::PhantomData,
     ptr::NonNull,
 };
+use thiserror::Error;
 
 #[cfg(test)]
 mod tests;
+
+/// The error type for `Core` operations.
+#[derive(Error, Debug)]
+pub enum CoreError {
+    #[error("Failed to create map: {0}")]
+    MapCreationFailed(#[from] MapError),
+    #[error("Invalid filter name: {0}")]
+    InvalidFilterName(#[from] NulError),
+    #[error("Failed to create video filter")]
+    VideoFilterCreationFailed,
+    #[error("Failed to create audio filter")]
+    AudioFilterCreationFailed,
+    #[error("{0}")]
+    Custom(String),
+}
+
+/// A specialized `Result` type for `Core` operations.
+pub type CoreResult<T> = Result<T, CoreError>;
 
 bitflags! {
     /// Options when creating a core.
@@ -208,13 +228,13 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Create a video filter using the Filter trait
-    pub fn create_video_filter<F>(&self, filter: &F) -> Result<Map<'_>, String>
+    pub fn create_video_filter<F>(&self, filter: &F) -> CoreResult<Map<'_>>
     where
         F: Filter<'core>,
     {
-        let out = Map::new();
+        let out = Map::new()?;
         // Get video info from the filter
-        let video_info = filter.get_video_info()?;
+        let video_info = filter.get_video_info().map_err(CoreError::Custom)?;
         let dependencies = filter.get_dependencies();
 
         // Convert dependencies to FFI format
@@ -226,7 +246,7 @@ impl<'core> CoreRef<'core> {
         let instance_data = Box::into_raw(filter_box) as *mut std::ffi::c_void;
 
         // Create C strings for name
-        let name_cstr = CString::new(F::NAME).map_err(|_| "Invalid filter name")?;
+        let name_cstr = CString::new(F::NAME)?;
 
         unsafe {
             API::get_cached().create_video_filter(
@@ -247,12 +267,12 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Create a video filter using the Filter trait (returns node directly)
-    pub fn create_video_filter2<F>(&self, filter: &F) -> Result<crate::node::Node<'core>, String>
+    pub fn create_video_filter2<F>(&self, filter: &F) -> CoreResult<crate::node::Node<'core>>
     where
         F: Filter<'core>,
     {
         // Get video info from the filter
-        let video_info = filter.get_video_info()?;
+        let video_info = filter.get_video_info().map_err(CoreError::Custom)?;
         let dependencies = filter.get_dependencies();
 
         // Convert dependencies to FFI format
@@ -264,7 +284,7 @@ impl<'core> CoreRef<'core> {
         let instance_data = Box::into_raw(filter_box) as *mut std::ffi::c_void;
 
         // Create C strings for name
-        let name_cstr = CString::new(F::NAME).map_err(|_| "Invalid filter name")?;
+        let name_cstr = CString::new(F::NAME)?;
 
         let node_ptr = unsafe {
             API::get_cached().create_video_filter2(
@@ -281,20 +301,20 @@ impl<'core> CoreRef<'core> {
         };
 
         if node_ptr.is_null() {
-            return Err("Failed to create video filter".to_string());
+            return Err(CoreError::VideoFilterCreationFailed);
         }
 
         Ok(unsafe { crate::node::Node::from_ptr(node_ptr) })
     }
 
     /// Create a audio filter using the Filter trait
-    pub fn create_audio_filter<F>(&self, filter: &F) -> Result<Map<'_>, String>
+    pub fn create_audio_filter<F>(&self, filter: &F) -> CoreResult<Map<'_>>
     where
         F: Filter<'core>,
     {
-        let out = Map::new();
+        let out = Map::new()?;
         // Get audio info from the filter
-        let audio_info = filter.get_audio_info()?;
+        let audio_info = filter.get_audio_info().map_err(CoreError::Custom)?;
         let dependencies = filter.get_dependencies();
 
         // Convert dependencies to FFI format
@@ -306,7 +326,7 @@ impl<'core> CoreRef<'core> {
         let instance_data = Box::into_raw(filter_box) as *mut std::ffi::c_void;
 
         // Create C strings for name
-        let name_cstr = CString::new(F::NAME).map_err(|_| "Invalid filter name")?;
+        let name_cstr = CString::new(F::NAME)?;
 
         unsafe {
             API::get_cached().create_audio_filter(
@@ -327,12 +347,12 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Create an audio filter using the Filter trait (returns node directly)
-    pub fn create_audio_filter2<F>(&self, filter: &F) -> Result<crate::node::Node<'core>, String>
+    pub fn create_audio_filter2<F>(&self, filter: &F) -> CoreResult<Node<'core>>
     where
         F: Filter<'core>,
     {
         // Get audio info from the filter
-        let audio_info = filter.get_audio_info()?;
+        let audio_info = filter.get_audio_info().map_err(CoreError::Custom)?;
         let dependencies = filter.get_dependencies();
 
         // Convert dependencies to FFI format
@@ -344,7 +364,7 @@ impl<'core> CoreRef<'core> {
         let instance_data = Box::into_raw(filter_box) as *mut std::ffi::c_void;
 
         // Create C strings for name
-        let name_cstr = CString::new(F::NAME).map_err(|_| "Invalid filter name")?;
+        let name_cstr = CString::new(F::NAME)?;
 
         let node_ptr = unsafe {
             API::get_cached().create_audio_filter2(
@@ -361,7 +381,7 @@ impl<'core> CoreRef<'core> {
         };
 
         if node_ptr.is_null() {
-            return Err("Failed to create audio filter".to_string());
+            return Err(CoreError::AudioFilterCreationFailed);
         }
 
         Ok(unsafe { crate::node::Node::from_ptr(node_ptr) })

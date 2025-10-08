@@ -88,16 +88,14 @@ fn handle_append_prop_error(error: i32) -> MapResult<()> {
 }
 
 impl<'elem> Map<'elem> {
-    pub fn new() -> Self {
+    pub fn new() -> MapResult<Self> {
         let handle = unsafe { API::get_cached().create_map() };
-        if handle.is_null() {
-            panic!("Failed to create VSMap");
-        }
+        let handle = NonNull::new(handle).ok_or(MapError::CreationFailed)?;
 
-        Self {
-            handle: NonNull::new(handle).unwrap(),
+        Ok(Self {
+            handle,
             _elem: PhantomData,
-        }
+        })
     }
 
     pub const fn as_ptr(&self) -> *mut ffi::VSMap {
@@ -150,7 +148,7 @@ impl<'elem> Map<'elem> {
     #[inline]
     pub(crate) fn make_raw_key(key: &str) -> MapResult<CString> {
         Map::is_key_valid(key)?;
-        Ok(CString::new(key).unwrap())
+        Ok(CString::new(key)?)
     }
 
     /// Clears the map.
@@ -163,14 +161,10 @@ impl<'elem> Map<'elem> {
 
     /// Returns the error message contained in the map, if any.
     #[inline]
-    pub fn error(&'_ self) -> Option<Cow<'_, str>> {
+    pub fn error(&'_ self) -> Result<&str, std::str::Utf8Error> {
         let error_message = unsafe { API::get_cached().map_get_error(self) };
-        if error_message.is_null() {
-            return None;
-        }
-
         let error_message = unsafe { CStr::from_ptr(error_message) };
-        Some(error_message.to_string_lossy())
+        error_message.to_str()
     }
 
     /// Adds an error message to a map. The map is cleared first.
@@ -208,8 +202,8 @@ impl<'elem> Map<'elem> {
     /// # Panics
     /// Panics if `index >= self.key_count()`.
     #[inline]
-    pub fn key(&self, index: usize) -> &str {
-        self.key_raw(index).to_str().unwrap()
+    pub fn key(&self, index: usize) -> Result<&str, std::str::Utf8Error> {
+        self.key_raw(index).to_str()
     }
 
     /// Returns an iterator over all keys in a map.
@@ -1087,12 +1081,4 @@ impl<'elem> Map<'elem> {
 
 pub trait IntoOwnedMap {
     fn into_owned_map<'elem>(self) -> Map<'elem>;
-}
-
-
-impl Default for Map<'_> {
-    #[inline]
-    fn default() -> Self {
-        Self::new()
-    }
 }

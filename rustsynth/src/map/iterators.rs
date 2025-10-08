@@ -29,7 +29,7 @@ impl<'map, 'elem> Iterator for Keys<'map, 'elem> {
             return None;
         }
 
-        let key = self.map.key(self.index);
+        let key = self.map.key(self.index).ok()?;
         self.index += 1;
         Some(key)
     }
