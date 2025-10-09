@@ -1,4 +1,4 @@
-//! VapourSynth script-related things.
+//! `VapourSynth` script-related things.
 
 use rustsynth_sys as ffi;
 use std::{
@@ -7,7 +7,7 @@ use std::{
     sync::atomic::{AtomicPtr, Ordering},
 };
 
-/// A wrapper for the VapourSynth Script API.
+/// A wrapper for the `VapourSynth` Script API.
 ///
 ///
 #[derive(Debug, Clone, Copy)]
@@ -34,7 +34,7 @@ impl ScriptAPI {
         let handle = if handle.is_null() {
             // Attempt retrieving it otherwise.
             let handle =
-                unsafe { ffi::getVSScriptAPI(ffi::VSSCRIPT_API_VERSION) } as *mut ffi::VSSCRIPTAPI;
+                unsafe { ffi::getVSScriptAPI(ffi::VSSCRIPT_API_VERSION) }.cast_mut();
             if !handle.is_null() {
                 // If we successfully retrieved the API, cache it.
                 RAW_SCRIPTAPI.store(handle, Ordering::Relaxed);
@@ -70,7 +70,7 @@ impl ScriptAPI {
     }
 
     pub(crate) unsafe fn free_script(&self, script: *mut ffi::VSScript) {
-        self.handle.as_ref().freeScript.unwrap()(script)
+        self.handle.as_ref().freeScript.unwrap()(script);
     }
 
     pub(crate) unsafe fn get_error(&self, script: *mut ffi::VSScript) -> *const c_char {
@@ -127,7 +127,7 @@ impl ScriptAPI {
     }
 
     pub(crate) unsafe fn eval_set_working_dir(&self, script: *mut ffi::VSScript, set_cwd: i32) {
-        self.handle.as_ref().evalSetWorkingDir.unwrap()(script, set_cwd)
+        self.handle.as_ref().evalSetWorkingDir.unwrap()(script, set_cwd);
     }
 
     pub(crate) unsafe fn get_core(&self, script: *mut ffi::VSScript) -> *mut ffi::VSCore {

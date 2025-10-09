@@ -2,14 +2,14 @@ use crate::{
     core::CoreRef,
     format::{ColorFamily, SampleType, VideoFormat},
 };
-/// Preset video format IDs as defined by VapourSynth.
+/// Preset video format IDs as defined by `VapourSynth`.
 ///
 /// The presets suffixed with H and S have floating point sample type. The H and S suffixes stand
 /// for half precision and single precision, respectively.
 ///
-/// The compat formats are the only packed formats in VapourSynth. Everything else is planar. They
+/// The compat formats are the only packed formats in `VapourSynth`. Everything else is planar. They
 /// exist for compatibility with Avisynth plugins. They are not to be implemented in native
-/// VapourSynth plugins.
+/// `VapourSynth` plugins.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum PresetVideoFormat {
@@ -82,7 +82,8 @@ const fn make_video_id(
 }
 
 impl PresetVideoFormat {
-    /// Consumes the PresetVideoFormatID and returns the corresponding VideoFormat from the core.
+    /// Consumes the `PresetVideoFormatID` and returns the corresponding `VideoFormat` from the core.
+    #[must_use] 
     pub fn into_format(self, core: &CoreRef) -> VideoFormat {
         core.get_video_format_by_id(self as u32).unwrap()
     }

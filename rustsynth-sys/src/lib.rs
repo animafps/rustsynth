@@ -53,7 +53,7 @@ pub const VSSCRIPT_API_VERSION: i32 =
 
 /// Convenience function for checking if the format never changes between frames
 #[inline]
-pub unsafe fn isConstantVideoFormat(vi: *const VSVideoInfo) -> i32 {
+pub const unsafe fn isConstantVideoFormat(vi: *const VSVideoInfo) -> i32 {
     let vi = &*vi;
     (vi.height > 0 && vi.width > 0 && vi.format.colorFamily != VSColorFamily::cfUndefined as i32)
         as i32
@@ -61,7 +61,7 @@ pub unsafe fn isConstantVideoFormat(vi: *const VSVideoInfo) -> i32 {
 
 /// Convenience function to check if two clips have the same format
 #[inline]
-pub unsafe fn isSameVideoFormat(v1: *const VSVideoFormat, v2: *const VSVideoFormat) -> i32 {
+pub const unsafe fn isSameVideoFormat(v1: *const VSVideoFormat, v2: *const VSVideoFormat) -> i32 {
     let v1 = &*v1;
     let v2 = &*v2;
     (v1.colorFamily == v2.colorFamily
@@ -94,7 +94,7 @@ pub unsafe fn isSameVideoPresetFormat(
 
 /// Convenience function to check if two clips have the same format while also including width and height
 #[inline]
-pub unsafe fn isSameVideoInfo(v1: *const VSVideoInfo, v2: *const VSVideoInfo) -> i32 {
+pub const unsafe fn isSameVideoInfo(v1: *const VSVideoInfo, v2: *const VSVideoInfo) -> i32 {
     let v1 = &*v1;
     let v2 = &*v2;
     (v1.height == v2.height
@@ -104,7 +104,7 @@ pub unsafe fn isSameVideoInfo(v1: *const VSVideoInfo, v2: *const VSVideoInfo) ->
 
 /// Convenience function to check if two clips have the same audio format
 #[inline]
-pub unsafe fn isSameAudioFormat(a1: *const VSAudioFormat, a2: *const VSAudioFormat) -> i32 {
+pub const unsafe fn isSameAudioFormat(a1: *const VSAudioFormat, a2: *const VSAudioFormat) -> i32 {
     let a1 = &*a1;
     let a2 = &*a2;
     (a1.bitsPerSample == a2.bitsPerSample
@@ -114,7 +114,7 @@ pub unsafe fn isSameAudioFormat(a1: *const VSAudioFormat, a2: *const VSAudioForm
 
 /// Convenience function to check if two clips have the same audio info
 #[inline]
-pub unsafe fn isSameAudioInfo(a1: *const VSAudioInfo, a2: *const VSAudioInfo) -> i32 {
+pub const unsafe fn isSameAudioInfo(a1: *const VSAudioInfo, a2: *const VSAudioInfo) -> i32 {
     let a1 = &*a1;
     let a2 = &*a2;
     (a1.sampleRate == a2.sampleRate && isSameAudioFormat(&a1.format, &a2.format) != 0) as i32
@@ -122,7 +122,7 @@ pub unsafe fn isSameAudioInfo(a1: *const VSAudioInfo, a2: *const VSAudioInfo) ->
 
 /// Multiplies and divides a rational number and reduces the result
 #[inline]
-pub unsafe fn muldivRational(num: *mut i64, den: *mut i64, mul: i64, div: i64) {
+pub const unsafe fn muldivRational(num: *mut i64, den: *mut i64, mul: i64, div: i64) {
     if *den == 0 {
         return;
     }
@@ -146,13 +146,13 @@ pub unsafe fn muldivRational(num: *mut i64, den: *mut i64, mul: i64, div: i64) {
 
 /// Reduces a rational number
 #[inline]
-pub unsafe fn reduceRational(num: *mut i64, den: *mut i64) {
+pub const unsafe fn reduceRational(num: *mut i64, den: *mut i64) {
     muldivRational(num, den, 1, 1);
 }
 
 /// Add two rational numbers and reduces the result
 #[inline]
-pub unsafe fn addRational(num: *mut i64, den: *mut i64, addnum: i64, addden: i64) {
+pub const unsafe fn addRational(num: *mut i64, den: *mut i64, addnum: i64, addden: i64) {
     if *den == 0 {
         return;
     }
@@ -173,7 +173,7 @@ pub unsafe fn addRational(num: *mut i64, den: *mut i64, addnum: i64, addden: i64
 
 /// Converts an int64 to int with saturation
 #[inline]
-pub fn int64ToIntS(i: i64) -> i32 {
+pub const fn int64ToIntS(i: i64) -> i32 {
     if i > i32::MAX as i64 {
         i32::MAX
     } else if i < i32::MIN as i64 {
@@ -185,7 +185,7 @@ pub fn int64ToIntS(i: i64) -> i32 {
 
 /// Converts a double to float with saturation
 #[inline]
-pub fn doubleToFloatS(d: f64) -> f32 {
+pub const fn doubleToFloatS(d: f64) -> f32 {
     d as f32
 }
 
@@ -218,7 +218,7 @@ pub unsafe fn bitblt(
 
 /// Check if the frame dimensions are valid for a given format
 #[inline]
-pub unsafe fn areValidDimensions(fi: *const VSVideoFormat, width: i32, height: i32) -> i32 {
+pub const unsafe fn areValidDimensions(fi: *const VSVideoFormat, width: i32, height: i32) -> i32 {
     let fi = &*fi;
     (width % (1 << fi.subSamplingW) == 0 && height % (1 << fi.subSamplingH) == 0) as i32
 }

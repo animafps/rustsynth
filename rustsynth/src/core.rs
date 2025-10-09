@@ -1,4 +1,4 @@
-//! A reference to a VapourSynth core and related functionality.
+//! A reference to a `VapourSynth` core and related functionality.
 use crate::{
     api::API,
     filter::Filter,
@@ -54,15 +54,15 @@ bitflags! {
     }
 }
 
-/// A reference to a VapourSynth core.
+/// A reference to a `VapourSynth` core.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoreRef<'core> {
     handle: NonNull<ffi::VSCore>,
     _owner: PhantomData<&'core ()>,
 }
 
-unsafe impl<'core> Send for CoreRef<'core> {}
-unsafe impl<'core> Sync for CoreRef<'core> {}
+unsafe impl Send for CoreRef<'_> {}
+unsafe impl Sync for CoreRef<'_> {}
 
 impl<'core> CoreRef<'core> {
     /// Creates and returns a new core.
@@ -74,6 +74,7 @@ impl<'core> CoreRef<'core> {
     /// let core = CoreRef::new(CoreCreationFlags::ENABLE_GRAPH_INSPECTION | CoreCreationFlags::DISABLE_AUTO_LOADING);
     /// ```
     #[inline]
+    #[must_use] 
     pub fn new(flags: CoreCreationFlags) -> Self {
         let api = API::get().unwrap();
         unsafe {
@@ -86,7 +87,7 @@ impl<'core> CoreRef<'core> {
     /// # Safety
     /// The caller must ensure `handle` is valid and API is cached.
     #[inline]
-    pub unsafe fn from_ptr(handle: *mut ffi::VSCore) -> Self {
+    pub const unsafe fn from_ptr(handle: *mut ffi::VSCore) -> Self {
         Self {
             handle: NonNull::new_unchecked(handle),
             _owner: PhantomData,
@@ -95,6 +96,7 @@ impl<'core> CoreRef<'core> {
 
     /// Returns the underlying pointer.
     #[inline]
+    #[must_use] 
     pub const fn as_ptr(&self) -> *mut ffi::VSCore {
         self.handle.as_ptr()
     }
@@ -104,6 +106,7 @@ impl<'core> CoreRef<'core> {
     /// # Panics
     ///
     /// Will panic if core configuration is not valid
+    #[must_use] 
     pub fn info(&self) -> CoreInfo {
         let core_info = unsafe { API::get_cached().get_core_info(self.as_ptr()) };
         let version_string = unsafe { CStr::from_ptr(core_info.versionString).to_str().unwrap() };
@@ -124,6 +127,7 @@ impl<'core> CoreRef<'core> {
     /// Returns an instance of [Some]<[Plugin]> if there exists a plugin loaded associated with the namespace
     ///
     /// [None] if no plugin is found
+    #[must_use] 
     pub fn plugin_by_namespace(&self, namespace: &str) -> Option<Plugin<'core>> {
         let namespace = CString::new(namespace).unwrap();
         unsafe { API::get_cached() }.plugin_by_namespace(namespace.as_ptr(), self)
@@ -132,36 +136,42 @@ impl<'core> CoreRef<'core> {
     /// Returns an instance of [Some]<[Plugin]> if there exists a plugin loaded associated with the id
     ///
     /// [None] if no plugin is found
+    #[must_use] 
     pub fn plugin_by_id(&self, id: &str) -> Option<Plugin<'_>> {
         let id = CString::new(id).unwrap();
         unsafe { API::get_cached() }.plugin_by_id(id.as_ptr(), self)
     }
 
+    #[must_use] 
     pub fn std(&self) -> Option<Plugin<'_>> {
         unsafe {
-            API::get_cached().plugin_by_id(ffi::VSH_STD_PLUGIN_ID.as_ptr() as *const i8, self)
+            API::get_cached().plugin_by_id(ffi::VSH_STD_PLUGIN_ID.as_ptr().cast::<i8>(), self)
         }
     }
 
+    #[must_use] 
     pub fn resize(&self) -> Option<Plugin<'_>> {
         unsafe {
-            API::get_cached().plugin_by_id(ffi::VSH_RESIZE_PLUGIN_ID.as_ptr() as *const i8, self)
+            API::get_cached().plugin_by_id(ffi::VSH_RESIZE_PLUGIN_ID.as_ptr().cast::<i8>(), self)
         }
     }
 
+    #[must_use] 
     pub fn text(&self) -> Option<Plugin<'_>> {
         unsafe {
-            API::get_cached().plugin_by_id(ffi::VSH_TEXT_PLUGIN_ID.as_ptr() as *const i8, self)
+            API::get_cached().plugin_by_id(ffi::VSH_TEXT_PLUGIN_ID.as_ptr().cast::<i8>(), self)
         }
     }
 
     /// Returns a iterator over the loaded plugins
+    #[must_use] 
     pub fn plugins(&self) -> Plugins<'_> {
         unsafe { API::get_cached() }.plugins(self)
     }
 
     /// Sets the number of threads used for processing. Pass 0 to automatically detect. Returns the number of threads that will be used for processing.
     #[inline]
+    #[must_use] 
     pub fn set_thread_count(&self, count: usize) -> i32 {
         unsafe { API::get_cached().set_thread_count(self.as_ptr(), count as i32) }
     }
@@ -176,28 +186,31 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Sets the maximum size of the framebuffer cache. Returns the new maximum size.
+    #[must_use] 
     pub fn set_max_cache_size(&self, size: i64) -> i64 {
         unsafe { API::get_cached().set_max_cache_size(self.as_ptr(), size) }
     }
 
-    /// The format identifier: one of [crate::format::PresetVideoFormat] or a value gotten from [VideoFormat::query_format_id].
+    /// The format identifier: one of [`crate::format::PresetVideoFormat`] or a value gotten from [`VideoFormat::query_format_id`].
+    #[must_use] 
     pub fn get_video_format_by_id(&self, id: u32) -> Option<VideoFormat> {
         let format = unsafe { API::get_cached().get_video_format_by_id(id, self.as_ptr()) };
         format.map(|f| unsafe { VideoFormat::from_ptr(f) })
     }
 
     /// Duplicates the frame (not just the reference). As the frame buffer is shared in a copy-on-write fashion, the frame content is not really duplicated until a write operation occurs. This is transparent for the user.
+    #[must_use] 
     pub fn copy_frame(&'_ self, frame: &Frame) -> Frame<'_> {
         let new_frame = unsafe { API::get_cached().copy_frame(frame, self.as_ptr()) };
         unsafe { Frame::from_ptr(new_frame) }
     }
 
-    /// Installs a custom handler for the various error messages VapourSynth emits. The message handler is per Core instance. Returns a unique handle.
+    /// Installs a custom handler for the various error messages `VapourSynth` emits. The message handler is per Core instance. Returns a unique handle.
     /// If no log handler is installed up to a few hundred messages are cached and will be delivered as soon as a log handler is attached. This behavior exists mostly so that warnings when auto-loading plugins (default behavior) won’t disappear
     ///
-    /// See the example handler [crate::log::LogRS]
+    /// See the example handler [`crate::log::LogRS`]
     pub fn add_log_handler<H: LogHandler>(&self, handler: H) -> LogHandle<H> {
-        let handler_ptr = &handler as *const H as *mut std::ffi::c_void;
+        let handler_ptr = &raw const handler as *mut std::ffi::c_void;
         let ptr = unsafe {
             API::get_cached().add_log_handler(
                 log_handler_callback,
@@ -219,11 +232,11 @@ impl<'core> CoreRef<'core> {
         }
     }
 
-    /// Send a message through VapourSynth's logging framework
+    /// Send a message through `VapourSynth`'s logging framework
     pub fn log_mesage(&self, msg_type: MessageType, msg: &str) {
         let cstr = CString::new(msg).unwrap();
         unsafe {
-            API::get_cached().log_message(msg_type.into(), cstr.as_ptr(), self.handle.as_ptr())
+            API::get_cached().log_message(msg_type.into(), cstr.as_ptr(), self.handle.as_ptr());
         }
     }
 
@@ -239,11 +252,11 @@ impl<'core> CoreRef<'core> {
 
         // Convert dependencies to FFI format
         let deps_ffi: Vec<ffi::VSFilterDependency> =
-            dependencies.iter().map(|dep| dep.as_ffi()).collect();
+            dependencies.iter().map(super::filter::FilterDependency::as_ffi).collect();
 
         // Box the filter instance for storage
         let filter_box = Box::new(filter);
-        let instance_data = Box::into_raw(filter_box) as *mut std::ffi::c_void;
+        let instance_data = Box::into_raw(filter_box).cast::<std::ffi::c_void>();
 
         // Create C strings for name
         let name_cstr = CString::new(F::NAME)?;
@@ -255,7 +268,7 @@ impl<'core> CoreRef<'core> {
                 &video_info.as_ffi(),
                 Some(filter_get_frame::<F>),
                 Some(filter_free::<F>),
-                &F::MODE.as_ffi() as *const _ as i32,
+                std::ptr::from_ref(&F::MODE.as_ffi()) as i32,
                 deps_ffi.as_ptr(),
                 deps_ffi.len() as i32,
                 instance_data,
@@ -277,11 +290,11 @@ impl<'core> CoreRef<'core> {
 
         // Convert dependencies to FFI format
         let deps_ffi: Vec<ffi::VSFilterDependency> =
-            dependencies.iter().map(|dep| dep.as_ffi()).collect();
+            dependencies.iter().map(super::filter::FilterDependency::as_ffi).collect();
 
         // Box the filter instance for storage
         let filter_box = Box::new(filter);
-        let instance_data = Box::into_raw(filter_box) as *mut std::ffi::c_void;
+        let instance_data = Box::into_raw(filter_box).cast::<std::ffi::c_void>();
 
         // Create C strings for name
         let name_cstr = CString::new(F::NAME)?;
@@ -292,7 +305,7 @@ impl<'core> CoreRef<'core> {
                 &video_info.as_ffi(),
                 Some(filter_get_frame::<F>),
                 Some(filter_free::<F>),
-                &F::MODE.as_ffi() as *const _ as i32,
+                std::ptr::from_ref(&F::MODE.as_ffi()) as i32,
                 deps_ffi.as_ptr(),
                 deps_ffi.len() as i32,
                 instance_data,
@@ -319,11 +332,11 @@ impl<'core> CoreRef<'core> {
 
         // Convert dependencies to FFI format
         let deps_ffi: Vec<ffi::VSFilterDependency> =
-            dependencies.iter().map(|dep| dep.as_ffi()).collect();
+            dependencies.iter().map(super::filter::FilterDependency::as_ffi).collect();
 
         // Box the filter instance for storage
         let filter_box = Box::new(filter);
-        let instance_data = Box::into_raw(filter_box) as *mut std::ffi::c_void;
+        let instance_data = Box::into_raw(filter_box).cast::<std::ffi::c_void>();
 
         // Create C strings for name
         let name_cstr = CString::new(F::NAME)?;
@@ -335,7 +348,7 @@ impl<'core> CoreRef<'core> {
                 &audio_info.as_ffi(),
                 Some(filter_get_frame::<F>),
                 Some(filter_free::<F>),
-                &F::MODE.as_ffi() as *const _ as i32,
+                std::ptr::from_ref(&F::MODE.as_ffi()) as i32,
                 deps_ffi.as_ptr(),
                 deps_ffi.len() as i32,
                 instance_data,
@@ -357,11 +370,11 @@ impl<'core> CoreRef<'core> {
 
         // Convert dependencies to FFI format
         let deps_ffi: Vec<ffi::VSFilterDependency> =
-            dependencies.iter().map(|dep| dep.as_ffi()).collect();
+            dependencies.iter().map(super::filter::FilterDependency::as_ffi).collect();
 
         // Box the filter instance for storage
         let filter_box = Box::new(filter);
-        let instance_data = Box::into_raw(filter_box) as *mut std::ffi::c_void;
+        let instance_data = Box::into_raw(filter_box).cast::<std::ffi::c_void>();
 
         // Create C strings for name
         let name_cstr = CString::new(F::NAME)?;
@@ -369,10 +382,10 @@ impl<'core> CoreRef<'core> {
         let node_ptr = unsafe {
             API::get_cached().create_audio_filter2(
                 name_cstr.as_ptr(),
-                &audio_info.as_ffi() as *const _,
+                std::ptr::from_ref(&audio_info.as_ffi()),
                 Some(filter_get_frame::<F>),
                 Some(filter_free::<F>),
-                &F::MODE.as_ffi() as *const _ as i32,
+                std::ptr::from_ref(&F::MODE.as_ffi()) as i32,
                 deps_ffi.as_ptr(),
                 deps_ffi.len() as i32,
                 instance_data,
@@ -405,7 +418,7 @@ where
         return std::ptr::null();
     }
 
-    let filter = &mut *(instance_data as *mut F);
+    let filter = &mut *instance_data.cast::<F>();
     let frame_context = FrameContext::from_ptr(frame_ctx);
     let core_ref = CoreRef::from_ptr(core);
 
@@ -427,7 +440,7 @@ where
                 if ptr.is_null() {
                     [0u8; 4]
                 } else {
-                    std::ptr::read(ptr as *const [u8; 4])
+                    std::ptr::read(ptr.cast::<[u8; 4]>())
                 }
             };
 
@@ -449,7 +462,7 @@ where
                     if ptr.is_null() {
                         [0u8; 4]
                     } else {
-                        std::ptr::read(ptr as *const [u8; 4])
+                        std::ptr::read(ptr.cast::<[u8; 4]>())
                     }
                 };
                 filter.cleanup_frame_data(&frame_data_array);
@@ -467,7 +480,7 @@ unsafe extern "C" fn filter_free<'core, F>(
     F: Filter<'core>,
 {
     if !instance_data.is_null() {
-        let filter = Box::from_raw(instance_data as *mut F);
+        let filter = Box::from_raw(instance_data.cast::<F>());
         filter.cleanup();
         // Box is automatically dropped here
     }
@@ -475,7 +488,7 @@ unsafe extern "C" fn filter_free<'core, F>(
 
 #[cfg(feature = "api-41")]
 #[doc(cfg(feature = "api-41"))]
-impl<'core> CoreRef<'core> {
+impl CoreRef<'_> {
     /// Clears all caches associated with the core.
     pub fn clear_caches(&self) {
         unsafe {
@@ -484,22 +497,23 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Returns true if node timing is enabled.
+    #[must_use] 
     pub fn get_node_timing(&self) -> bool {
         (unsafe { API::get_cached().get_core_node_timing(self.as_ptr()) } > 0)
     }
 
     /// Note that disabling simply stops the counters from incrementing
     pub fn set_node_timing(&self, enable: bool) {
-        unsafe { API::get_cached().set_core_node_timing(self.as_ptr(), enable as i32) }
+        unsafe { API::get_cached().set_core_node_timing(self.as_ptr(), i32::from(enable)) }
     }
 
     /// Time spent processing frames in nanoseconds in all destroyed nodes, reset sets the counter to 0 again
-    pub fn get_freeed_node_processing_time(&self, reset: bool) -> i64 {
-        unsafe { API::get_cached().get_freed_node_processing_time(self.as_ptr(), reset as i32) }
+    pub fn get_freed_node_processing_time(&self, reset: bool) -> i64 {
+        unsafe { API::get_cached().get_freed_node_processing_time(self.as_ptr(), i32::from(reset)) }
     }
 }
 
-/// Contains information about a VapourSynth core.
+/// Contains information about a `VapourSynth` core.
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct CoreInfo {
     pub version_string: &'static str,
@@ -524,7 +538,7 @@ pub struct Plugins<'core> {
 
 impl<'core> Plugins<'core> {
     #[inline]
-    pub(crate) fn new(core: &'core CoreRef<'core>) -> Self {
+    pub(crate) const fn new(core: &'core CoreRef<'core>) -> Self {
         Plugins { plugin: None, core }
     }
 }
@@ -556,38 +570,43 @@ impl fmt::Display for CoreInfo {
     }
 }
 
-/// Builder for creating a [CoreRef] with custom options.
+/// Builder for creating a [`CoreRef`] with custom options.
 pub struct CoreBuilder {
     flags: CoreCreationFlags,
 }
 
 impl<'core> CoreBuilder {
     /// Creates a new `CoreBuilder` with default flags.
-    pub fn new() -> Self {
+    #[must_use] 
+    pub const fn new() -> Self {
         Self {
             flags: CoreCreationFlags::NONE,
         }
     }
 
     /// Enables graph inspection API functions.
+    #[must_use] 
     pub fn with_graph_inspection(mut self) -> Self {
         self.flags |= CoreCreationFlags::ENABLE_GRAPH_INSPECTION;
         self
     }
 
     /// Disables autoloading of user plugins.
+    #[must_use] 
     pub fn disable_auto_loading(mut self) -> Self {
         self.flags |= CoreCreationFlags::DISABLE_AUTO_LOADING;
         self
     }
 
     /// Disables unloading of plugin libraries when the core is destroyed.
+    #[must_use] 
     pub fn disable_library_unloading(mut self) -> Self {
         self.flags |= CoreCreationFlags::DISABLE_LIBRARY_UNLOADING;
         self
     }
 
-    /// Builds and returns a [CoreRef].
+    /// Builds and returns a [`CoreRef`].
+    #[must_use] 
     pub fn build(self) -> CoreRef<'core> {
         CoreRef::new(self.flags)
     }

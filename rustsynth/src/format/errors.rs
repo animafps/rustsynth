@@ -22,7 +22,7 @@ pub enum FormatError {
 impl std::fmt::Display for FormatError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FormatError::InvalidVideoFormat {
+            Self::InvalidVideoFormat {
                 color_family,
                 sample_type,
                 bits_per_sample,
@@ -30,17 +30,15 @@ impl std::fmt::Display for FormatError {
                 sub_sampling_h,
             } => write!(
                 f,
-                "Invalid video format: color_family={:?}, sample_type={:?}, bits_per_sample={}, sub_sampling_w={}, sub_sampling_h={}",
-                color_family, sample_type, bits_per_sample, sub_sampling_w, sub_sampling_h
+                "Invalid video format: color_family={color_family:?}, sample_type={sample_type:?}, bits_per_sample={bits_per_sample}, sub_sampling_w={sub_sampling_w}, sub_sampling_h={sub_sampling_h}"
             ),
-            FormatError::InvalidAudioFormat {
+            Self::InvalidAudioFormat {
                 sample_type,
                 bits_per_sample,
                 channel_layout,
             } => write!(
                 f,
-                "Invalid audio format: sample_type={:?}, bits_per_sample={}, channel_layout={}",
-                sample_type, bits_per_sample, channel_layout
+                "Invalid audio format: sample_type={sample_type:?}, bits_per_sample={bits_per_sample}, channel_layout={channel_layout}"
             ),
         }
     }

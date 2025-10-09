@@ -44,64 +44,69 @@ bitflags! {
 
 impl ChannelLayout {
     // Common layout combinations
-    pub const MONO: ChannelLayout = ChannelLayout::FRONT_LEFT;
-    pub const STEREO: ChannelLayout = ChannelLayout::FRONT_LEFT.union(ChannelLayout::FRONT_RIGHT);
-    pub const SURROUND_2_1: ChannelLayout = ChannelLayout::FRONT_LEFT
-        .union(ChannelLayout::FRONT_RIGHT)
-        .union(ChannelLayout::LOW_FREQUENCY);
-    pub const SURROUND_3_0: ChannelLayout = ChannelLayout::FRONT_LEFT
-        .union(ChannelLayout::FRONT_RIGHT)
-        .union(ChannelLayout::FRONT_CENTER);
-    pub const SURROUND_4_0: ChannelLayout = ChannelLayout::FRONT_LEFT
-        .union(ChannelLayout::FRONT_RIGHT)
-        .union(ChannelLayout::BACK_LEFT)
-        .union(ChannelLayout::BACK_RIGHT);
-    pub const SURROUND_4_1: ChannelLayout = ChannelLayout::FRONT_LEFT
-        .union(ChannelLayout::FRONT_RIGHT)
-        .union(ChannelLayout::BACK_LEFT)
-        .union(ChannelLayout::BACK_RIGHT)
-        .union(ChannelLayout::LOW_FREQUENCY);
-    pub const SURROUND_5_0: ChannelLayout = ChannelLayout::FRONT_LEFT
-        .union(ChannelLayout::FRONT_RIGHT)
-        .union(ChannelLayout::FRONT_CENTER)
-        .union(ChannelLayout::BACK_LEFT)
-        .union(ChannelLayout::BACK_RIGHT);
-    pub const SURROUND_5_1: ChannelLayout = ChannelLayout::FRONT_LEFT
-        .union(ChannelLayout::FRONT_RIGHT)
-        .union(ChannelLayout::FRONT_CENTER)
-        .union(ChannelLayout::LOW_FREQUENCY)
-        .union(ChannelLayout::BACK_LEFT)
-        .union(ChannelLayout::BACK_RIGHT);
-    pub const SURROUND_7_1: ChannelLayout = ChannelLayout::FRONT_LEFT
-        .union(ChannelLayout::FRONT_RIGHT)
-        .union(ChannelLayout::FRONT_CENTER)
-        .union(ChannelLayout::LOW_FREQUENCY)
-        .union(ChannelLayout::BACK_LEFT)
-        .union(ChannelLayout::BACK_RIGHT)
-        .union(ChannelLayout::SIDE_LEFT)
-        .union(ChannelLayout::SIDE_RIGHT);
+    pub const MONO: Self = Self::FRONT_LEFT;
+    pub const STEREO: Self = Self::FRONT_LEFT.union(Self::FRONT_RIGHT);
+    pub const SURROUND_2_1: Self = Self::FRONT_LEFT
+        .union(Self::FRONT_RIGHT)
+        .union(Self::LOW_FREQUENCY);
+    pub const SURROUND_3_0: Self = Self::FRONT_LEFT
+        .union(Self::FRONT_RIGHT)
+        .union(Self::FRONT_CENTER);
+    pub const SURROUND_4_0: Self = Self::FRONT_LEFT
+        .union(Self::FRONT_RIGHT)
+        .union(Self::BACK_LEFT)
+        .union(Self::BACK_RIGHT);
+    pub const SURROUND_4_1: Self = Self::FRONT_LEFT
+        .union(Self::FRONT_RIGHT)
+        .union(Self::BACK_LEFT)
+        .union(Self::BACK_RIGHT)
+        .union(Self::LOW_FREQUENCY);
+    pub const SURROUND_5_0: Self = Self::FRONT_LEFT
+        .union(Self::FRONT_RIGHT)
+        .union(Self::FRONT_CENTER)
+        .union(Self::BACK_LEFT)
+        .union(Self::BACK_RIGHT);
+    pub const SURROUND_5_1: Self = Self::FRONT_LEFT
+        .union(Self::FRONT_RIGHT)
+        .union(Self::FRONT_CENTER)
+        .union(Self::LOW_FREQUENCY)
+        .union(Self::BACK_LEFT)
+        .union(Self::BACK_RIGHT);
+    pub const SURROUND_7_1: Self = Self::FRONT_LEFT
+        .union(Self::FRONT_RIGHT)
+        .union(Self::FRONT_CENTER)
+        .union(Self::LOW_FREQUENCY)
+        .union(Self::BACK_LEFT)
+        .union(Self::BACK_RIGHT)
+        .union(Self::SIDE_LEFT)
+        .union(Self::SIDE_RIGHT);
 
     /// Create a new empty channel layout
+    #[must_use] 
     pub const fn new() -> Self {
         Self::empty()
     }
 
     /// Check if a specific channel is present
-    pub const fn has_channel(self, channel: ChannelLayout) -> bool {
+    #[must_use] 
+    pub const fn has_channel(self, channel: Self) -> bool {
         self.contains(channel)
     }
 
     /// Add a channel to the layout
-    pub const fn with_channel(self, channel: ChannelLayout) -> Self {
+    #[must_use] 
+    pub const fn with_channel(self, channel: Self) -> Self {
         self.union(channel)
     }
 
     /// Remove a channel from the layout
-    pub const fn without_channel(self, channel: ChannelLayout) -> Self {
+    #[must_use] 
+    pub const fn without_channel(self, channel: Self) -> Self {
         self.difference(channel)
     }
 
     /// Count the number of channels
+    #[must_use] 
     pub const fn channel_count(self) -> u32 {
         self.bits().count_ones()
     }
@@ -111,9 +116,9 @@ impl Display for ChannelLayout {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut channels = Vec::new();
         for i in 0..64 {
-            let channel = ChannelLayout::from_bits_truncate(1u64 << i);
+            let channel = Self::from_bits_truncate(1u64 << i);
             if self.contains(channel) {
-                channels.push(format!("ch{}", i));
+                channels.push(format!("ch{i}"));
             }
         }
         write!(f, "ChannelLayout({})", channels.join(", "))
@@ -143,8 +148,8 @@ pub enum SampleType {
 impl MediaType {
     pub(crate) fn from_ffi(from: i32) -> Self {
         match from {
-            x if x == ffi::VSMediaType::mtVideo as i32 => MediaType::Video,
-            x if x == ffi::VSMediaType::mtAudio as i32 => MediaType::Audio,
+            x if x == ffi::VSMediaType::mtVideo as i32 => Self::Video,
+            x if x == ffi::VSMediaType::mtAudio as i32 => Self::Audio,
             _ => unreachable!(),
         }
     }

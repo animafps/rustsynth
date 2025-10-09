@@ -29,7 +29,7 @@ pub mod vsscript;
 pub use api::init_api;
 
 pub mod prelude {
-    //! The VapourSynth prelude.
+    //! The `VapourSynth` prelude.
     //!
     //! Contains the types you most likely want to import anyway.
     pub use super::{
@@ -41,6 +41,7 @@ pub mod prelude {
     };
 }
 
+#[must_use] 
 pub fn api_version() -> i32 {
     api::API::get().unwrap().version()
 }

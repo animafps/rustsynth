@@ -2,7 +2,6 @@ use rustsynth_sys as ffi;
 use std::ffi::{CStr, CString};
 use std::fs::File;
 use std::io::Read;
-use std::ops::{Deref, DerefMut};
 use std::path::Path;
 use std::ptr;
 use std::ptr::NonNull;
@@ -11,7 +10,7 @@ use crate::core::CoreRef;
 use crate::map::Map;
 use crate::node::Node;
 use crate::vsscript::errors::ScriptResult;
-use crate::{init_api, vsscript::*};
+use crate::{init_api, vsscript::{ScriptAPI, ScriptError}};
 
 use crate::vsscript::VSScriptError;
 
@@ -24,7 +23,7 @@ enum EvaluateScriptArgs<'a> {
     File(&'a Path),
 }
 
-/// A wrapper for the VSScript environment.
+/// A wrapper for the `VSScript` environment.
 #[derive(Debug)]
 pub struct Environment {
     handle: NonNull<ffi::VSScript>,
@@ -43,7 +42,7 @@ impl Drop for Environment {
 }
 
 impl Environment {
-    /// Retrieves the VSScript error message.
+    /// Retrieves the `VSScript` error message.
     ///
     /// # Safety
     /// This function must only be called if an error is present.
@@ -99,7 +98,7 @@ impl Environment {
             ScriptAPI::get_cached().eval_buffer(
                 self.handle.as_ptr(),
                 script.as_ptr(),
-                path.as_ref().map(|p| p.as_ptr()).unwrap_or(ptr::null()),
+                path.as_ref().map_or(ptr::null(), |p| p.as_ptr()),
             )
         };
 
@@ -145,7 +144,7 @@ impl Environment {
             ScriptAPI::get_cached().get_variable(
                 self.handle.as_ptr(),
                 name.as_ptr(),
-                map.deref_mut(),
+                &raw mut **map,
             )
         };
         if rv != 0 {
@@ -158,7 +157,7 @@ impl Environment {
     /// Sets variables in the script environment.
     pub fn set_variables(&self, variables: &Map) -> ScriptResult<()> {
         let rv = unsafe {
-            ScriptAPI::get_cached().set_variables(self.handle.as_ptr(), variables.deref())
+            ScriptAPI::get_cached().set_variables(self.handle.as_ptr(), &raw const **variables)
         };
         if rv != 0 {
             Err(ScriptError::NoSuchVariable)
@@ -170,6 +169,7 @@ impl Environment {
     /// Retrieves a node from the script environment. A node in the script must have been marked for output with the requested index.
     ///
     /// Returns [None] if there is no node at the requested index.
+    #[must_use] 
     pub fn get_output(&'_ self, index: i32) -> Option<Node<'_>> {
         let ptr = unsafe { ScriptAPI::get_cached().get_output(self.handle.as_ptr(), index) };
         if ptr.is_null() {
@@ -182,6 +182,7 @@ impl Environment {
     /// Retrieves an alpha node from the script environment. A node with associated alpha in the script must have been marked for output with the requested index.
     ///
     /// Returns [None] if there is no node at the requested index.
+    #[must_use] 
     pub fn get_output_alpha(&'_ self, index: i32) -> Option<Node<'_>> {
         let ptr = unsafe { ScriptAPI::get_cached().get_output_alpha(self.handle.as_ptr(), index) };
         if ptr.is_null() {
@@ -195,6 +196,7 @@ impl Environment {
     /// It is up to the client application to define the exact meaning or simply disregard it completely.
     ///
     /// Returns 0 if there is no alt output mode set.
+    #[must_use] 
     pub fn get_alt_output_mode(&self, index: i32) -> i32 {
         unsafe { ScriptAPI::get_cached().get_alt_output_mode(self.handle.as_ptr(), index) }
     }
@@ -204,7 +206,8 @@ impl Environment {
         unsafe { ScriptAPI::get_cached().eval_set_working_dir(self.handle.as_ptr(), set_cwd) };
     }
 
-    /// Retrieves the VapourSynth core that was created in the script environment. If a VapourSynth core has not been created yet, it will be created now, with the default options (see the [Python Reference](https://www.vapoursynth.com/doc/pythonreference.html)).
+    /// Retrieves the `VapourSynth` core that was created in the script environment. If a `VapourSynth` core has not been created yet, it will be created now, with the default options (see the [Python Reference](https://www.vapoursynth.com/doc/pythonreference.html)).
+    #[must_use] 
     pub fn get_core(&'_ self) -> CoreRef<'_> {
         let ptr = unsafe { ScriptAPI::get_cached().get_core(self.handle.as_ptr()) };
         unsafe { CoreRef::from_ptr(ptr) }
@@ -218,6 +221,7 @@ impl Environment {
     }
 
     /// Returns the exit code if the script calls sys.exit(code), or 0, if the script fails for other reasons or calls sys.exit(0)
+    #[must_use] 
     pub fn get_exit_code(&self) -> i32 {
         unsafe { ScriptAPI::get_cached().get_exit_code(self.handle.as_ptr()) }
     }
@@ -226,6 +230,7 @@ impl Environment {
     #[doc(cfg(feature = "script-api-42"))]
     /// List of set output index values to dst but at most size values
     /// Always returns the total number of available output index values.
+    #[must_use] 
     pub fn get_available_output_nodes(&self, size: i32) -> (&[i32], i32) {
         let list: &mut [i32] = &mut [];
         let ret = unsafe {

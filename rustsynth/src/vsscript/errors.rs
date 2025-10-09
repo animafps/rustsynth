@@ -40,9 +40,9 @@ impl From<VSScriptError> for ScriptError {
     }
 }
 
-pub(crate) type ScriptResult<T> = std::result::Result<T, ScriptError>;
+pub type ScriptResult<T> = std::result::Result<T, ScriptError>;
 
-/// A container for a VSScript error.
+/// A container for a `VSScript` error.
 #[derive(Error, Debug)]
 pub struct VSScriptError(CString);
 
@@ -56,7 +56,7 @@ impl fmt::Display for VSScriptError {
 impl VSScriptError {
     /// Creates a new `VSScriptError` with the given error message.
     #[inline]
-    pub(crate) fn new(message: CString) -> Self {
-        VSScriptError(message)
+    pub(crate) const fn new(message: CString) -> Self {
+        Self(message)
     }
 }

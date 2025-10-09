@@ -1,4 +1,4 @@
-//! VapourSynth maps.
+//! `VapourSynth` maps.
 
 use rustsynth_sys as ffi;
 use std::borrow::Cow;
@@ -28,7 +28,7 @@ pub use self::data::{Data, DataType};
 #[cfg(test)]
 mod tests;
 
-/// A VapourSynth map.
+/// A `VapourSynth` map.
 ///
 /// A map contains key-value pairs where the value is zero or more elements of a certain type.
 // This type is intended to be publicly used only in reference form.
@@ -39,11 +39,11 @@ pub struct Map<'elem> {
     _elem: PhantomData<&'elem ()>,
 }
 
-unsafe impl<'elem> Send for Map<'elem> {}
-unsafe impl<'elem> Sync for Map<'elem> {}
+unsafe impl Send for Map<'_> {}
+unsafe impl Sync for Map<'_> {}
 
 #[doc(hidden)]
-impl<'elem> Deref for Map<'elem> {
+impl Deref for Map<'_> {
     type Target = ffi::VSMap;
 
     #[inline]
@@ -53,7 +53,7 @@ impl<'elem> Deref for Map<'elem> {
 }
 
 #[doc(hidden)]
-impl<'elem> DerefMut for Map<'elem> {
+impl DerefMut for Map<'_> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { self.handle.as_mut() }
@@ -98,6 +98,7 @@ impl<'elem> Map<'elem> {
         })
     }
 
+    #[must_use] 
     pub const fn as_ptr(&self) -> *mut ffi::VSMap {
         self.handle.as_ptr()
     }
@@ -114,9 +115,10 @@ impl<'elem> Map<'elem> {
     /// The caller needs to ensure the pointer is valid, the element lifetime is valid, and that
     /// the resulting `Map` gets put into `MapRef` or `MapRefMut` or `OwnedMap` correctly.
     #[inline]
-    pub unsafe fn from_ptr(handle: *const ffi::VSMap) -> Self {
+    #[must_use] 
+    pub const unsafe fn from_ptr(handle: *const ffi::VSMap) -> Self {
         Self {
-            handle: NonNull::new_unchecked(handle as *mut ffi::VSMap),
+            handle: NonNull::new_unchecked(handle.cast_mut()),
             _elem: PhantomData,
         }
     }
@@ -179,6 +181,7 @@ impl<'elem> Map<'elem> {
 
     /// Returns the number of keys contained in a map.
     #[inline]
+    #[must_use] 
     pub fn key_count(&self) -> usize {
         let count = unsafe { API::get_cached().map_num_keys(self) };
         debug_assert!(count >= 0);
@@ -208,6 +211,7 @@ impl<'elem> Map<'elem> {
 
     /// Returns an iterator over all keys in a map.
     #[inline]
+    #[must_use] 
     pub fn keys(&'_ self) -> Keys<'_, 'elem> {
         Keys::new(self)
     }
@@ -527,11 +531,12 @@ impl<'elem> Map<'elem> {
         debug_assert!(error == 0);
         debug_assert!(length >= 0);
 
-        let slice = slice::from_raw_parts(value as *const u8, length as usize);
+        let slice = slice::from_raw_parts(value.cast::<u8>(), length as usize);
 
         Ok(Data::from_slice(slice))
     }
 
+    #[must_use] 
     pub fn data_type_hint(&self, key: &CStr, index: i32) -> DataType {
         let hint = unsafe {
             API::get_cached().map_get_data_type_hint(self.handle.as_ptr(), key.as_ptr(), index)
@@ -732,7 +737,7 @@ impl<'elem> Map<'elem> {
         let error = API::get_cached().map_set_frame(
             self,
             key.as_ptr(),
-            x.deref(),
+            &raw const **x,
             ffi::VSMapAppendMode::maAppend,
         );
 
@@ -950,7 +955,7 @@ impl<'elem> Map<'elem> {
         let error = API::get_cached().map_set_frame(
             self,
             key.as_ptr(),
-            x.deref(),
+            &raw const **x,
             ffi::VSMapAppendMode::maReplace,
         );
 

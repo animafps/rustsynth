@@ -1,8 +1,7 @@
-//! VapourSynth callable functions.
+//! `VapourSynth` callable functions.
 
 use rustsynth_sys as ffi;
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
 use std::os::raw::c_void;
 use std::ptr::NonNull;
 use std::{mem, panic, process};
@@ -18,10 +17,10 @@ pub struct Function<'core> {
     _owner: PhantomData<&'core ()>,
 }
 
-unsafe impl<'core> Send for Function<'core> {}
-unsafe impl<'core> Sync for Function<'core> {}
+unsafe impl Send for Function<'_> {}
+unsafe impl Sync for Function<'_> {}
 
-impl<'core> Drop for Function<'core> {
+impl Drop for Function<'_> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
@@ -30,7 +29,7 @@ impl<'core> Drop for Function<'core> {
     }
 }
 
-impl<'core> Clone for Function<'core> {
+impl Clone for Function<'_> {
     #[inline]
     fn clone(&self) -> Self {
         let handle = unsafe { API::get_cached().clone_func(self.handle.as_ptr()) };
@@ -47,7 +46,7 @@ impl<'core> Function<'core> {
     /// # Safety
     /// The caller must ensure `handle` and the lifetime are valid and API is cached.
     #[inline]
-    pub unsafe fn from_ptr(handle: *mut ffi::VSFunction) -> Self {
+    pub const unsafe fn from_ptr(handle: *mut ffi::VSFunction) -> Self {
         Self {
             handle: NonNull::new_unchecked(handle),
             _owner: PhantomData,
@@ -56,6 +55,7 @@ impl<'core> Function<'core> {
 
     /// Returns the underlying pointer.
     #[inline]
+    #[must_use] 
     pub const fn as_ptr(&self) -> *mut ffi::VSFunction {
         self.handle.as_ptr()
     }
@@ -80,7 +80,7 @@ impl<'core> Function<'core> {
                 let core = CoreRef::from_ptr(core);
                 let in_ = Map::from_ptr(in_);
                 let mut out = Map::from_ptr(out);
-                let callback = Box::from_raw(user_data as *mut F);
+                let callback = Box::from_raw(user_data.cast::<F>());
 
                 callback(core, &in_, &mut out);
 
@@ -93,7 +93,7 @@ impl<'core> Function<'core> {
         }
 
         unsafe extern "C" fn c_free<F>(user_data: *mut c_void) {
-            drop(Box::from_raw(user_data as *mut F))
+            drop(Box::from_raw(user_data.cast::<F>()));
         }
 
         let data = Box::new(callback);
@@ -101,7 +101,7 @@ impl<'core> Function<'core> {
         let handle = unsafe {
             API::get_cached().create_func(
                 Some(c_callback::<'core, F>),
-                Box::into_raw(data) as _,
+                Box::into_raw(data).cast(),
                 Some(c_free::<F>),
                 core.as_ptr(),
             )
@@ -116,6 +116,6 @@ impl<'core> Function<'core> {
     /// Calls the function. If the call fails `out` will have an error set.
     #[inline]
     pub fn call(&self, in_: &Map<'core>, out: &mut Map<'core>) {
-        unsafe { API::get_cached().call_func(self.handle.as_ptr(), in_.deref(), out.deref_mut()) };
+        unsafe { API::get_cached().call_func(self.handle.as_ptr(), in_, out) };
     }
 }

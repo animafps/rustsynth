@@ -5,7 +5,7 @@ use crate::{
     format::{ChannelLayout, FormatError, SampleType},
 };
 
-/// Builder for creating AudioFormat with validation
+/// Builder for creating `AudioFormat` with validation
 #[derive(Debug, Clone)]
 pub struct AudioFormatBuilder {
     sample_type: SampleType,
@@ -14,8 +14,9 @@ pub struct AudioFormatBuilder {
 }
 
 impl AudioFormatBuilder {
-    /// Create a new AudioFormat builder with the required parameters
-    pub fn new(
+    /// Create a new `AudioFormat` builder with the required parameters
+    #[must_use] 
+    pub const fn new(
         sample_type: SampleType,
         bits_per_sample: i32,
         channel_layout: ChannelLayout,
@@ -28,24 +29,27 @@ impl AudioFormatBuilder {
     }
 
     /// Set mono channel layout
-    pub fn mono(mut self) -> Self {
+    #[must_use] 
+    pub const fn mono(mut self) -> Self {
         self.channel_layout = ChannelLayout::MONO;
         self
     }
 
     /// Set stereo channel layout
-    pub fn stereo(mut self) -> Self {
+    #[must_use] 
+    pub const fn stereo(mut self) -> Self {
         self.channel_layout = ChannelLayout::STEREO;
         self
     }
 
     /// Set custom channel layout
-    pub fn channel_layout(mut self, layout: ChannelLayout) -> Self {
+    #[must_use] 
+    pub const fn channel_layout(mut self, layout: ChannelLayout) -> Self {
         self.channel_layout = layout;
         self
     }
 
-    /// Build the AudioFormat using VapourSynth's validation
+    /// Build the `AudioFormat` using `VapourSynth`'s validation
     pub fn build(self, core: &crate::core::CoreRef) -> Result<AudioFormat, FormatError> {
         AudioFormat::query(
             self.sample_type,
@@ -74,17 +78,19 @@ pub struct AudioFormat {
 
 impl AudioInfo {
     /// # Safety
-    /// The pointer must be valid and point to a [ffi::VSAudioInfo]
-    pub unsafe fn from_ptr(from: *const ffi::VSAudioInfo) -> Self {
+    /// The pointer must be valid and point to a [`ffi::VSAudioInfo`]
+    #[must_use] 
+    pub const unsafe fn from_ptr(from: *const ffi::VSAudioInfo) -> Self {
         let from = &*from;
         Self {
-            format: AudioFormat::from_ptr(&from.format as *const ffi::VSAudioFormat),
+            format: AudioFormat::from_ptr(&raw const from.format),
             sample_rate: from.sampleRate,
             num_samples: from.numSamples,
             num_frames: from.numFrames,
         }
     }
 
+    #[must_use] 
     pub const fn as_ffi(&self) -> ffi::VSAudioInfo {
         ffi::VSAudioInfo {
             format: self.format.as_ffi(),
@@ -97,8 +103,9 @@ impl AudioInfo {
 
 impl AudioFormat {
     /// # Safety
-    /// The pointer must be valid and point to a [ffi::VSAudioFormat]
-    pub unsafe fn from_ptr(from: *const ffi::VSAudioFormat) -> Self {
+    /// The pointer must be valid and point to a [`ffi::VSAudioFormat`]
+    #[must_use] 
+    pub const unsafe fn from_ptr(from: *const ffi::VSAudioFormat) -> Self {
         let from = &*from;
         let sample_type = if from.sampleType == 0 {
             SampleType::Integer
@@ -115,7 +122,7 @@ impl AudioFormat {
         }
     }
 
-    /// Creates an AudioFormat using VapourSynth's validation.
+    /// Creates an `AudioFormat` using `VapourSynth`'s validation.
     /// This ensures all derived fields are correctly calculated.
     pub fn query(
         sample_type: SampleType,
@@ -133,7 +140,7 @@ impl AudioFormat {
 
         let success = unsafe {
             API::get_cached().query_audio_format(
-                &mut format,
+                &raw mut format,
                 sample_type as i32,
                 bits_per_sample,
                 channel_layout,
@@ -142,7 +149,7 @@ impl AudioFormat {
         };
 
         if success != 0 {
-            Ok(unsafe { Self::from_ptr(&format) })
+            Ok(unsafe { Self::from_ptr(&raw const format) })
         } else {
             Err(FormatError::InvalidAudioFormat {
                 sample_type,
@@ -152,6 +159,7 @@ impl AudioFormat {
         }
     }
 
+    #[must_use] 
     pub const fn as_ffi(&self) -> ffi::VSAudioFormat {
         ffi::VSAudioFormat {
             sampleType: self.sample_type as i32,
@@ -162,11 +170,12 @@ impl AudioFormat {
         }
     }
 
+    #[must_use] 
     pub fn get_name(&self) -> Option<String> {
         unsafe {
             API::get_cached()
                 .get_audio_format_name(&self.as_ffi())
-                .map(|f| f.into_owned())
+                .map(std::borrow::Cow::into_owned)
         }
     }
 

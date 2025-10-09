@@ -17,19 +17,19 @@ pub enum ColorPrimaries {
 impl From<i64> for ColorPrimaries {
     fn from(value: i64) -> Self {
         match value {
-            1 => ColorPrimaries::BT709,
-            2 => ColorPrimaries::UNSPECIFIED,
-            4 => ColorPrimaries::Bt470M,
-            5 => ColorPrimaries::Bt470Bg,
-            6 => ColorPrimaries::St170M,
-            7 => ColorPrimaries::St240M,
-            8 => ColorPrimaries::FILM,
-            9 => ColorPrimaries::BT2020,
-            10 => ColorPrimaries::ST428,
-            11 => ColorPrimaries::ST431_2,
-            12 => ColorPrimaries::ST432_1,
-            22 => ColorPrimaries::Ebu3213E,
-            _ => ColorPrimaries::UNSPECIFIED, // fallback
+            1 => Self::BT709,
+            2 => Self::UNSPECIFIED,
+            4 => Self::Bt470M,
+            5 => Self::Bt470Bg,
+            6 => Self::St170M,
+            7 => Self::St240M,
+            8 => Self::FILM,
+            9 => Self::BT2020,
+            10 => Self::ST428,
+            11 => Self::ST431_2,
+            12 => Self::ST432_1,
+            22 => Self::Ebu3213E,
+            _ => Self::UNSPECIFIED, // fallback
         }
     }
 }
@@ -54,20 +54,20 @@ pub enum MatrixCoefficients {
 impl From<i64> for MatrixCoefficients {
     fn from(value: i64) -> Self {
         match value {
-            0 => MatrixCoefficients::RGB,
-            1 => MatrixCoefficients::BT709,
-            2 => MatrixCoefficients::UNSPECIFIED,
-            4 => MatrixCoefficients::FCC,
-            5 => MatrixCoefficients::Bt470Bg,
-            6 => MatrixCoefficients::St170M,
-            7 => MatrixCoefficients::St240M,
-            8 => MatrixCoefficients::YCGCO,
-            9 => MatrixCoefficients::Bt2020Ncl,
-            10 => MatrixCoefficients::Bt2020Cl,
-            12 => MatrixCoefficients::ChromaticityDerivedNcl,
-            13 => MatrixCoefficients::ChromaticityDerivedCl,
-            14 => MatrixCoefficients::ICTCP,
-            _ => MatrixCoefficients::UNSPECIFIED, // fallback
+            0 => Self::RGB,
+            1 => Self::BT709,
+            2 => Self::UNSPECIFIED,
+            4 => Self::FCC,
+            5 => Self::Bt470Bg,
+            6 => Self::St170M,
+            7 => Self::St240M,
+            8 => Self::YCGCO,
+            9 => Self::Bt2020Ncl,
+            10 => Self::Bt2020Cl,
+            12 => Self::ChromaticityDerivedNcl,
+            13 => Self::ChromaticityDerivedCl,
+            14 => Self::ICTCP,
+            _ => Self::UNSPECIFIED, // fallback
         }
     }
 }
@@ -95,23 +95,23 @@ pub enum TransferCharacteristics {
 impl From<i64> for TransferCharacteristics {
     fn from(value: i64) -> Self {
         match value {
-            1 => TransferCharacteristics::BT709,
-            2 => TransferCharacteristics::UNSPECIFIED,
-            4 => TransferCharacteristics::Bt470M,
-            5 => TransferCharacteristics::Bt470Bg,
-            6 => TransferCharacteristics::BT601,
-            7 => TransferCharacteristics::St240M,
-            8 => TransferCharacteristics::LINEAR,
-            9 => TransferCharacteristics::Log100,
-            10 => TransferCharacteristics::Log316,
-            11 => TransferCharacteristics::Iec61966_2_4,
-            13 => TransferCharacteristics::Iec61966_2_1,
-            14 => TransferCharacteristics::BT2020_10,
-            15 => TransferCharacteristics::BT2020_12,
-            16 => TransferCharacteristics::ST2084,
-            17 => TransferCharacteristics::ST428,
-            18 => TransferCharacteristics::AribB67,
-            _ => TransferCharacteristics::UNSPECIFIED, // fallback
+            1 => Self::BT709,
+            2 => Self::UNSPECIFIED,
+            4 => Self::Bt470M,
+            5 => Self::Bt470Bg,
+            6 => Self::BT601,
+            7 => Self::St240M,
+            8 => Self::LINEAR,
+            9 => Self::Log100,
+            10 => Self::Log316,
+            11 => Self::Iec61966_2_4,
+            13 => Self::Iec61966_2_1,
+            14 => Self::BT2020_10,
+            15 => Self::BT2020_12,
+            16 => Self::ST2084,
+            17 => Self::ST428,
+            18 => Self::AribB67,
+            _ => Self::UNSPECIFIED, // fallback
         }
     }
 }

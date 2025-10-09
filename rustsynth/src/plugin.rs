@@ -1,11 +1,10 @@
-//! Interface for VapourSynth plugins and their functions.
+//! Interface for `VapourSynth` plugins and their functions.
 use bitflags::bitflags;
 use ffi::VSPluginFunction;
 use rustsynth_sys::{self as ffi, VSPluginConfigFlags};
 use std::{
     ffi::{c_void, CStr, CString, NulError},
     marker::PhantomData,
-    ops::Deref,
     ptr::{self, NonNull},
 };
 use thiserror::Error;
@@ -32,7 +31,7 @@ pub enum PluginError {
     RegistrationFailed,
 }
 
-/// A VapourSynth plugin.
+/// A `VapourSynth` plugin.
 ///
 /// There are a few of these built into the core, and therefore available at all times: the basic filters (identifier `com.vapoursynth.std`, namespace `std`), the resizers (identifier `com.vapoursynth.resize`, namespace `resize`), and the Avisynth compatibility module, if running in Windows (identifier `com.vapoursynth.avisynth`, namespace `avs`).
 #[derive(Debug, Clone, Copy)]
@@ -41,8 +40,8 @@ pub struct Plugin<'core> {
     _owner: PhantomData<&'core ()>,
 }
 
-unsafe impl<'core> Send for Plugin<'core> {}
-unsafe impl<'core> Sync for Plugin<'core> {}
+unsafe impl Send for Plugin<'_> {}
+unsafe impl Sync for Plugin<'_> {}
 
 impl<'core> Plugin<'core> {
     /// Creates a plugin from a raw pointer.
@@ -50,7 +49,7 @@ impl<'core> Plugin<'core> {
     /// # Safety
     /// The pointer must be valid and point to a `VSPlugin`.
     #[inline]
-    pub unsafe fn from_ptr(ptr: *mut ffi::VSPlugin) -> Self {
+    pub const unsafe fn from_ptr(ptr: *mut ffi::VSPlugin) -> Self {
         Plugin {
             handle: NonNull::new_unchecked(ptr),
             _owner: PhantomData,
@@ -59,11 +58,13 @@ impl<'core> Plugin<'core> {
 
     /// Returns the underlying pointer.
     #[inline]
+    #[must_use] 
     pub const fn as_ptr(&self) -> *mut ffi::VSPlugin {
         self.handle.as_ptr()
     }
 
-    /// The path to the shared object of the plugin or `None` if is a internal VapourSynth plugin
+    /// The path to the shared object of the plugin or `None` if is a internal `VapourSynth` plugin
+    #[must_use] 
     pub fn path(&self) -> Option<String> {
         let ptr = unsafe { API::get_cached().get_plugin_path(self.as_ptr()) };
         if ptr.is_null() {
@@ -74,6 +75,7 @@ impl<'core> Plugin<'core> {
     }
 
     /// The id associated with the plugin or `None` if it has no id set
+    #[must_use] 
     pub fn id(&self) -> Option<String> {
         let ptr = unsafe { API::get_cached().get_plugin_id(self.as_ptr()) };
         if ptr.is_null() {
@@ -84,6 +86,7 @@ impl<'core> Plugin<'core> {
     }
 
     /// The namespace associated with the plugin or `None` if it has no namespace set
+    #[must_use] 
     pub fn namespace(&self) -> Option<String> {
         let ptr = unsafe { API::get_cached().get_plugin_ns(self.as_ptr()) };
         if ptr.is_null() {
@@ -94,6 +97,7 @@ impl<'core> Plugin<'core> {
     }
 
     /// The name associated with the plugin or `None` if it has no name set
+    #[must_use] 
     pub fn name(&self) -> Option<String> {
         let ptr = unsafe { API::get_cached().get_plugin_name(self.as_ptr()) };
         if ptr.is_null() {
@@ -104,6 +108,7 @@ impl<'core> Plugin<'core> {
     }
 
     #[inline]
+    #[must_use] 
     pub fn version(&self) -> i32 {
         unsafe { API::get_cached().get_plugin_version(self.as_ptr()) }
     }
@@ -111,6 +116,7 @@ impl<'core> Plugin<'core> {
     /// Get function struct associated with the name
     ///
     /// returns `None` if no function is found
+    #[must_use] 
     pub fn function(&self, name: &str) -> Option<PluginFunction<'_>> {
         let name_ptr = CString::new(name).ok()?;
         unsafe {
@@ -125,7 +131,8 @@ impl<'core> Plugin<'core> {
     }
 
     /// Creates an iterator over all the functions of the plugin in an arbitrary order
-    pub fn functions(&'_ self) -> PluginFunctions<'_> {
+    #[must_use] 
+    pub const fn functions(&'_ self) -> PluginFunctions<'_> {
         PluginFunctions {
             function: None,
             plugin: self,
@@ -184,7 +191,7 @@ impl<'core> Plugin<'core> {
         self.try_invoke(name, &empty_map)
     }
 
-    /// Function that registers a filter exported by the plugin. A plugin can export any number of filters. This function may only be called during the plugin loading phase unless the [PluginConfigFlags::MODIFIABLE] flag was set.
+    /// Function that registers a filter exported by the plugin. A plugin can export any number of filters. This function may only be called during the plugin loading phase unless the [`PluginConfigFlags::MODIFIABLE`] flag was set.
     pub fn register_function(
         &self,
         name: &str,
@@ -196,7 +203,7 @@ impl<'core> Plugin<'core> {
         let args_c = CString::new(args)?;
         let ret_type_c = CString::new(ret_type)?;
         let user_data: Box<PublicFunction> = Box::new(func);
-        let user_data_ptr = Box::into_raw(user_data) as *mut c_void;
+        let user_data_ptr = Box::into_raw(user_data).cast::<c_void>();
         let res = unsafe {
             API::get_cached().register_function(
                 name_c.as_ptr(),
@@ -225,7 +232,7 @@ unsafe extern "C" fn public_function(
     if in_map.is_null() || user_data.is_null() || core.is_null() {
         return;
     }
-    let user_data = unsafe { Box::from_raw(user_data as *mut PublicFunction) };
+    let user_data = unsafe { Box::from_raw(user_data.cast::<PublicFunction>()) };
     let in_map = unsafe { Map::from_ptr(in_map) };
     let out_map = unsafe { Map::from_ptr(out_map) };
     let core = unsafe { CoreRef::from_ptr(core) };
@@ -243,6 +250,7 @@ bitflags! {
 }
 
 impl PluginConfigFlags {
+    #[must_use] 
     pub const fn as_ffi(&self) -> ffi::VSPluginConfigFlags {
         VSPluginConfigFlags(self.bits() as u32)
     }
@@ -250,7 +258,7 @@ impl PluginConfigFlags {
 
 /// The iterator over the functions found in a plugin
 ///
-/// created by [Plugin::functions()]
+/// created by [`Plugin::functions()`]
 #[derive(Debug, Clone, Copy)]
 pub struct PluginFunctions<'core> {
     function: Option<PluginFunction<'core>>,
@@ -276,17 +284,19 @@ pub struct PluginFunction<'a> {
 impl<'a> PluginFunction<'a> {
     /// # Safety
     /// The pointer must be valid and point to a `VSPluginFunction`.
-    pub unsafe fn from_ptr(ptr: *mut VSPluginFunction, plugin: &'a Plugin<'a>) -> Self {
+    pub const unsafe fn from_ptr(ptr: *mut VSPluginFunction, plugin: &'a Plugin<'a>) -> Self {
         PluginFunction {
             ptr: NonNull::new_unchecked(ptr),
             plugin,
         }
     }
 
+    #[must_use] 
     pub const fn as_ptr(&self) -> *mut ffi::VSPluginFunction {
         self.ptr.as_ptr()
     }
 
+    #[must_use] 
     pub fn get_name(&self) -> Option<String> {
         let ptr = unsafe { API::get_cached().get_plugin_function_name(self.ptr.as_ptr()) };
         if ptr.is_null() {
@@ -296,6 +306,7 @@ impl<'a> PluginFunction<'a> {
         }
     }
 
+    #[must_use] 
     pub fn get_arguments(&self) -> Option<String> {
         let ptr = unsafe { API::get_cached().get_plugin_function_arguments(self.ptr.as_ptr()) };
         if ptr.is_null() {
@@ -305,6 +316,7 @@ impl<'a> PluginFunction<'a> {
         }
     }
 
+    #[must_use] 
     pub fn get_return_type(&self) -> Option<String> {
         let ptr = unsafe { API::get_cached().get_plugin_function_return_type(self.ptr.as_ptr()) };
         if ptr.is_null() {
@@ -321,7 +333,7 @@ impl<'a> PluginFunction<'a> {
             Ok(Map::from_ptr(API::get_cached().invoke(
                 self.plugin.as_ptr(),
                 name_c.as_ptr(),
-                args.deref(),
+                args,
             )))
         }
     }

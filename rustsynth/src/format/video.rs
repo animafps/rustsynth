@@ -6,7 +6,8 @@ use rustsynth_sys as ffi;
 
 impl VideoFormat {
     /// # Safety
-    /// The pointer must be valid and point to a [ffi::VSVideoFormat]
+    /// The pointer must be valid and point to a [`ffi::VSVideoFormat`]
+    #[must_use] 
     pub unsafe fn from_ptr(from: *const ffi::VSVideoFormat) -> Self {
         let info = &*from;
 
@@ -34,7 +35,7 @@ impl VideoFormat {
         }
     }
 
-    /// Creates a VideoFormat using VapourSynth's validation.
+    /// Creates a `VideoFormat` using `VapourSynth`'s validation.
     /// This ensures all derived fields are correctly calculated.
     pub fn query(
         color_family: ColorFamily,
@@ -56,7 +57,7 @@ impl VideoFormat {
 
         let success = unsafe {
             API::get_cached().query_video_format(
-                &mut format,
+                &raw mut format,
                 color_family as i32,
                 sample_type as i32,
                 bits_per_sample,
@@ -67,7 +68,7 @@ impl VideoFormat {
         };
 
         if success != 0 {
-            Ok(unsafe { Self::from_ptr(&format) })
+            Ok(unsafe { Self::from_ptr(&raw const format) })
         } else {
             Err(FormatError::InvalidVideoFormat {
                 color_family,
@@ -80,6 +81,7 @@ impl VideoFormat {
     }
 
     /// Get the format ID for this video format
+    #[must_use] 
     pub fn query_format_id(&self, core: &crate::core::CoreRef) -> u32 {
         unsafe {
             API::get_cached().query_video_format_id(
@@ -93,6 +95,7 @@ impl VideoFormat {
         }
     }
 
+    #[must_use] 
     pub const fn as_ffi(&self) -> ffi::VSVideoFormat {
         ffi::VSVideoFormat {
             colorFamily: self.color_family as i32,
@@ -105,6 +108,7 @@ impl VideoFormat {
         }
     }
 
+    #[must_use] 
     pub fn get_name(&self) -> Option<String> {
         unsafe { API::get_cached().get_video_format_name(&self.as_ffi()) }
     }
@@ -152,12 +156,13 @@ impl VideoFormat {
 
 impl VideoInfo {
     /// # Safety
-    /// The pointer must be valid and point to a [ffi::VSVideoInfo]
+    /// The pointer must be valid and point to a [`ffi::VSVideoInfo`]
+    #[must_use] 
     pub unsafe fn from_ptr(from: *const ffi::VSVideoInfo) -> Self {
         let from = &*from;
 
         Self {
-            format: VideoFormat::from_ptr(&from.format as *const ffi::VSVideoFormat),
+            format: VideoFormat::from_ptr(&raw const from.format),
             fps_num: from.fpsNum,
             fps_den: from.fpsDen,
             width: from.width,
@@ -166,6 +171,7 @@ impl VideoInfo {
         }
     }
 
+    #[must_use] 
     pub const fn as_ffi(&self) -> ffi::VSVideoInfo {
         ffi::VSVideoInfo {
             format: self.format.as_ffi(),
@@ -178,7 +184,7 @@ impl VideoInfo {
     }
 }
 
-/// Builder for creating VideoFormat with validation
+/// Builder for creating `VideoFormat` with validation
 #[derive(Debug, Clone)]
 pub struct VideoFormatBuilder {
     color_family: ColorFamily,
@@ -189,8 +195,9 @@ pub struct VideoFormatBuilder {
 }
 
 impl VideoFormatBuilder {
-    /// Create a new VideoFormat builder with the minimum required parameters
-    pub fn new(color_family: ColorFamily, sample_type: SampleType, bits_per_sample: i32) -> Self {
+    /// Create a new `VideoFormat` builder with the minimum required parameters
+    #[must_use] 
+    pub const fn new(color_family: ColorFamily, sample_type: SampleType, bits_per_sample: i32) -> Self {
         Self {
             color_family,
             sample_type,
@@ -201,25 +208,28 @@ impl VideoFormatBuilder {
     }
 
     /// Set horizontal subsampling (for YUV formats)
-    pub fn sub_sampling_w(mut self, sub_sampling_w: i32) -> Self {
+    #[must_use] 
+    pub const fn sub_sampling_w(mut self, sub_sampling_w: i32) -> Self {
         self.sub_sampling_w = sub_sampling_w;
         self
     }
 
     /// Set vertical subsampling (for YUV formats)
-    pub fn sub_sampling_h(mut self, sub_sampling_h: i32) -> Self {
+    #[must_use] 
+    pub const fn sub_sampling_h(mut self, sub_sampling_h: i32) -> Self {
         self.sub_sampling_h = sub_sampling_h;
         self
     }
 
     /// Set both horizontal and vertical subsampling (for YUV formats)
-    pub fn sub_sampling(mut self, sub_sampling_w: i32, sub_sampling_h: i32) -> Self {
+    #[must_use] 
+    pub const fn sub_sampling(mut self, sub_sampling_w: i32, sub_sampling_h: i32) -> Self {
         self.sub_sampling_w = sub_sampling_w;
         self.sub_sampling_h = sub_sampling_h;
         self
     }
 
-    /// Build the VideoFormat using VapourSynth's validation
+    /// Build the `VideoFormat` using `VapourSynth`'s validation
     pub fn build(self, core: &crate::core::CoreRef) -> Result<VideoFormat, FormatError> {
         VideoFormat::query(
             self.color_family,
@@ -235,7 +245,7 @@ impl VideoFormatBuilder {
 /// Information about a video clip
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct VideoInfo {
-    /// Format of the clip. Will have color_family set to [ColorFamily::Undefined] if the format can vary.
+    /// Format of the clip. Will have `color_family` set to [`ColorFamily::Undefined`] if the format can vary.
     pub format: VideoFormat,
     /// Numerator part of the clip’s frame rate. It will be 0 if the frame rate can vary. Should always be a reduced fraction.
     pub fps_num: i64,

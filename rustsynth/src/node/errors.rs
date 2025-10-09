@@ -7,16 +7,16 @@ use std::fmt;
 #[derive(Debug)]
 pub struct GetFrameError<'a>(Cow<'a, CStr>);
 
-impl<'a> fmt::Display for GetFrameError<'a> {
+impl fmt::Display for GetFrameError<'_> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0.to_string_lossy())
     }
 }
 
-impl<'a> Error for GetFrameError<'a> {
+impl Error for GetFrameError<'_> {
     #[inline]
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         "VapourSynth error"
     }
 }
@@ -24,12 +24,13 @@ impl<'a> Error for GetFrameError<'a> {
 impl<'a> GetFrameError<'a> {
     /// Creates a new `GetFrameError` with the given error message.
     #[inline]
-    pub(crate) fn new(message: Cow<'a, CStr>) -> Self {
+    pub(crate) const fn new(message: Cow<'a, CStr>) -> Self {
         GetFrameError(message)
     }
 
     /// Consumes this error, returning its underlying error message.
     #[inline]
+    #[must_use] 
     pub fn into_inner(self) -> Cow<'a, CStr> {
         self.0
     }

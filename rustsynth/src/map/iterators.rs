@@ -1,4 +1,4 @@
-use super::*;
+use super::{Map, CString, PhantomData, MapResult, ValueType, MapError, Data, Node, Function};
 use crate::frame::Frame;
 
 /// An iterator over the keys of a map.
@@ -20,7 +20,7 @@ impl<'map, 'elem> Keys<'map, 'elem> {
     }
 }
 
-impl<'map, 'elem> Iterator for Keys<'map, 'elem> {
+impl<'map> Iterator for Keys<'map, '_> {
     type Item = &'map str;
 
     #[inline]
@@ -41,7 +41,7 @@ impl<'map, 'elem> Iterator for Keys<'map, 'elem> {
     }
 }
 
-impl<'map, 'elem> ExactSizeIterator for Keys<'map, 'elem> {}
+impl ExactSizeIterator for Keys<'_, '_> {}
 
 /// An iterator over the values associated with a certain key of a map.
 #[derive(Debug, Clone)]
@@ -142,7 +142,7 @@ impl<'map, 'elem> ValueIter<'map, 'elem, String> {
         match map.value_type_raw_unchecked(&key)? {
             ValueType::Data => {}
             _ => return Err(MapError::WrongValueType),
-        };
+        }
 
         let count = map.value_count_raw_unchecked(&key)? as i32;
         Ok(Self {
@@ -155,7 +155,7 @@ impl<'map, 'elem> ValueIter<'map, 'elem, String> {
     }
 }
 
-impl<'map, 'elem> Iterator for ValueIter<'map, 'elem, String> {
+impl Iterator for ValueIter<'_, '_, String> {
     type Item = String;
 
     #[inline]
@@ -181,4 +181,4 @@ impl<'map, 'elem> Iterator for ValueIter<'map, 'elem, String> {
     }
 }
 
-impl<'map, 'elem> ExactSizeIterator for ValueIter<'map, 'elem, String> {}
+impl ExactSizeIterator for ValueIter<'_, '_, String> {}

@@ -9,12 +9,13 @@ pub enum DataType {
 }
 
 impl DataType {
-    pub fn from_hint(value: i32) -> Self {
+    #[must_use] 
+    pub const fn from_hint(value: i32) -> Self {
         match value {
-            x if x == ffi::VSDataTypeHint::dtBinary as i32 => DataType::Binary,
-            x if x == ffi::VSDataTypeHint::dtUtf8 as i32 => DataType::String,
-            x if x == ffi::VSDataTypeHint::dtUnknown as i32 => DataType::Unknown,
-            _ => DataType::Unknown,
+            x if x == ffi::VSDataTypeHint::dtBinary as i32 => Self::Binary,
+            x if x == ffi::VSDataTypeHint::dtUtf8 as i32 => Self::String,
+            x if x == ffi::VSDataTypeHint::dtUnknown as i32 => Self::Unknown,
+            _ => Self::Unknown,
         }
     }
 }
@@ -23,7 +24,7 @@ pub struct Data<'elem> {
     inner: &'elem [u8],
 }
 
-impl<'elem> Deref for Data<'elem> {
+impl Deref for Data<'_> {
     type Target = [u8];
     fn deref(&self) -> &Self::Target {
         self.inner
@@ -31,7 +32,7 @@ impl<'elem> Deref for Data<'elem> {
 }
 
 impl<'elem> Data<'elem> {
-    pub(crate) fn from_slice(slice: &'elem [u8]) -> Self {
+    pub(crate) const fn from_slice(slice: &'elem [u8]) -> Self {
         Self { inner: slice }
     }
 }

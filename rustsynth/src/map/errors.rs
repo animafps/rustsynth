@@ -25,7 +25,7 @@ pub enum MapError {
 }
 
 impl From<MapError> for String {
-    fn from(error: MapError) -> String {
+    fn from(error: MapError) -> Self {
         error.to_string()
     }
 }

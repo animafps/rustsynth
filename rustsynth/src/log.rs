@@ -18,12 +18,12 @@ pub enum MessageType {
 impl From<i32> for MessageType {
     fn from(value: i32) -> Self {
         match value {
-            0 => MessageType::Debug,
-            1 => MessageType::Information,
-            2 => MessageType::Warning,
-            3 => MessageType::Critical,
-            4 => MessageType::Fatal,
-            _ => MessageType::Debug, // fallback
+            0 => Self::Debug,
+            1 => Self::Information,
+            2 => Self::Warning,
+            3 => Self::Critical,
+            4 => Self::Fatal,
+            _ => Self::Debug, // fallback
         }
     }
 }
@@ -47,11 +47,11 @@ pub struct LogHandle<H: LogHandler> {
 }
 
 impl<H: LogHandler> LogHandle<H> {
-    /// Creates a LogHandle from a raw pointer and a handler.
+    /// Creates a `LogHandle` from a raw pointer and a handler.
     ///
     /// # Safety
     /// The pointer must be valid and point to a `VSLogHandle`.
-    pub unsafe fn from_ptr(ptr: *mut ffi::VSLogHandle, handler: H) -> Self {
+    pub const unsafe fn from_ptr(ptr: *mut ffi::VSLogHandle, handler: H) -> Self {
         Self {
             handle: NonNull::new_unchecked(ptr),
             _handler: handler,
@@ -84,17 +84,17 @@ pub(crate) unsafe extern "C" fn log_handler_callback(
     }
 }
 
-/// LogHandler Implementation using [`log`](https://github.com/rust-lang/log)
+/// `LogHandler` Implementation using [`log`](https://github.com/rust-lang/log)
 pub struct LogRS {}
 
 impl LogHandler for LogRS {
     fn handle(&self, msg_type: MessageType, msg: &str) {
         match msg_type {
-            MessageType::Debug => debug!("{}", msg),
-            MessageType::Information => info!("{}", msg),
-            MessageType::Warning => warn!("{}", msg),
-            MessageType::Critical => error!("{}", msg),
-            MessageType::Fatal => error!("{}", msg),
+            MessageType::Debug => debug!("{msg}"),
+            MessageType::Information => info!("{msg}"),
+            MessageType::Warning => warn!("{msg}"),
+            MessageType::Critical => error!("{msg}"),
+            MessageType::Fatal => error!("{msg}"),
         }
     }
 }

@@ -21,8 +21,8 @@ pub struct Frame<'core> {
     _owner: PhantomData<&'core ()>,
 }
 
-unsafe impl<'core> Send for Frame<'core> {}
-unsafe impl<'core> Sync for Frame<'core> {}
+unsafe impl Send for Frame<'_> {}
+unsafe impl Sync for Frame<'_> {}
 
 /// Represents a reference to the obscure object
 #[derive(Debug)]
@@ -31,18 +31,19 @@ pub struct FrameContext {
 }
 
 impl FrameContext {
-    /// Creates a FrameContext from a raw pointer.
+    /// Creates a `FrameContext` from a raw pointer.
     ///
     /// # Safety
-    /// The pointer must be valid and point to a [ffi::VSFrameContext].
+    /// The pointer must be valid and point to a [`ffi::VSFrameContext`].
     #[inline]
-    pub unsafe fn from_ptr(ptr: *mut ffi::VSFrameContext) -> Self {
+    pub const unsafe fn from_ptr(ptr: *mut ffi::VSFrameContext) -> Self {
         Self {
             handle: NonNull::new_unchecked(ptr),
         }
     }
 
     #[inline]
+    #[must_use] 
     pub const fn as_ptr(&self) -> *mut ffi::VSFrameContext {
         self.handle.as_ptr()
     }
@@ -60,11 +61,12 @@ impl FrameContext {
 
 impl<'core> Frame<'core> {
     /// # Safety
-    /// The pointer must be valid and point to a [ffi::VSFrame]
+    /// The pointer must be valid and point to a [`ffi::VSFrame`]
     #[inline]
-    pub unsafe fn from_ptr(ptr: *const ffi::VSFrame) -> Self {
+    #[must_use] 
+    pub const unsafe fn from_ptr(ptr: *const ffi::VSFrame) -> Self {
         Self {
-            handle: NonNull::new_unchecked(ptr as *mut ffi::VSFrame),
+            handle: NonNull::new_unchecked(ptr.cast_mut()),
             _owner: PhantomData,
         }
     }
@@ -76,23 +78,27 @@ impl<'core> Frame<'core> {
     }
 
     #[inline]
+    #[must_use] 
     pub const fn as_ptr(&self) -> *const ffi::VSFrame {
         self.handle.as_ptr()
     }
 
     /// Returns the height of a plane of a given frame, in pixels. The height depends on the plane number because of the possible chroma subsampling.
     #[inline]
+    #[must_use] 
     pub fn get_height(&self, plane: i32) -> i32 {
         unsafe { API::get_cached().get_frame_height(self.handle.as_ref(), plane) }
     }
 
     /// Returns the width of a plane of a given frame, in pixels. The width depends on the plane number because of the possible chroma subsampling.
     #[inline]
+    #[must_use] 
     pub fn get_width(&self, plane: i32) -> i32 {
         unsafe { API::get_cached().get_frame_width(self.handle.as_ref(), plane) }
     }
 
     #[inline]
+    #[must_use] 
     pub fn get_length(&self) -> i32 {
         unsafe { API::get_cached().get_frame_length(self.handle.as_ref()) }
     }
@@ -101,11 +107,13 @@ impl<'core> Frame<'core> {
     ///
     /// Passing an invalid plane number will cause a fatal error.
     #[inline]
+    #[must_use] 
     pub fn get_stride(&self, plane: i32) -> isize {
         unsafe { API::get_cached().get_frame_stride(self.handle.as_ref(), plane) }
     }
 
     #[inline]
+    #[must_use] 
     pub fn get_video_format(&self) -> Option<VideoFormat> {
         let ptr = unsafe { API::get_cached().get_video_frame_format(self.handle.as_ref()) };
         if ptr.is_null() {
@@ -115,6 +123,7 @@ impl<'core> Frame<'core> {
         }
     }
 
+    #[must_use] 
     pub fn get_audio_format(&self) -> Option<AudioFormat> {
         let ptr = unsafe { API::get_cached().get_audio_frame_format(self.handle.as_ptr()) };
         if ptr.is_null() {
@@ -125,6 +134,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Creates a new video frame, optionally copying the properties attached to another frame.
+    #[must_use] 
     pub fn new_video_frame(
         core: &CoreRef,
         width: i32,
@@ -134,10 +144,10 @@ impl<'core> Frame<'core> {
     ) -> Self {
         let ptr = unsafe {
             API::get_cached().new_video_frame(
-                &format.as_ffi() as *const ffi::VSVideoFormat,
+                std::ptr::from_ref::<ffi::VSVideoFormat>(&format.as_ffi()),
                 width,
                 height,
-                prop_src.map_or(std::ptr::null(), |f| f.as_ptr()),
+                prop_src.map_or(std::ptr::null(), Frame::as_ptr),
                 core.as_ptr(),
             )
         };
@@ -160,12 +170,12 @@ impl<'core> Frame<'core> {
                 planesrcptr[i] = frame.as_ptr();
             }
             API::get_cached().new_video_frame2(
-                &format.as_ffi() as *const ffi::VSVideoFormat,
+                std::ptr::from_ref::<ffi::VSVideoFormat>(&format.as_ffi()),
                 width,
                 height,
                 planesrcptr.as_mut_ptr(),
                 planes.as_ptr(),
-                propsrc.map_or(std::ptr::null(), |f| f.as_ptr()),
+                propsrc.map_or(std::ptr::null(), Frame::as_ptr),
                 core.as_ptr(),
             )
         };
@@ -173,6 +183,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Creates a new audio frame, optionally copying the properties attached to another frame. It is a fatal error to pass invalid arguments to this function
+    #[must_use] 
     pub fn new_audio_frame(
         core: &CoreRef,
         length: i32,
@@ -181,8 +192,8 @@ impl<'core> Frame<'core> {
     ) -> Self {
         let ptr = unsafe {
             API::get_cached().new_audio_frame(
-                &format.as_ffi() as *const ffi::VSAudioFormat,
-                prop_src.map_or(std::ptr::null(), |f| f.as_ptr()),
+                std::ptr::from_ref::<ffi::VSAudioFormat>(&format.as_ffi()),
+                prop_src.map_or(std::ptr::null(), Frame::as_ptr),
                 length,
                 core.as_ptr(),
             )
@@ -192,7 +203,7 @@ impl<'core> Frame<'core> {
 
     /// Creates a new audio frame, optionally copying the properties attached to another frame. It is a fatal error to pass invalid arguments to this function.
     ///
-    /// See also [Frame::new_video_frame_from_existing_planes]
+    /// See also [`Frame::new_video_frame_from_existing_planes`]
     pub fn new_audio_frame_from_existing_channels<const T: usize>(
         core: &CoreRef,
         num_samples: i32,
@@ -207,11 +218,11 @@ impl<'core> Frame<'core> {
                 channelsrcptr[i] = frame.as_ptr();
             }
             API::get_cached().new_audio_frame2(
-                &format.as_ffi() as *const ffi::VSAudioFormat,
+                std::ptr::from_ref::<ffi::VSAudioFormat>(&format.as_ffi()),
                 num_samples,
                 channelsrcptr.as_mut_ptr(),
                 channels.as_ptr(),
-                propsrc.map_or(std::ptr::null(), |f| f.as_ptr()),
+                propsrc.map_or(std::ptr::null(), Frame::as_ptr),
                 core.as_ptr(),
             )
         };
@@ -220,6 +231,7 @@ impl<'core> Frame<'core> {
 
     /// Get read-only access to plane data
     #[inline(always)]
+    #[must_use] 
     pub fn get_read_ptr(&self, plane: i32) -> *const u8 {
         unsafe { API::get_cached().get_frame_read_ptr(self.handle.as_ref(), plane) }
     }
@@ -239,6 +251,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get read-only slice to plane data
+    #[must_use] 
     pub fn get_read_slice(&self, plane: i32) -> &[u8] {
         let height = self.get_height(plane) as usize;
         let stride = self.get_stride(plane) as usize;
@@ -248,6 +261,7 @@ impl<'core> Frame<'core> {
 
     /// Get read-only access to frame properties
     #[inline]
+    #[must_use] 
     pub fn properties(&self) -> Map<'core> {
         let map_ptr = unsafe { API::get_cached().get_frame_props_ro(self.handle.as_ref()) };
         unsafe { Map::from_ptr(map_ptr) }
@@ -263,6 +277,7 @@ impl<'core> Frame<'core> {
     // Standard frame property getters
 
     /// Get chroma sample position in YUV formats
+    #[must_use] 
     pub fn chroma_location(&self) -> Option<ChromaLocation> {
         unsafe {
             self.properties()
@@ -281,6 +296,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get color range (full or limited)
+    #[must_use] 
     pub fn color_range(&self) -> Option<ColorRange> {
         unsafe {
             self.properties()
@@ -295,6 +311,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get color primaries as specified in ITU-T H.273 Table 2
+    #[must_use] 
     pub fn primaries(&self) -> ColorPrimaries {
         let res = unsafe {
             self.properties()
@@ -305,6 +322,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get matrix coefficients as specified in ITU-T H.273 Table 4
+    #[must_use] 
     pub fn matrix(&self) -> MatrixCoefficients {
         let res = unsafe {
             self.properties()
@@ -315,12 +333,14 @@ impl<'core> Frame<'core> {
     }
 
     /// Get transfer characteristics as specified in ITU-T H.273 Table 3
+    #[must_use] 
     pub fn transfer(&self) -> TransferCharacteristics {
         let res = unsafe { self.properties().get_int_raw_unchecked(c"_Transfer", 2) }.unwrap_or(0);
         TransferCharacteristics::from(res)
     }
 
     /// Get field based information (interlaced)
+    #[must_use] 
     pub fn field_based(&self) -> Option<FieldBased> {
         unsafe {
             self.properties()
@@ -336,6 +356,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get absolute timestamp in seconds
+    #[must_use] 
     pub fn absolute_time(&self) -> Option<f64> {
         unsafe {
             self.properties()
@@ -345,6 +366,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get frame duration as a rational number (numerator, denominator)
+    #[must_use] 
     pub fn duration(&self) -> Option<(i64, i64)> {
         let num = unsafe {
             self.properties()
@@ -360,6 +382,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get whether the frame needs postprocessing
+    #[must_use] 
     pub fn combed(&self) -> Option<bool> {
         unsafe {
             self.properties()
@@ -370,6 +393,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get which field was used to generate this frame
+    #[must_use] 
     pub fn field(&self) -> Option<Field> {
         unsafe {
             self.properties()
@@ -384,6 +408,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get picture type (single character describing frame type)
+    #[must_use] 
     pub fn picture_type(&self) -> Option<Cow<'core, str>> {
         unsafe {
             self.properties()
@@ -393,6 +418,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get pixel (sample) aspect ratio as a rational number (numerator, denominator)
+    #[must_use] 
     pub fn sample_aspect_ratio(&self) -> Option<(i64, i64)> {
         let num = unsafe {
             self.properties()
@@ -408,6 +434,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get whether this frame is the last frame of the current scene
+    #[must_use] 
     pub fn scene_change_next(&self) -> Option<bool> {
         unsafe {
             self.properties()
@@ -418,6 +445,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get whether this frame starts a new scene
+    #[must_use] 
     pub fn scene_change_prev(&self) -> Option<bool> {
         unsafe {
             self.properties()
@@ -428,7 +456,8 @@ impl<'core> Frame<'core> {
     }
 
     /// Get alpha channel frame attached to this frame
-    pub fn alpha(&self) -> Option<Frame<'core>> {
+    #[must_use] 
+    pub fn alpha(&self) -> Option<Self> {
         unsafe { self.properties().get_frame_raw_unchecked(c"_Alpha", 0).ok() }
     }
 
@@ -512,7 +541,7 @@ impl<'core> Frame<'core> {
     pub fn set_combed(&mut self, combed: bool) -> MapResult<()> {
         unsafe {
             self.properties_mut()
-                .set_int_raw_unchecked(c"_Combed", if combed { 1 } else { 0 });
+                .set_int_raw_unchecked(c"_Combed", i64::from(combed));
         }
         Ok(())
     }
@@ -548,7 +577,7 @@ impl<'core> Frame<'core> {
     pub fn set_scene_change_next(&mut self, scene_change: bool) -> MapResult<()> {
         unsafe {
             self.properties_mut()
-                .set_int_raw_unchecked(c"_SceneChangeNext", if scene_change { 1 } else { 0 });
+                .set_int_raw_unchecked(c"_SceneChangeNext", i64::from(scene_change));
         }
         Ok(())
     }
@@ -557,13 +586,13 @@ impl<'core> Frame<'core> {
     pub fn set_scene_change_prev(&mut self, scene_change: bool) -> MapResult<()> {
         unsafe {
             self.properties_mut()
-                .set_int_raw_unchecked(c"_SceneChangePrev", if scene_change { 1 } else { 0 });
+                .set_int_raw_unchecked(c"_SceneChangePrev", i64::from(scene_change));
         }
         Ok(())
     }
 
     /// Set alpha channel frame for this frame
-    pub fn set_alpha(&mut self, alpha_frame: &Frame<'core>) -> MapResult<()> {
+    pub fn set_alpha(&mut self, alpha_frame: &Self) -> MapResult<()> {
         unsafe {
             self.properties_mut()
                 .set_frame_raw_unchecked(c"_Alpha", alpha_frame);
@@ -571,6 +600,7 @@ impl<'core> Frame<'core> {
         Ok(())
     }
 
+    #[must_use] 
     pub fn get_frame_type(&self) -> MediaType {
         MediaType::from_ffi(unsafe { API::get_cached().get_frame_type(self.handle.as_ref()) })
     }
@@ -596,7 +626,7 @@ impl<'core> Frame<'core> {
     where
         F: FnMut(&mut [T]),
     {
-        let ptr = self.get_write_ptr(plane) as *mut T;
+        let ptr = self.get_write_ptr(plane).cast::<T>();
         let stride = self.get_stride(plane) / std::mem::size_of::<T>() as isize;
         let width = self.get_width(plane) as isize;
         let height = self.get_height(plane) as isize;
@@ -609,6 +639,7 @@ impl<'core> Frame<'core> {
         }
     }
 
+    #[must_use] 
     pub fn planes(&self) -> Planes<'_> {
         Planes {
             frame: self,
@@ -618,7 +649,7 @@ impl<'core> Frame<'core> {
     }
 }
 
-impl<'core> Deref for Frame<'core> {
+impl Deref for Frame<'_> {
     type Target = ffi::VSFrame;
 
     fn deref(&self) -> &Self::Target {
@@ -638,7 +669,7 @@ pub struct Planes<'a> {
     current: i32,
 }
 
-impl<'a> Iterator for Planes<'a> {
+impl Iterator for Planes<'_> {
     type Item = Plane;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -662,7 +693,7 @@ impl<'a> Iterator for Planes<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for Planes<'a> {}
+impl ExactSizeIterator for Planes<'_> {}
 
 pub use enums::{
     ChromaLocation, ColorPrimaries, ColorRange, Field, FieldBased, MatrixCoefficients,

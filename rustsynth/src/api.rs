@@ -1,4 +1,4 @@
-//! Module for interacting with the VapourSynth API
+//! Module for interacting with the `VapourSynth` API
 use rustsynth_sys as ffi;
 use std::{
     borrow::Cow,
@@ -14,7 +14,7 @@ use crate::{
 
 use std::mem::MaybeUninit;
 
-/// A wrapper for the VapourSynth API.
+/// A wrapper for the `VapourSynth` API.
 ///
 ///
 #[derive(Debug, Clone, Copy)]
@@ -62,7 +62,7 @@ macro_rules! map_set_something {
 }
 
 impl API {
-    /// Creates and or retrieves the VapourSynth API.
+    /// Creates and or retrieves the `VapourSynth` API.
     ///
     /// Returns `None` on error
     #[cfg(feature = "vapoursynth-functions")]
@@ -74,7 +74,7 @@ impl API {
         let handle = if handle.is_null() {
             // Attempt retrieving it otherwise.
             let handle =
-                unsafe { ffi::getVapourSynthAPI(ffi::VAPOURSYNTH_API_VERSION) } as *mut ffi::VSAPI;
+                unsafe { ffi::getVapourSynthAPI(ffi::VAPOURSYNTH_API_VERSION) }.cast_mut();
 
             if !handle.is_null() {
                 // If we successfully retrieved the API, cache it.
@@ -115,14 +115,14 @@ impl API {
     }
 
     pub(crate) unsafe fn free_core(&self, core: *mut ffi::VSCore) {
-        self.handle.as_ref().freeCore.unwrap()(core)
+        self.handle.as_ref().freeCore.unwrap()(core);
     }
 
     pub(crate) unsafe fn free_func(&self, function: *mut ffi::VSFunction) {
-        self.handle.as_ref().freeFunction.unwrap()(function)
+        self.handle.as_ref().freeFunction.unwrap()(function);
     }
 
-    pub(crate) fn plugins<'core>(&self, core: &'core CoreRef<'core>) -> Plugins<'core> {
+    pub(crate) const fn plugins<'core>(&self, core: &'core CoreRef<'core>) -> Plugins<'core> {
         Plugins::new(core)
     }
 
@@ -270,7 +270,7 @@ impl API {
     }
 
     pub(crate) unsafe fn free_map(&self, map: &mut ffi::VSMap) {
-        self.handle.as_ref().freeMap.unwrap()(map)
+        self.handle.as_ref().freeMap.unwrap()(map);
     }
 
     pub(crate) unsafe fn map_get_type(&self, map: &ffi::VSMap, key: *const c_char) -> c_int {
@@ -328,7 +328,7 @@ impl API {
     }
 
     pub(crate) unsafe fn set_cache_mode(&self, node: *mut ffi::VSNode, mode: i32) {
-        self.handle.as_ref().setCacheMode.unwrap()(node, mode)
+        self.handle.as_ref().setCacheMode.unwrap()(node, mode);
     }
 
     pub(crate) unsafe fn set_cache_options(
@@ -338,15 +338,15 @@ impl API {
         max_size: i32,
         max_history_size: i32,
     ) {
-        self.handle.as_ref().setCacheOptions.unwrap()(node, fixed_size, max_size, max_history_size)
+        self.handle.as_ref().setCacheOptions.unwrap()(node, fixed_size, max_size, max_history_size);
     }
 
     pub(crate) unsafe fn free_node(&self, node: *mut ffi::VSNode) {
-        self.handle.as_ref().freeNode.unwrap()(node)
+        self.handle.as_ref().freeNode.unwrap()(node);
     }
 
     pub(crate) unsafe fn free_frame(&self, frame: *const ffi::VSFrame) {
-        self.handle.as_ref().freeFrame.unwrap()(frame)
+        self.handle.as_ref().freeFrame.unwrap()(frame);
     }
 
     pub(crate) unsafe fn copy_frame(
@@ -387,7 +387,7 @@ impl API {
     }
 
     pub(crate) unsafe fn map_set_error(&self, map: &mut ffi::VSMap, error: *const c_char) {
-        self.handle.as_ref().mapSetError.unwrap()(map, error)
+        self.handle.as_ref().mapSetError.unwrap()(map, error);
     }
 
     pub(crate) unsafe fn set_thread_count(&self, core: *mut ffi::VSCore, count: i32) -> i32 {
@@ -407,13 +407,13 @@ impl API {
         append: ffi::VSMapAppendMode,
     ) -> i32 {
         let length = value.len();
-        assert!(length <= i32::MAX as usize);
+        assert!(i32::try_from(length).is_ok());
         let length = length as i32;
 
         self.handle.as_ref().mapSetData.unwrap()(
             map,
             key,
-            value.as_ptr() as _,
+            value.as_ptr().cast(),
             length,
             data_type as i32,
             append as i32,
@@ -540,7 +540,7 @@ impl API {
         err_msg: &mut [c_char],
     ) -> *const ffi::VSFrame {
         let len = err_msg.len();
-        assert!(len <= i32::MAX as usize);
+        assert!(i32::try_from(len).is_ok());
         let len = len as i32;
         self.handle.as_ref().getFrame.unwrap()(n, node, err_msg.as_mut_ptr(), len)
     }
@@ -569,7 +569,7 @@ impl API {
         >,
         user_data: *mut c_void,
     ) {
-        self.handle.as_ref().getFrameAsync.unwrap()(n, node, callback, user_data)
+        self.handle.as_ref().getFrameAsync.unwrap()(n, node, callback, user_data);
     }
 
     pub(crate) unsafe fn request_frame_filter(
@@ -578,7 +578,7 @@ impl API {
         node: *mut ffi::VSNode,
         frame_ctx: *mut ffi::VSFrameContext,
     ) {
-        self.handle.as_ref().requestFrameFilter.unwrap()(n, node, frame_ctx)
+        self.handle.as_ref().requestFrameFilter.unwrap()(n, node, frame_ctx);
     }
 
     pub(crate) unsafe fn get_frame_filter(
@@ -618,7 +618,7 @@ impl API {
         in_map: &ffi::VSMap,
         out_map: &mut ffi::VSMap,
     ) {
-        self.handle.as_ref().callFunction.unwrap()(function, in_map, out_map)
+        self.handle.as_ref().callFunction.unwrap()(function, in_map, out_map);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1044,15 +1044,15 @@ impl API {
     }
 }
 
-/// Initialize the global API pointer (for use in environments where initilising an API is already done(e.g. VapourSynth plugins, script environments).)
+/// Initialize the global API pointer (for use in environments where initilising an API is already done(e.g. `VapourSynth` plugins, script environments).)
 ///
 /// It is not necessary to call this function when using the library in a standalone application, as the API will be initialized automatically when creating a Core.
 ///
 /// # Safety
-/// This function should only be called once, with a valid pointer to the VapourSynth API
+/// This function should only be called once, with a valid pointer to the `VapourSynth` API
 #[inline]
 pub unsafe fn init_api(vsapi: *const ffi::VSAPI) {
-    RAW_API.store(vsapi as *mut ffi::VSAPI, Ordering::Relaxed);
+    RAW_API.store(vsapi.cast_mut(), Ordering::Relaxed);
 }
 
 #[cfg(test)]
