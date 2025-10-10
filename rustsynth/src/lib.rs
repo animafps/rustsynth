@@ -41,7 +41,7 @@ pub mod prelude {
     };
 }
 
-#[must_use] 
+#[must_use]
 pub fn api_version() -> i32 {
     api::API::get().unwrap().version()
 }

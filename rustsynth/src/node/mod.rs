@@ -13,7 +13,7 @@ use crate::filter::{FilterDependency, FilterMode};
 use crate::format::{AudioInfo, MediaType, VideoInfo};
 use crate::frame::{Frame, FrameContext};
 #[cfg(feature = "graph-api")]
-use crate::map::Map;
+use crate::map::MapRef;
 
 mod errors;
 pub use self::errors::GetFrameError;
@@ -28,13 +28,21 @@ pub struct Node<'core> {
 unsafe impl Send for Node<'_> {}
 unsafe impl Sync for Node<'_> {}
 
+impl Drop for Node<'_> {
+    fn drop(&mut self) {
+        // Nodes are reference counted, so just free one reference
+        unsafe {
+            API::get_cached().free_node(self.handle.as_ptr());
+        }
+    }
+}
+
 impl Clone for Node<'_> {
-    #[inline]
     fn clone(&self) -> Self {
-        let handle = unsafe { API::get_cached().clone_node(self.handle.as_ptr()) };
-        Self {
-            handle: unsafe { NonNull::new_unchecked(handle) },
-            _owner: self._owner,
+        // Properly increment the reference count when cloning
+        unsafe {
+            let new_handle = API::get_cached().clone_node(self.handle.as_ptr());
+            Self::from_ptr(new_handle)
         }
     }
 }
@@ -52,15 +60,21 @@ impl Node<'_> {
         }
     }
 
+    /// Manually free the node without running Drop.
+    ///
     /// # Safety
-    /// The node must be owned (not borrowed) and not passed to vapoursynth core
+    /// This should only be used in very specific cases where you need to bypass Drop.
+    /// The node must be owned (not borrowed) and not passed to vapoursynth core.
+    /// After calling this, the node value is invalid and must not be used.
+    #[deprecated(note = "Drop is now implemented - this method is rarely needed")]
     pub unsafe fn free(self) {
-        API::get_cached().free_node(self.as_ptr());
+        let this = std::mem::ManuallyDrop::new(self);
+        API::get_cached().free_node(this.as_ptr());
     }
 
     /// Returns the underlying pointer.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn as_ptr(&self) -> *mut ffi::VSNode {
         self.handle.as_ptr()
     }
@@ -95,7 +109,7 @@ impl Node<'_> {
     // Since we don't store the pointer to the actual `ffi::VSVideoInfo` and the lifetime is that
     // of the `ffi::VSFormat`, this returns `VideoInfo<'core>` rather than `VideoInfo<'a>`.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn video_info(&self) -> Option<VideoInfo> {
         unsafe {
             let ptr = API::get_cached().get_video_info(self.handle.as_ptr());
@@ -111,7 +125,7 @@ impl Node<'_> {
     // Since we don't store the pointer to the actual `ffi::VSVideoInfo` and the lifetime is that
     // of the `ffi::VSFormat`, this returns `VideoInfo<'core>` rather than `VideoInfo<'a>`.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn audio_info(&self) -> Option<AudioInfo> {
         unsafe {
             let ptr = API::get_cached().get_audio_info(self.handle.as_ptr());
@@ -228,6 +242,9 @@ impl Node<'_> {
                 Some(c_callback),
                 Box::into_raw(user_data).cast::<c_void>(),
             );
+            // Don't drop new_node - VapourSynth takes ownership of this reference
+            // and will return it via the callback
+            std::mem::forget(new_node);
         }
     }
 
@@ -256,7 +273,7 @@ impl Node<'_> {
 
     /// Get a frame from a node (used in filter's `get_frame` function)
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_frame_filter<'core>(
         &self,
         n: i32,
@@ -272,7 +289,7 @@ impl Node<'_> {
     }
 
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn media_type(&self) -> MediaType {
         let int = unsafe { API::get_cached().get_node_type(self.as_ptr()) };
         match int {
@@ -283,7 +300,7 @@ impl Node<'_> {
     }
 
     /// Must be called immediately after audio or video filter creation. Returns the upper bound of how many additional frames it is reasonable to pass to [`Frame::cache_frame`] when trying to make a request more linear.
-    #[must_use] 
+    #[must_use]
     pub fn set_linear_filter(&self) -> i32 {
         unsafe { API::get_cached().set_linear_filter(self.as_ptr()) }
     }
@@ -308,7 +325,7 @@ impl Node<'_> {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_name(&self) -> Option<String> {
         unsafe {
             let ptr = API::get_cached().get_node_name(self.as_ptr());
@@ -320,7 +337,7 @@ impl Node<'_> {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_filter_mode(&self) -> FilterMode {
         unsafe {
             let ptr = API::get_cached().get_node_filter_mode(self.as_ptr());
@@ -328,13 +345,13 @@ impl Node<'_> {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_num_dependencies(&self) -> i32 {
         unsafe { API::get_cached().get_num_node_dependencies(self.as_ptr()) }
     }
 
     /// Retrieves a dependency of this node.
-    #[must_use] 
+    #[must_use]
     pub fn get_dependency(&'_ self, n: i32) -> Option<FilterDependency<'_>> {
         let ptr = unsafe { API::get_cached().get_node_dependency(self.as_ptr(), n) };
         if ptr.is_null() {
@@ -345,7 +362,7 @@ impl Node<'_> {
     }
 
     /// Returns an iterator over the dependencies of this node.
-    #[must_use] 
+    #[must_use]
     pub fn dependencies(&self) -> FilterDependencies<'_> {
         FilterDependencies {
             node: self,
@@ -384,13 +401,13 @@ impl Node<'_> {
         }
     }
 
-    pub fn get_creation_function_arguments(&'_ self, level: i32) -> Option<Map<'_>> {
+    pub fn get_creation_function_arguments(&'_ self, level: i32) -> Option<&MapRef<'_>> {
         unsafe {
             if API::get_cached().version() != ffi::VAPOURSYNTH_API_VERSION {
                 return None;
             }
             let ptr = API::get_cached().get_node_creation_function_arguments(self.as_ptr(), level);
-            Some(Map::from_ptr(ptr))
+            Some(MapRef::from_ptr(ptr))
         }
     }
 }
@@ -406,7 +423,7 @@ pub enum CacheMode {
 }
 
 impl CacheMode {
-    #[must_use] 
+    #[must_use]
     pub const fn as_ffi(&self) -> ffi::VSCacheMode {
         match self {
             Self::Auto => ffi::VSCacheMode::cmAuto,

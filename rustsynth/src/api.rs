@@ -73,8 +73,7 @@ impl API {
 
         let handle = if handle.is_null() {
             // Attempt retrieving it otherwise.
-            let handle =
-                unsafe { ffi::getVapourSynthAPI(ffi::VAPOURSYNTH_API_VERSION) }.cast_mut();
+            let handle = unsafe { ffi::getVapourSynthAPI(ffi::VAPOURSYNTH_API_VERSION) }.cast_mut();
 
             if !handle.is_null() {
                 // If we successfully retrieved the API, cache it.
@@ -592,6 +591,10 @@ impl API {
 
     pub(crate) unsafe fn clone_func(&self, func: *mut ffi::VSFunction) -> *mut ffi::VSFunction {
         self.handle.as_ref().addFunctionRef.unwrap()(func)
+    }
+
+    pub(crate) unsafe fn clone_frame(&self, frame: *const ffi::VSFrame) -> *const ffi::VSFrame {
+        self.handle.as_ref().addFrameRef.unwrap()(frame)
     }
 
     pub(crate) unsafe fn create_func(

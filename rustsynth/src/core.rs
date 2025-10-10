@@ -74,7 +74,7 @@ impl<'core> CoreRef<'core> {
     /// let core = CoreRef::new(CoreCreationFlags::ENABLE_GRAPH_INSPECTION | CoreCreationFlags::DISABLE_AUTO_LOADING);
     /// ```
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new(flags: CoreCreationFlags) -> Self {
         let api = API::get().unwrap();
         unsafe {
@@ -96,7 +96,7 @@ impl<'core> CoreRef<'core> {
 
     /// Returns the underlying pointer.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn as_ptr(&self) -> *mut ffi::VSCore {
         self.handle.as_ptr()
     }
@@ -106,7 +106,7 @@ impl<'core> CoreRef<'core> {
     /// # Panics
     ///
     /// Will panic if core configuration is not valid
-    #[must_use] 
+    #[must_use]
     pub fn info(&self) -> CoreInfo {
         let core_info = unsafe { API::get_cached().get_core_info(self.as_ptr()) };
         let version_string = unsafe { CStr::from_ptr(core_info.versionString).to_str().unwrap() };
@@ -127,7 +127,7 @@ impl<'core> CoreRef<'core> {
     /// Returns an instance of [Some]<[Plugin]> if there exists a plugin loaded associated with the namespace
     ///
     /// [None] if no plugin is found
-    #[must_use] 
+    #[must_use]
     pub fn plugin_by_namespace(&self, namespace: &str) -> Option<Plugin<'core>> {
         let namespace = CString::new(namespace).unwrap();
         unsafe { API::get_cached() }.plugin_by_namespace(namespace.as_ptr(), self)
@@ -136,27 +136,27 @@ impl<'core> CoreRef<'core> {
     /// Returns an instance of [Some]<[Plugin]> if there exists a plugin loaded associated with the id
     ///
     /// [None] if no plugin is found
-    #[must_use] 
+    #[must_use]
     pub fn plugin_by_id(&self, id: &str) -> Option<Plugin<'_>> {
         let id = CString::new(id).unwrap();
         unsafe { API::get_cached() }.plugin_by_id(id.as_ptr(), self)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn std(&self) -> Option<Plugin<'_>> {
         unsafe {
             API::get_cached().plugin_by_id(ffi::VSH_STD_PLUGIN_ID.as_ptr().cast::<i8>(), self)
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn resize(&self) -> Option<Plugin<'_>> {
         unsafe {
             API::get_cached().plugin_by_id(ffi::VSH_RESIZE_PLUGIN_ID.as_ptr().cast::<i8>(), self)
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn text(&self) -> Option<Plugin<'_>> {
         unsafe {
             API::get_cached().plugin_by_id(ffi::VSH_TEXT_PLUGIN_ID.as_ptr().cast::<i8>(), self)
@@ -164,14 +164,14 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Returns a iterator over the loaded plugins
-    #[must_use] 
+    #[must_use]
     pub fn plugins(&self) -> Plugins<'_> {
         unsafe { API::get_cached() }.plugins(self)
     }
 
     /// Sets the number of threads used for processing. Pass 0 to automatically detect. Returns the number of threads that will be used for processing.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn set_thread_count(&self, count: usize) -> i32 {
         unsafe { API::get_cached().set_thread_count(self.as_ptr(), count as i32) }
     }
@@ -186,20 +186,20 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Sets the maximum size of the framebuffer cache. Returns the new maximum size.
-    #[must_use] 
+    #[must_use]
     pub fn set_max_cache_size(&self, size: i64) -> i64 {
         unsafe { API::get_cached().set_max_cache_size(self.as_ptr(), size) }
     }
 
     /// The format identifier: one of [`crate::format::PresetVideoFormat`] or a value gotten from [`VideoFormat::query_format_id`].
-    #[must_use] 
+    #[must_use]
     pub fn get_video_format_by_id(&self, id: u32) -> Option<VideoFormat> {
         let format = unsafe { API::get_cached().get_video_format_by_id(id, self.as_ptr()) };
         format.map(|f| unsafe { VideoFormat::from_ptr(f) })
     }
 
     /// Duplicates the frame (not just the reference). As the frame buffer is shared in a copy-on-write fashion, the frame content is not really duplicated until a write operation occurs. This is transparent for the user.
-    #[must_use] 
+    #[must_use]
     pub fn copy_frame(&'_ self, frame: &Frame) -> Frame<'_> {
         let new_frame = unsafe { API::get_cached().copy_frame(frame, self.as_ptr()) };
         unsafe { Frame::from_ptr(new_frame) }
@@ -233,7 +233,7 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Send a message through `VapourSynth`'s logging framework
-    pub fn log_mesage(&self, msg_type: MessageType, msg: &str) {
+    pub fn log_message(&self, msg_type: MessageType, msg: &str) {
         let cstr = CString::new(msg).unwrap();
         unsafe {
             API::get_cached().log_message(msg_type.into(), cstr.as_ptr(), self.handle.as_ptr());
@@ -241,7 +241,7 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Create a video filter using the Filter trait
-    pub fn create_video_filter<F>(&self, filter: &F) -> CoreResult<Map<'_>>
+    pub fn create_video_filter<F>(&self, filter: F) -> CoreResult<Map<'_>>
     where
         F: Filter<'core>,
     {
@@ -251,8 +251,10 @@ impl<'core> CoreRef<'core> {
         let dependencies = filter.get_dependencies();
 
         // Convert dependencies to FFI format
-        let deps_ffi: Vec<ffi::VSFilterDependency> =
-            dependencies.iter().map(super::filter::FilterDependency::as_ffi).collect();
+        let deps_ffi: Vec<ffi::VSFilterDependency> = dependencies
+            .iter()
+            .map(super::filter::FilterDependency::as_ffi)
+            .collect();
 
         // Box the filter instance for storage
         let filter_box = Box::new(filter);
@@ -268,7 +270,7 @@ impl<'core> CoreRef<'core> {
                 &video_info.as_ffi(),
                 Some(filter_get_frame::<F>),
                 Some(filter_free::<F>),
-                std::ptr::from_ref(&F::MODE.as_ffi()) as i32,
+                F::MODE.into(),
                 deps_ffi.as_ptr(),
                 deps_ffi.len() as i32,
                 instance_data,
@@ -280,7 +282,7 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Create a video filter using the Filter trait (returns node directly)
-    pub fn create_video_filter2<F>(&self, filter: &F) -> CoreResult<crate::node::Node<'core>>
+    pub fn create_video_filter2<F>(&self, filter: F) -> CoreResult<crate::node::Node<'core>>
     where
         F: Filter<'core>,
     {
@@ -289,10 +291,12 @@ impl<'core> CoreRef<'core> {
         let dependencies = filter.get_dependencies();
 
         // Convert dependencies to FFI format
-        let deps_ffi: Vec<ffi::VSFilterDependency> =
-            dependencies.iter().map(super::filter::FilterDependency::as_ffi).collect();
+        let deps_ffi: Vec<ffi::VSFilterDependency> = dependencies
+            .iter()
+            .map(super::filter::FilterDependency::as_ffi)
+            .collect();
 
-        // Box the filter instance for storage
+        // Box the filter instance for storage (takes ownership, no double boxing)
         let filter_box = Box::new(filter);
         let instance_data = Box::into_raw(filter_box).cast::<std::ffi::c_void>();
 
@@ -305,7 +309,7 @@ impl<'core> CoreRef<'core> {
                 &video_info.as_ffi(),
                 Some(filter_get_frame::<F>),
                 Some(filter_free::<F>),
-                std::ptr::from_ref(&F::MODE.as_ffi()) as i32,
+                F::MODE.as_ffi() as i32,
                 deps_ffi.as_ptr(),
                 deps_ffi.len() as i32,
                 instance_data,
@@ -314,6 +318,8 @@ impl<'core> CoreRef<'core> {
         };
 
         if node_ptr.is_null() {
+            // Free the boxed filter to prevent memory leak
+            unsafe { drop(Box::from_raw(instance_data.cast::<F>())) };
             return Err(CoreError::VideoFilterCreationFailed);
         }
 
@@ -321,7 +327,7 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Create a audio filter using the Filter trait
-    pub fn create_audio_filter<F>(&self, filter: &F) -> CoreResult<Map<'_>>
+    pub fn create_audio_filter<F>(&self, filter: F) -> CoreResult<Map<'_>>
     where
         F: Filter<'core>,
     {
@@ -331,10 +337,12 @@ impl<'core> CoreRef<'core> {
         let dependencies = filter.get_dependencies();
 
         // Convert dependencies to FFI format
-        let deps_ffi: Vec<ffi::VSFilterDependency> =
-            dependencies.iter().map(super::filter::FilterDependency::as_ffi).collect();
+        let deps_ffi: Vec<ffi::VSFilterDependency> = dependencies
+            .iter()
+            .map(super::filter::FilterDependency::as_ffi)
+            .collect();
 
-        // Box the filter instance for storage
+        // Box the filter instance for storage (takes ownership, no double boxing)
         let filter_box = Box::new(filter);
         let instance_data = Box::into_raw(filter_box).cast::<std::ffi::c_void>();
 
@@ -348,7 +356,7 @@ impl<'core> CoreRef<'core> {
                 &audio_info.as_ffi(),
                 Some(filter_get_frame::<F>),
                 Some(filter_free::<F>),
-                std::ptr::from_ref(&F::MODE.as_ffi()) as i32,
+                F::MODE.as_ffi() as i32,
                 deps_ffi.as_ptr(),
                 deps_ffi.len() as i32,
                 instance_data,
@@ -360,7 +368,7 @@ impl<'core> CoreRef<'core> {
     }
 
     /// Create an audio filter using the Filter trait (returns node directly)
-    pub fn create_audio_filter2<F>(&self, filter: &F) -> CoreResult<Node<'core>>
+    pub fn create_audio_filter2<F>(&self, filter: F) -> CoreResult<Node<'core>>
     where
         F: Filter<'core>,
     {
@@ -369,10 +377,12 @@ impl<'core> CoreRef<'core> {
         let dependencies = filter.get_dependencies();
 
         // Convert dependencies to FFI format
-        let deps_ffi: Vec<ffi::VSFilterDependency> =
-            dependencies.iter().map(super::filter::FilterDependency::as_ffi).collect();
+        let deps_ffi: Vec<ffi::VSFilterDependency> = dependencies
+            .iter()
+            .map(super::filter::FilterDependency::as_ffi)
+            .collect();
 
-        // Box the filter instance for storage
+        // Box the filter instance for storage (takes ownership, no double boxing)
         let filter_box = Box::new(filter);
         let instance_data = Box::into_raw(filter_box).cast::<std::ffi::c_void>();
 
@@ -385,7 +395,7 @@ impl<'core> CoreRef<'core> {
                 std::ptr::from_ref(&audio_info.as_ffi()),
                 Some(filter_get_frame::<F>),
                 Some(filter_free::<F>),
-                std::ptr::from_ref(&F::MODE.as_ffi()) as i32,
+                F::MODE.as_ffi() as i32,
                 deps_ffi.as_ptr(),
                 deps_ffi.len() as i32,
                 instance_data,
@@ -394,6 +404,8 @@ impl<'core> CoreRef<'core> {
         };
 
         if node_ptr.is_null() {
+            // Free the boxed filter to prevent memory leak
+            unsafe { drop(Box::from_raw(instance_data.cast::<F>())) };
             return Err(CoreError::AudioFilterCreationFailed);
         }
 
@@ -497,7 +509,7 @@ impl CoreRef<'_> {
     }
 
     /// Returns true if node timing is enabled.
-    #[must_use] 
+    #[must_use]
     pub fn get_node_timing(&self) -> bool {
         (unsafe { API::get_cached().get_core_node_timing(self.as_ptr()) } > 0)
     }
@@ -577,7 +589,7 @@ pub struct CoreBuilder {
 
 impl<'core> CoreBuilder {
     /// Creates a new `CoreBuilder` with default flags.
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             flags: CoreCreationFlags::NONE,
@@ -585,28 +597,28 @@ impl<'core> CoreBuilder {
     }
 
     /// Enables graph inspection API functions.
-    #[must_use] 
+    #[must_use]
     pub fn with_graph_inspection(mut self) -> Self {
         self.flags |= CoreCreationFlags::ENABLE_GRAPH_INSPECTION;
         self
     }
 
     /// Disables autoloading of user plugins.
-    #[must_use] 
+    #[must_use]
     pub fn disable_auto_loading(mut self) -> Self {
         self.flags |= CoreCreationFlags::DISABLE_AUTO_LOADING;
         self
     }
 
     /// Disables unloading of plugin libraries when the core is destroyed.
-    #[must_use] 
+    #[must_use]
     pub fn disable_library_unloading(mut self) -> Self {
         self.flags |= CoreCreationFlags::DISABLE_LIBRARY_UNLOADING;
         self
     }
 
     /// Builds and returns a [`CoreRef`].
-    #[must_use] 
+    #[must_use]
     pub fn build(self) -> CoreRef<'core> {
         CoreRef::new(self.flags)
     }

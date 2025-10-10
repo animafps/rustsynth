@@ -1,17 +1,17 @@
-use super::{Map, CString, PhantomData, MapResult, ValueType, MapError, Data, Node, Function};
+use super::{CString, Data, Function, MapError, MapRef, MapResult, Node, PhantomData, ValueType};
 use crate::frame::Frame;
 
 /// An iterator over the keys of a map.
 #[derive(Debug, Clone, Copy)]
 pub struct Keys<'map, 'elem: 'map> {
-    map: &'map Map<'elem>,
+    map: &'map MapRef<'elem>,
     count: usize,
     index: usize,
 }
 
 impl<'map, 'elem> Keys<'map, 'elem> {
     #[inline]
-    pub(crate) fn new(map: &'map Map<'elem>) -> Self {
+    pub(crate) fn new(map: &'map MapRef<'elem>) -> Self {
         Self {
             map,
             count: map.key_count(),
@@ -46,7 +46,7 @@ impl ExactSizeIterator for Keys<'_, '_> {}
 /// An iterator over the values associated with a certain key of a map.
 #[derive(Debug, Clone)]
 pub struct ValueIter<'map, 'elem: 'map, T: ?Sized> {
-    map: &'map Map<'elem>,
+    map: &'map MapRef<'elem>,
     key: CString,
     count: i32,
     index: i32,
@@ -62,7 +62,7 @@ macro_rules! impl_value_iter {
             /// The caller must ensure `key` is valid.
             #[inline]
             pub(crate) unsafe fn $new_method(
-                map: &'map Map<'elem>,
+                map: &'map MapRef<'elem>,
                 key: CString,
             ) -> MapResult<Self> {
                 // Check if the value type is correct.
@@ -138,7 +138,7 @@ impl_value_iter!(
 // Manual implementation for String since it shares ValueType::Data with Data<'elem>
 impl<'map, 'elem> ValueIter<'map, 'elem, String> {
     #[inline]
-    pub(crate) unsafe fn new_string(map: &'map Map<'elem>, key: CString) -> MapResult<Self> {
+    pub(crate) unsafe fn new_string(map: &'map MapRef<'elem>, key: CString) -> MapResult<Self> {
         match map.value_type_raw_unchecked(&key)? {
             ValueType::Data => {}
             _ => return Err(MapError::WrongValueType),

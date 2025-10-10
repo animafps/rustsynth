@@ -9,12 +9,12 @@ use crate::{
     api::API,
     core::CoreRef,
     format::{AudioFormat, MediaType, VideoFormat},
-    map::{Map, MapResult},
+    map::{MapRef, MapResult},
 };
 
 // One frame of a clip.
 // This type is intended to be publicly used only in reference form.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Frame<'core> {
     // The actual mutability of this depends on whether it's accessed via `&Frame` or `&mut Frame`.
     handle: NonNull<ffi::VSFrame>,
@@ -23,6 +23,25 @@ pub struct Frame<'core> {
 
 unsafe impl Send for Frame<'_> {}
 unsafe impl Sync for Frame<'_> {}
+
+impl Drop for Frame<'_> {
+    fn drop(&mut self) {
+        // Frames are reference counted, so just free one reference
+        unsafe {
+            API::get_cached().free_frame(self.handle.as_ptr());
+        }
+    }
+}
+
+impl Clone for Frame<'_> {
+    fn clone(&self) -> Self {
+        // Properly increment the reference count when cloning
+        unsafe {
+            let new_handle = API::get_cached().clone_frame(self.handle.as_ptr());
+            Self::from_ptr(new_handle)
+        }
+    }
+}
 
 /// Represents a reference to the obscure object
 #[derive(Debug)]
@@ -43,7 +62,7 @@ impl FrameContext {
     }
 
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn as_ptr(&self) -> *mut ffi::VSFrameContext {
         self.handle.as_ptr()
     }
@@ -63,7 +82,7 @@ impl<'core> Frame<'core> {
     /// # Safety
     /// The pointer must be valid and point to a [`ffi::VSFrame`]
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const unsafe fn from_ptr(ptr: *const ffi::VSFrame) -> Self {
         Self {
             handle: NonNull::new_unchecked(ptr.cast_mut()),
@@ -78,27 +97,27 @@ impl<'core> Frame<'core> {
     }
 
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn as_ptr(&self) -> *const ffi::VSFrame {
         self.handle.as_ptr()
     }
 
     /// Returns the height of a plane of a given frame, in pixels. The height depends on the plane number because of the possible chroma subsampling.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_height(&self, plane: i32) -> i32 {
         unsafe { API::get_cached().get_frame_height(self.handle.as_ref(), plane) }
     }
 
     /// Returns the width of a plane of a given frame, in pixels. The width depends on the plane number because of the possible chroma subsampling.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_width(&self, plane: i32) -> i32 {
         unsafe { API::get_cached().get_frame_width(self.handle.as_ref(), plane) }
     }
 
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_length(&self) -> i32 {
         unsafe { API::get_cached().get_frame_length(self.handle.as_ref()) }
     }
@@ -107,13 +126,13 @@ impl<'core> Frame<'core> {
     ///
     /// Passing an invalid plane number will cause a fatal error.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_stride(&self, plane: i32) -> isize {
         unsafe { API::get_cached().get_frame_stride(self.handle.as_ref(), plane) }
     }
 
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_video_format(&self) -> Option<VideoFormat> {
         let ptr = unsafe { API::get_cached().get_video_frame_format(self.handle.as_ref()) };
         if ptr.is_null() {
@@ -123,7 +142,7 @@ impl<'core> Frame<'core> {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_audio_format(&self) -> Option<AudioFormat> {
         let ptr = unsafe { API::get_cached().get_audio_frame_format(self.handle.as_ptr()) };
         if ptr.is_null() {
@@ -134,7 +153,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Creates a new video frame, optionally copying the properties attached to another frame.
-    #[must_use] 
+    #[must_use]
     pub fn new_video_frame(
         core: &CoreRef,
         width: i32,
@@ -183,7 +202,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Creates a new audio frame, optionally copying the properties attached to another frame. It is a fatal error to pass invalid arguments to this function
-    #[must_use] 
+    #[must_use]
     pub fn new_audio_frame(
         core: &CoreRef,
         length: i32,
@@ -231,7 +250,7 @@ impl<'core> Frame<'core> {
 
     /// Get read-only access to plane data
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn get_read_ptr(&self, plane: i32) -> *const u8 {
         unsafe { API::get_cached().get_frame_read_ptr(self.handle.as_ref(), plane) }
     }
@@ -251,7 +270,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get read-only slice to plane data
-    #[must_use] 
+    #[must_use]
     pub fn get_read_slice(&self, plane: i32) -> &[u8] {
         let height = self.get_height(plane) as usize;
         let stride = self.get_stride(plane) as usize;
@@ -261,23 +280,23 @@ impl<'core> Frame<'core> {
 
     /// Get read-only access to frame properties
     #[inline]
-    #[must_use] 
-    pub fn properties(&self) -> Map<'core> {
+    #[must_use]
+    pub fn properties(&self) -> &MapRef<'core> {
         let map_ptr = unsafe { API::get_cached().get_frame_props_ro(self.handle.as_ref()) };
-        unsafe { Map::from_ptr(map_ptr) }
+        unsafe { MapRef::from_ptr(map_ptr) }
     }
 
     /// Get read-write access to frame properties (only for owned frames)
     #[inline]
-    pub fn properties_mut(&mut self) -> Map<'core> {
+    pub fn properties_mut(&mut self) -> &mut MapRef<'core> {
         let map_ptr = unsafe { API::get_cached().get_frame_props_rw(self.handle.as_ptr()) };
-        unsafe { Map::from_ptr(map_ptr) }
+        unsafe { MapRef::from_ptr_mut(map_ptr) }
     }
 
     // Standard frame property getters
 
     /// Get chroma sample position in YUV formats
-    #[must_use] 
+    #[must_use]
     pub fn chroma_location(&self) -> Option<ChromaLocation> {
         unsafe {
             self.properties()
@@ -296,7 +315,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get color range (full or limited)
-    #[must_use] 
+    #[must_use]
     pub fn color_range(&self) -> Option<ColorRange> {
         unsafe {
             self.properties()
@@ -311,7 +330,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get color primaries as specified in ITU-T H.273 Table 2
-    #[must_use] 
+    #[must_use]
     pub fn primaries(&self) -> ColorPrimaries {
         let res = unsafe {
             self.properties()
@@ -322,7 +341,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get matrix coefficients as specified in ITU-T H.273 Table 4
-    #[must_use] 
+    #[must_use]
     pub fn matrix(&self) -> MatrixCoefficients {
         let res = unsafe {
             self.properties()
@@ -333,14 +352,14 @@ impl<'core> Frame<'core> {
     }
 
     /// Get transfer characteristics as specified in ITU-T H.273 Table 3
-    #[must_use] 
+    #[must_use]
     pub fn transfer(&self) -> TransferCharacteristics {
         let res = unsafe { self.properties().get_int_raw_unchecked(c"_Transfer", 2) }.unwrap_or(0);
         TransferCharacteristics::from(res)
     }
 
     /// Get field based information (interlaced)
-    #[must_use] 
+    #[must_use]
     pub fn field_based(&self) -> Option<FieldBased> {
         unsafe {
             self.properties()
@@ -356,7 +375,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get absolute timestamp in seconds
-    #[must_use] 
+    #[must_use]
     pub fn absolute_time(&self) -> Option<f64> {
         unsafe {
             self.properties()
@@ -366,7 +385,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get frame duration as a rational number (numerator, denominator)
-    #[must_use] 
+    #[must_use]
     pub fn duration(&self) -> Option<(i64, i64)> {
         let num = unsafe {
             self.properties()
@@ -382,7 +401,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get whether the frame needs postprocessing
-    #[must_use] 
+    #[must_use]
     pub fn combed(&self) -> Option<bool> {
         unsafe {
             self.properties()
@@ -393,7 +412,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get which field was used to generate this frame
-    #[must_use] 
+    #[must_use]
     pub fn field(&self) -> Option<Field> {
         unsafe {
             self.properties()
@@ -408,7 +427,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get picture type (single character describing frame type)
-    #[must_use] 
+    #[must_use]
     pub fn picture_type(&self) -> Option<Cow<'core, str>> {
         unsafe {
             self.properties()
@@ -418,7 +437,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get pixel (sample) aspect ratio as a rational number (numerator, denominator)
-    #[must_use] 
+    #[must_use]
     pub fn sample_aspect_ratio(&self) -> Option<(i64, i64)> {
         let num = unsafe {
             self.properties()
@@ -434,7 +453,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get whether this frame is the last frame of the current scene
-    #[must_use] 
+    #[must_use]
     pub fn scene_change_next(&self) -> Option<bool> {
         unsafe {
             self.properties()
@@ -445,7 +464,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get whether this frame starts a new scene
-    #[must_use] 
+    #[must_use]
     pub fn scene_change_prev(&self) -> Option<bool> {
         unsafe {
             self.properties()
@@ -456,7 +475,7 @@ impl<'core> Frame<'core> {
     }
 
     /// Get alpha channel frame attached to this frame
-    #[must_use] 
+    #[must_use]
     pub fn alpha(&self) -> Option<Self> {
         unsafe { self.properties().get_frame_raw_unchecked(c"_Alpha", 0).ok() }
     }
@@ -600,7 +619,7 @@ impl<'core> Frame<'core> {
         Ok(())
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_frame_type(&self) -> MediaType {
         MediaType::from_ffi(unsafe { API::get_cached().get_frame_type(self.handle.as_ref()) })
     }
@@ -639,7 +658,7 @@ impl<'core> Frame<'core> {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn planes(&self) -> Planes<'_> {
         Planes {
             frame: self,

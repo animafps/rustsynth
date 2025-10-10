@@ -33,8 +33,7 @@ impl ScriptAPI {
 
         let handle = if handle.is_null() {
             // Attempt retrieving it otherwise.
-            let handle =
-                unsafe { ffi::getVSScriptAPI(ffi::VSSCRIPT_API_VERSION) }.cast_mut();
+            let handle = unsafe { ffi::getVSScriptAPI(ffi::VSSCRIPT_API_VERSION) }.cast_mut();
             if !handle.is_null() {
                 // If we successfully retrieved the API, cache it.
                 RAW_SCRIPTAPI.store(handle, Ordering::Relaxed);

@@ -8,7 +8,7 @@ use std::{mem, panic, process};
 
 use crate::api::API;
 use crate::core::CoreRef;
-use crate::map::Map;
+use crate::map::MapRef;
 
 /// Holds a reference to a function that may be called.
 #[derive(Debug, PartialEq, Eq)]
@@ -55,7 +55,7 @@ impl<'core> Function<'core> {
 
     /// Returns the underlying pointer.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn as_ptr(&self) -> *mut ffi::VSFunction {
         self.handle.as_ptr()
     }
@@ -65,7 +65,7 @@ impl<'core> Function<'core> {
     /// To indicate an error from the callback, set an error on the output map.
     pub fn new<F>(core: CoreRef<'core>, callback: F) -> Self
     where
-        F: Fn(CoreRef<'core>, &Map<'core>, &mut Map<'core>) + Send + Sync + 'core,
+        F: Fn(CoreRef<'core>, &MapRef<'core>, &mut MapRef<'core>) + Send + Sync + 'core,
     {
         unsafe extern "C" fn c_callback<'core, F>(
             in_: *const ffi::VSMap,
@@ -74,15 +74,15 @@ impl<'core> Function<'core> {
             core: *mut ffi::VSCore,
             _vsapi: *const ffi::VSAPI,
         ) where
-            F: Fn(CoreRef<'core>, &Map<'core>, &mut Map<'core>) + Send + Sync + 'core,
+            F: Fn(CoreRef<'core>, &MapRef<'core>, &mut MapRef<'core>) + Send + Sync + 'core,
         {
             let closure = move || {
                 let core = CoreRef::from_ptr(core);
-                let in_ = Map::from_ptr(in_);
-                let mut out = Map::from_ptr(out);
+                let in_map = MapRef::from_ptr(in_);
+                let out_map = MapRef::from_ptr_mut(out);
                 let callback = Box::from_raw(user_data.cast::<F>());
 
-                callback(core, &in_, &mut out);
+                callback(core, in_map, out_map);
 
                 mem::forget(callback);
             };
@@ -115,7 +115,13 @@ impl<'core> Function<'core> {
 
     /// Calls the function. If the call fails `out` will have an error set.
     #[inline]
-    pub fn call(&self, in_: &Map<'core>, out: &mut Map<'core>) {
-        unsafe { API::get_cached().call_func(self.handle.as_ptr(), in_, out) };
+    pub fn call(&self, in_: &MapRef<'core>, out: &mut MapRef<'core>) {
+        unsafe {
+            API::get_cached().call_func(
+                self.handle.as_ptr(),
+                &*in_.as_ptr(),
+                &mut *out.as_mut_ptr(),
+            )
+        };
     }
 }

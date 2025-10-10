@@ -171,7 +171,7 @@ fn generate_vs_filter(
                     let api = &*vsapi;
                     std::panic::catch_unwind(|| {
                         let core_ref = rustsynth::core::CoreRef::from_ptr(core);
-                        let in_map = rustsynth::map::Map::from_ptr(in_);
+                        let in_map = rustsynth::map::MapRef::from_ptr(in_);
                         // Create filter instance from arguments
                         match <#struct_type>::from_args(&in_map, &core_ref) {
                             Ok(filter_data) => {

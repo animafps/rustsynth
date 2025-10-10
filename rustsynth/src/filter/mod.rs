@@ -11,7 +11,7 @@ pub struct FilterDependency<'core> {
 }
 
 impl FilterDependency<'_> {
-    #[must_use] 
+    #[must_use]
     pub const fn as_ffi(&self) -> ffi::VSFilterDependency {
         ffi::VSFilterDependency {
             source: self.source.as_ptr(),
@@ -23,7 +23,7 @@ impl FilterDependency<'_> {
     ///
     /// # Safety
     /// The pointer must be valid and point to a `VSFilterDependency`.
-    #[must_use] 
+    #[must_use]
     pub unsafe fn from_ptr(ptr: *const ffi::VSFilterDependency) -> Option<Self> {
         if (*ptr).source.is_null() {
             None
@@ -50,7 +50,7 @@ pub enum RequestPattern {
 }
 
 impl RequestPattern {
-    #[must_use] 
+    #[must_use]
     pub const fn from_ffi(pattern: VSRequestPattern) -> Self {
         match pattern {
             VSRequestPattern::rpGeneral => Self::General,
@@ -61,7 +61,7 @@ impl RequestPattern {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn as_ffi(&self) -> VSRequestPattern {
         match self {
             Self::General => VSRequestPattern::rpGeneral,
@@ -93,7 +93,7 @@ pub enum ActivationReason {
 }
 
 impl ActivationReason {
-    #[must_use] 
+    #[must_use]
     pub const fn from_ffi(reason: i32) -> Self {
         match reason {
             val if val == VSActivationReason::arInitial as i32 => Self::Initial,
@@ -118,7 +118,7 @@ pub enum FilterMode {
 }
 
 impl FilterMode {
-    #[must_use] 
+    #[must_use]
     pub const fn from_ffi(mode: VSFilterMode) -> Self {
         match mode {
             VSFilterMode::fmParallel => Self::Parallel,
@@ -128,7 +128,7 @@ impl FilterMode {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn as_ffi(&self) -> VSFilterMode {
         match self {
             Self::Parallel => VSFilterMode::fmParallel,
@@ -148,6 +148,12 @@ impl From<i32> for FilterMode {
             val if val == VSFilterMode::fmFrameState as i32 => Self::FrameState,
             _ => Self::Parallel,
         }
+    }
+}
+
+impl From<FilterMode> for i32 {
+    fn from(value: FilterMode) -> Self {
+        value.as_ffi() as Self
     }
 }
 

@@ -82,31 +82,31 @@ impl ChannelLayout {
         .union(Self::SIDE_RIGHT);
 
     /// Create a new empty channel layout
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self::empty()
     }
 
     /// Check if a specific channel is present
-    #[must_use] 
+    #[must_use]
     pub const fn has_channel(self, channel: Self) -> bool {
         self.contains(channel)
     }
 
     /// Add a channel to the layout
-    #[must_use] 
+    #[must_use]
     pub const fn with_channel(self, channel: Self) -> Self {
         self.union(channel)
     }
 
     /// Remove a channel from the layout
-    #[must_use] 
+    #[must_use]
     pub const fn without_channel(self, channel: Self) -> Self {
         self.difference(channel)
     }
 
     /// Count the number of channels
-    #[must_use] 
+    #[must_use]
     pub const fn channel_count(self) -> u32 {
         self.bits().count_ones()
     }

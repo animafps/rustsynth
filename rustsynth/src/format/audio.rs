@@ -15,7 +15,7 @@ pub struct AudioFormatBuilder {
 
 impl AudioFormatBuilder {
     /// Create a new `AudioFormat` builder with the required parameters
-    #[must_use] 
+    #[must_use]
     pub const fn new(
         sample_type: SampleType,
         bits_per_sample: i32,
@@ -29,21 +29,21 @@ impl AudioFormatBuilder {
     }
 
     /// Set mono channel layout
-    #[must_use] 
+    #[must_use]
     pub const fn mono(mut self) -> Self {
         self.channel_layout = ChannelLayout::MONO;
         self
     }
 
     /// Set stereo channel layout
-    #[must_use] 
+    #[must_use]
     pub const fn stereo(mut self) -> Self {
         self.channel_layout = ChannelLayout::STEREO;
         self
     }
 
     /// Set custom channel layout
-    #[must_use] 
+    #[must_use]
     pub const fn channel_layout(mut self, layout: ChannelLayout) -> Self {
         self.channel_layout = layout;
         self
@@ -79,7 +79,7 @@ pub struct AudioFormat {
 impl AudioInfo {
     /// # Safety
     /// The pointer must be valid and point to a [`ffi::VSAudioInfo`]
-    #[must_use] 
+    #[must_use]
     pub const unsafe fn from_ptr(from: *const ffi::VSAudioInfo) -> Self {
         let from = &*from;
         Self {
@@ -90,7 +90,7 @@ impl AudioInfo {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn as_ffi(&self) -> ffi::VSAudioInfo {
         ffi::VSAudioInfo {
             format: self.format.as_ffi(),
@@ -104,7 +104,7 @@ impl AudioInfo {
 impl AudioFormat {
     /// # Safety
     /// The pointer must be valid and point to a [`ffi::VSAudioFormat`]
-    #[must_use] 
+    #[must_use]
     pub const unsafe fn from_ptr(from: *const ffi::VSAudioFormat) -> Self {
         let from = &*from;
         let sample_type = if from.sampleType == 0 {
@@ -159,7 +159,7 @@ impl AudioFormat {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn as_ffi(&self) -> ffi::VSAudioFormat {
         ffi::VSAudioFormat {
             sampleType: self.sample_type as i32,
@@ -170,7 +170,7 @@ impl AudioFormat {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_name(&self) -> Option<String> {
         unsafe {
             API::get_cached()

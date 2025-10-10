@@ -2,7 +2,7 @@ use rustsynth::{
     core::CoreRef,
     filter::{Filter, FilterDependency, FilterMode, RequestPattern},
     frame::{Frame, FrameContext},
-    map::Map,
+    map::MapRef,
     node::Node,
     vapoursynth_plugin,
 };
@@ -30,7 +30,7 @@ mod plugin {
         const RETURNTYPE: &'static str = "clip:vnode;";
         const MODE: FilterMode = FilterMode::Parallel;
 
-        fn from_args(args: &Map<'core>, _core: &CoreRef<'core>) -> Result<Self, String> {
+        fn from_args(args: &MapRef<'core>, _core: &CoreRef<'core>) -> Result<Self, String> {
             let input_node = args.get_node("clip")?;
             Ok(Self { input_node })
         }

@@ -9,7 +9,7 @@ pub enum DataType {
 }
 
 impl DataType {
-    #[must_use] 
+    #[must_use]
     pub const fn from_hint(value: i32) -> Self {
         match value {
             x if x == ffi::VSDataTypeHint::dtBinary as i32 => Self::Binary,

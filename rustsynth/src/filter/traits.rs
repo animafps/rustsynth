@@ -3,7 +3,7 @@ use crate::{
     filter::{FilterDependency, FilterMode},
     format::{AudioInfo, VideoInfo},
     frame::{Frame, FrameContext},
-    map::Map,
+    map::MapRef,
 };
 
 /// Trait that filter structs must implement
@@ -14,7 +14,7 @@ pub trait Filter<'core>: Send + Sync + Clone + 'core {
     const MODE: FilterMode;
 
     /// Create filter instance from input arguments and core
-    fn from_args(args: &Map<'core>, core: &CoreRef<'core>) -> Result<Self, String>
+    fn from_args(args: &MapRef<'core>, core: &CoreRef<'core>) -> Result<Self, String>
     where
         Self: Sized;
 

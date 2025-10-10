@@ -30,7 +30,7 @@ impl<'a> GetFrameError<'a> {
 
     /// Consumes this error, returning its underlying error message.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn into_inner(self) -> Cow<'a, CStr> {
         self.0
     }

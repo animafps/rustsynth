@@ -28,13 +28,11 @@ pub use self::data::{Data, DataType};
 #[cfg(test)]
 mod tests;
 
-/// A `VapourSynth` map.
+/// An owned `VapourSynth` map that frees on drop.
 ///
 /// A map contains key-value pairs where the value is zero or more elements of a certain type.
-// This type is intended to be publicly used only in reference form.
 #[derive(Debug)]
 pub struct Map<'elem> {
-    // The actual mutability of this depends on whether it's accessed via `&Map` or `&mut Map`.
     handle: NonNull<ffi::VSMap>,
     _elem: PhantomData<&'elem ()>,
 }
@@ -42,21 +40,40 @@ pub struct Map<'elem> {
 unsafe impl Send for Map<'_> {}
 unsafe impl Sync for Map<'_> {}
 
-#[doc(hidden)]
-impl Deref for Map<'_> {
-    type Target = ffi::VSMap;
+/// A borrowed reference to a `VapourSynth` map that does not free on drop.
+///
+/// This type is used when the map is owned by another object (like frame properties).
+/// It can only be accessed through references (`&MapRef` or `&mut MapRef`).
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct MapRef<'elem> {
+    inner: ffi::VSMap,
+    _elem: PhantomData<&'elem ()>,
+}
+
+unsafe impl Send for MapRef<'_> {}
+unsafe impl Sync for MapRef<'_> {}
+
+// Map derefs to MapRef so they share the same API
+impl<'elem> Deref for Map<'elem> {
+    type Target = MapRef<'elem>;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        unsafe { self.handle.as_ref() }
+        unsafe {
+            // SAFETY: MapRef is repr(transparent) over ffi::VSMap
+            MapRef::from_ptr(self.handle.as_ptr())
+        }
     }
 }
 
-#[doc(hidden)]
-impl DerefMut for Map<'_> {
+impl<'elem> DerefMut for Map<'elem> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { self.handle.as_mut() }
+        unsafe {
+            // SAFETY: MapRef is repr(transparent) over ffi::VSMap
+            MapRef::from_ptr_mut(self.handle.as_ptr())
+        }
     }
 }
 
@@ -88,6 +105,7 @@ fn handle_append_prop_error(error: i32) -> MapResult<()> {
 }
 
 impl<'elem> Map<'elem> {
+    /// Creates a new owned map.
     pub fn new() -> MapResult<Self> {
         let handle = unsafe { API::get_cached().create_map() };
         let handle = NonNull::new(handle).ok_or(MapError::CreationFailed)?;
@@ -98,31 +116,65 @@ impl<'elem> Map<'elem> {
         })
     }
 
-    #[must_use] 
-    pub const fn as_ptr(&self) -> *mut ffi::VSMap {
-        self.handle.as_ptr()
-    }
-
-    /// # Safety
-    /// The caller must ensure that the map is not used after this call.
-    pub unsafe fn free(mut self) {
-        API::get_cached().free_map(self.handle.as_mut());
-    }
-
-    /// Wraps pointer into `Map`.
+    /// Wraps a raw pointer into an owned `Map`.
     ///
     /// # Safety
-    /// The caller needs to ensure the pointer is valid, the element lifetime is valid, and that
-    /// the resulting `Map` gets put into `MapRef` or `MapRefMut` or `OwnedMap` correctly.
+    /// The caller must ensure:
+    /// - The pointer is valid and points to a VSMap
+    /// - The map is not already owned by another Rust object
+    /// - The element lifetime `'elem` is valid
     #[inline]
-    #[must_use] 
-    pub const unsafe fn from_ptr(handle: *const ffi::VSMap) -> Self {
+    pub const unsafe fn from_ptr(handle: *mut ffi::VSMap) -> Self {
         Self {
-            handle: NonNull::new_unchecked(handle.cast_mut()),
+            handle: NonNull::new_unchecked(handle),
             _elem: PhantomData,
         }
     }
 
+    /// Returns the raw pointer to the map.
+    #[must_use]
+    pub const fn as_ptr(&self) -> *mut ffi::VSMap {
+        self.handle.as_ptr()
+    }
+}
+
+impl<'elem> MapRef<'elem> {
+    /// Wraps a raw pointer into a borrowed `MapRef`.
+    ///
+    /// # Safety
+    /// The caller must ensure:
+    /// - The pointer is valid and points to a VSMap
+    /// - The lifetime `'a` is valid for the duration of the borrow
+    /// - The element lifetime `'elem` is valid
+    #[inline]
+    pub const unsafe fn from_ptr<'a>(ptr: *const ffi::VSMap) -> &'a Self {
+        &*(ptr as *const MapRef<'elem>)
+    }
+
+    /// Wraps a raw mutable pointer into a borrowed `MapRef`.
+    ///
+    /// # Safety
+    /// Same as `from_ptr`, plus no other mutable references exist
+    #[inline]
+    pub unsafe fn from_ptr_mut<'a>(ptr: *mut ffi::VSMap) -> &'a mut Self {
+        &mut *(ptr as *mut MapRef<'elem>)
+    }
+
+    /// Returns the raw pointer to the map.
+    #[must_use]
+    pub const fn as_ptr(&self) -> *const ffi::VSMap {
+        self as *const Self as *const ffi::VSMap
+    }
+
+    /// Returns the raw mutable pointer to the map.
+    #[must_use]
+    pub const fn as_mut_ptr(&mut self) -> *mut ffi::VSMap {
+        self as *mut Self as *mut ffi::VSMap
+    }
+}
+
+// All shared methods go on MapRef so both Map and &MapRef can use them
+impl<'elem> MapRef<'elem> {
     /// Checks if the key is valid. Valid keys start with an alphabetic character or an underscore,
     /// and contain only alphanumeric characters and underscores.
     pub fn is_key_valid(key: &str) -> Result<(), InvalidKeyError> {
@@ -149,7 +201,7 @@ impl<'elem> Map<'elem> {
     /// Checks if the key is valid and makes it a `CString`.
     #[inline]
     pub(crate) fn make_raw_key(key: &str) -> MapResult<CString> {
-        Map::is_key_valid(key)?;
+        MapRef::is_key_valid(key)?;
         Ok(CString::new(key)?)
     }
 
@@ -157,14 +209,14 @@ impl<'elem> Map<'elem> {
     #[inline]
     pub fn clear(&mut self) {
         unsafe {
-            API::get_cached().clear_map(self);
+            API::get_cached().clear_map(&mut self.inner);
         }
     }
 
     /// Returns the error message contained in the map, if any.
     #[inline]
     pub fn error(&'_ self) -> Result<&str, std::str::Utf8Error> {
-        let error_message = unsafe { API::get_cached().map_get_error(self) };
+        let error_message = unsafe { API::get_cached().map_get_error(&self.inner) };
         let error_message = unsafe { CStr::from_ptr(error_message) };
         error_message.to_str()
     }
@@ -174,16 +226,16 @@ impl<'elem> Map<'elem> {
     pub fn set_error(&mut self, error_message: &str) -> MapResult<()> {
         let error_message = CString::new(error_message)?;
         unsafe {
-            API::get_cached().map_set_error(self, error_message.as_ptr());
+            API::get_cached().map_set_error(&mut self.inner, error_message.as_ptr());
         }
         Ok(())
     }
 
     /// Returns the number of keys contained in a map.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn key_count(&self) -> usize {
-        let count = unsafe { API::get_cached().map_num_keys(self) };
+        let count = unsafe { API::get_cached().map_num_keys(&self.inner) };
         debug_assert!(count >= 0);
         count as usize
     }
@@ -197,7 +249,7 @@ impl<'elem> Map<'elem> {
         assert!(index < self.key_count());
         let index = index as i32;
 
-        unsafe { CStr::from_ptr(API::get_cached().map_get_key(self, index)) }
+        unsafe { CStr::from_ptr(API::get_cached().map_get_key(&self.inner, index)) }
     }
 
     /// Returns a key from a map.
@@ -211,7 +263,7 @@ impl<'elem> Map<'elem> {
 
     /// Returns an iterator over all keys in a map.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn keys(&'_ self) -> Keys<'_, 'elem> {
         Keys::new(self)
     }
@@ -222,7 +274,7 @@ impl<'elem> Map<'elem> {
     /// The caller must ensure `key` is valid.
     #[inline]
     pub(crate) unsafe fn value_count_raw_unchecked(&self, key: &CStr) -> MapResult<usize> {
-        let rv = API::get_cached().map_num_elements(self, key.as_ptr());
+        let rv = API::get_cached().map_num_elements(&self.inner, key.as_ptr());
         if rv == -1 {
             Err(MapError::KeyNotFound)
         } else {
@@ -234,7 +286,7 @@ impl<'elem> Map<'elem> {
     /// Returns the number of elements associated with a key in a map.
     #[inline]
     pub fn value_count(&self, key: &str) -> MapResult<usize> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.value_count_raw_unchecked(&key) }
     }
 
@@ -244,7 +296,7 @@ impl<'elem> Map<'elem> {
     /// The caller must ensure `key` is valid.
     #[inline]
     pub(crate) unsafe fn value_type_raw_unchecked(&self, key: &CStr) -> MapResult<ValueType> {
-        match API::get_cached().map_get_type(self, key.as_ptr()) {
+        match API::get_cached().map_get_type(&self.inner, key.as_ptr()) {
             x if x == ffi::VSPropertyType::ptUnset as c_int => Err(MapError::KeyNotFound),
             x if x == ffi::VSPropertyType::ptInt as c_int => Ok(ValueType::Int),
             x if x == ffi::VSPropertyType::ptFloat as c_int => Ok(ValueType::Float),
@@ -269,7 +321,7 @@ impl<'elem> Map<'elem> {
     /// Retrieves a value type from a map.
     #[inline]
     pub fn value_type(&self, key: &str) -> MapResult<ValueType> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.value_type_raw_unchecked(&key) }
     }
 
@@ -279,7 +331,7 @@ impl<'elem> Map<'elem> {
     /// The caller must ensure `key` is valid.
     #[inline]
     pub(crate) unsafe fn delete_key_raw_unchecked(&mut self, key: &CStr) -> MapResult<()> {
-        let result = API::get_cached().map_delete_key(self, key.as_ptr());
+        let result = API::get_cached().map_delete_key(&mut self.inner, key.as_ptr());
         if result == 0 {
             Err(MapError::KeyNotFound)
         } else {
@@ -291,7 +343,7 @@ impl<'elem> Map<'elem> {
     /// Deletes the given key.
     #[inline]
     pub fn delete_key(&mut self, key: &str) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.delete_key_raw_unchecked(&key) }
     }
 
@@ -331,14 +383,14 @@ impl<'elem> Map<'elem> {
     /// This function retrieves the first value associated with the key.
     #[inline]
     pub fn get_int(&self, key: &str) -> MapResult<i64> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.get_int_raw_unchecked(&key, 0) }
     }
 
     /// Retrieves integers from a map.
     #[inline]
     pub fn get_int_iter<'map>(&'map self, key: &str) -> MapResult<ValueIter<'map, 'elem, i64>> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { ValueIter::new_int(self, key) }
     }
 
@@ -347,14 +399,14 @@ impl<'elem> Map<'elem> {
     /// This function retrieves the first value associated with the key.
     #[inline]
     pub fn get_float(&self, key: &str) -> MapResult<f64> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.get_float_raw_unchecked(&key, 0) }
     }
 
     /// Retrieves floating point numbers from a map.
     #[inline]
     pub fn get_float_iter<'map>(&'map self, key: &str) -> MapResult<ValueIter<'map, 'elem, f64>> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { ValueIter::new_float(self, key) }
     }
 
@@ -363,7 +415,7 @@ impl<'elem> Map<'elem> {
     /// This function retrieves the first value associated with the key.
     #[inline]
     pub fn get_data(&self, key: &str) -> MapResult<Data<'elem>> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.get_data_raw_unchecked(&key, 0) }
     }
 
@@ -373,7 +425,7 @@ impl<'elem> Map<'elem> {
         &'map self,
         key: &str,
     ) -> MapResult<ValueIter<'map, 'elem, Data<'elem>>> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { ValueIter::new_data(self, key) }
     }
 
@@ -383,13 +435,13 @@ impl<'elem> Map<'elem> {
         &'map self,
         key: &str,
     ) -> MapResult<ValueIter<'map, 'elem, String>> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { ValueIter::new_string(self, key) }
     }
 
     #[inline]
     pub fn get_string(&self, key: &str) -> MapResult<String> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { Ok(self.get_string_raw_unchecked(&key, 0)?.into_owned()) }
     }
 
@@ -404,11 +456,12 @@ impl<'elem> Map<'elem> {
         index: i32,
     ) -> MapResult<Cow<'elem, str>> {
         let mut error = 0;
-        let value = API::get_cached().map_get_data(self, key.as_ptr(), index, &mut error);
+        let value = API::get_cached().map_get_data(&self.inner, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;
 
         let mut error = 0;
-        let length = API::get_cached().map_get_data_size(self, key.as_ptr(), index, &mut error);
+        let length =
+            API::get_cached().map_get_data_size(&self.inner, key.as_ptr(), index, &mut error);
         debug_assert!(error == 0);
         debug_assert!(length >= 0);
 
@@ -420,7 +473,7 @@ impl<'elem> Map<'elem> {
     /// This function retrieves the first value associated with the key.
     #[inline]
     pub fn get_node(&self, key: &str) -> MapResult<Node<'elem>> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.get_node_raw_unchecked(&key, 0) }
     }
 
@@ -430,7 +483,7 @@ impl<'elem> Map<'elem> {
         &'map self,
         key: &str,
     ) -> MapResult<ValueIter<'map, 'elem, Node<'elem>>> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { ValueIter::new_node(self, key) }
     }
 
@@ -439,7 +492,7 @@ impl<'elem> Map<'elem> {
     /// This function retrieves the first value associated with the key.
     #[inline]
     pub fn get_frame(&self, key: &str) -> MapResult<Frame<'elem>> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.get_frame_raw_unchecked(&key, 0) }
     }
 
@@ -449,7 +502,7 @@ impl<'elem> Map<'elem> {
         &'map self,
         key: &str,
     ) -> MapResult<ValueIter<'map, 'elem, Frame<'elem>>> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { ValueIter::new_frame(self, key) }
     }
 
@@ -458,7 +511,7 @@ impl<'elem> Map<'elem> {
     /// This function retrieves the first value associated with the key.
     #[inline]
     pub fn get_function(&self, key: &str) -> MapResult<Function<'elem>> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.get_function_raw_unchecked(&key, 0) }
     }
 
@@ -468,21 +521,21 @@ impl<'elem> Map<'elem> {
         &'map self,
         key: &str,
     ) -> MapResult<ValueIter<'map, 'elem, Function<'elem>>> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { ValueIter::new_function(self, key) }
     }
 
     /// Retrieves int array from a map.
     #[inline]
-    pub fn get_int_array(&self, key: &str) -> MapResult<Vec<i64>> {
-        let key = Map::make_raw_key(key)?;
+    pub fn get_int_array(&self, key: &str) -> MapResult<&[i64]> {
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.get_int_array_raw_unchecked(&key) }
     }
 
     /// Retrieves float array from a map.
     #[inline]
-    pub fn get_float_array(&self, key: &str) -> MapResult<Vec<f64>> {
-        let key = Map::make_raw_key(key)?;
+    pub fn get_float_array(&self, key: &str) -> MapResult<&[f64]> {
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.get_float_array_raw_unchecked(&key) }
     }
 
@@ -493,7 +546,7 @@ impl<'elem> Map<'elem> {
     #[inline]
     pub(crate) unsafe fn get_int_raw_unchecked(&self, key: &CStr, index: i32) -> MapResult<i64> {
         let mut error = 0;
-        let value = API::get_cached().map_get_int(self, key.as_ptr(), index, &mut error);
+        let value = API::get_cached().map_get_int(&self.inner, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;
 
         Ok(value)
@@ -506,7 +559,7 @@ impl<'elem> Map<'elem> {
     #[inline]
     pub(crate) unsafe fn get_float_raw_unchecked(&self, key: &CStr, index: i32) -> MapResult<f64> {
         let mut error = 0;
-        let value = API::get_cached().map_get_float(self, key.as_ptr(), index, &mut error);
+        let value = API::get_cached().map_get_float(&self.inner, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;
 
         Ok(value)
@@ -523,11 +576,12 @@ impl<'elem> Map<'elem> {
         index: i32,
     ) -> MapResult<Data<'elem>> {
         let mut error = 0;
-        let value = API::get_cached().map_get_data(self, key.as_ptr(), index, &mut error);
+        let value = API::get_cached().map_get_data(&self.inner, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;
 
         let mut error = 0;
-        let length = API::get_cached().map_get_data_size(self, key.as_ptr(), index, &mut error);
+        let length =
+            API::get_cached().map_get_data_size(&self.inner, key.as_ptr(), index, &mut error);
         debug_assert!(error == 0);
         debug_assert!(length >= 0);
 
@@ -536,10 +590,14 @@ impl<'elem> Map<'elem> {
         Ok(Data::from_slice(slice))
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn data_type_hint(&self, key: &CStr, index: i32) -> DataType {
         let hint = unsafe {
-            API::get_cached().map_get_data_type_hint(self.handle.as_ptr(), key.as_ptr(), index)
+            API::get_cached().map_get_data_type_hint(
+                &self.inner as *const _ as *mut _,
+                key.as_ptr(),
+                index,
+            )
         };
         DataType::from_hint(hint)
     }
@@ -555,28 +613,34 @@ impl<'elem> Map<'elem> {
         index: i32,
     ) -> MapResult<Node<'elem>> {
         let mut error = 0;
-        let value = API::get_cached().map_get_node(self, key.as_ptr(), index, &mut error);
+        let value = API::get_cached().map_get_node(&self.inner, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;
 
         Ok(Node::from_ptr(value))
     }
 
     #[inline]
-    pub(crate) unsafe fn get_int_array_raw_unchecked(&self, key: &CStr) -> MapResult<Vec<i64>> {
+    pub(crate) unsafe fn get_int_array_raw_unchecked(&self, key: &CStr) -> MapResult<&[i64]> {
         let mut error = 0;
-        let value = API::get_cached().map_get_int_array(self, key.as_ptr(), &mut error);
+        let value = API::get_cached().map_get_int_array(&self.inner, key.as_ptr(), &mut error);
         handle_get_prop_error(error)?;
 
-        Ok(slice::from_raw_parts(value, self.value_count_raw_unchecked(key).unwrap()).to_vec())
+        Ok(slice::from_raw_parts(
+            value,
+            self.value_count_raw_unchecked(key).unwrap(),
+        ))
     }
 
     #[inline]
-    pub(crate) unsafe fn get_float_array_raw_unchecked(&self, key: &CStr) -> MapResult<Vec<f64>> {
+    pub(crate) unsafe fn get_float_array_raw_unchecked(&self, key: &CStr) -> MapResult<&[f64]> {
         let mut error = 0;
-        let value = API::get_cached().map_get_float_array(self, key.as_ptr(), &mut error);
+        let value = API::get_cached().map_get_float_array(&self.inner, key.as_ptr(), &mut error);
         handle_get_prop_error(error)?;
 
-        Ok(slice::from_raw_parts(value, self.value_count_raw_unchecked(key).unwrap()).to_vec())
+        Ok(slice::from_raw_parts(
+            value,
+            self.value_count_raw_unchecked(key).unwrap(),
+        ))
     }
 
     /// Retrieves a frame from a map.
@@ -590,7 +654,7 @@ impl<'elem> Map<'elem> {
         index: i32,
     ) -> MapResult<Frame<'elem>> {
         let mut error = 0;
-        let value = API::get_cached().map_get_frame(self, key.as_ptr(), index, &mut error);
+        let value = API::get_cached().map_get_frame(&self.inner, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;
 
         Ok(Frame::from_ptr(value))
@@ -607,7 +671,7 @@ impl<'elem> Map<'elem> {
         index: i32,
     ) -> MapResult<Function<'elem>> {
         let mut error = 0;
-        let value = API::get_cached().map_get_func(self, key.as_ptr(), index, &mut error);
+        let value = API::get_cached().map_get_func(&self.inner, key.as_ptr(), index, &mut error);
         handle_get_prop_error(error)?;
 
         Ok(Function::from_ptr(value))
@@ -616,42 +680,42 @@ impl<'elem> Map<'elem> {
     /// Appends an integer to a map.
     #[inline]
     pub fn append_int(&mut self, key: &str, x: i64) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.append_int_raw_unchecked(&key, x) }
     }
 
     /// Appends a floating point number to a map.
     #[inline]
     pub fn append_float(&mut self, key: &str, x: f64) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.append_float_raw_unchecked(&key, x) }
     }
 
     /// Appends data to a map.
     #[inline]
     pub fn append_data(&mut self, key: &str, x: &[u8]) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.append_data_raw_unchecked(&key, x) }
     }
 
     /// Appends a node to a map.
     #[inline]
     pub fn append_node(&mut self, key: &str, x: &Node) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.append_node_raw_unchecked(&key, x) }
     }
 
     /// Appends a frame to a map.
     #[inline]
     pub fn append_frame(&mut self, key: &str, x: &Frame<'elem>) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.append_frame_raw_unchecked(&key, x) }
     }
 
     /// Appends a function to a map.
     #[inline]
     pub fn append_function(&mut self, key: &str, x: &Function<'elem>) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe { self.append_function_raw_unchecked(&key, x) }
     }
 
@@ -661,8 +725,12 @@ impl<'elem> Map<'elem> {
     /// The caller must ensure `key` is valid.
     #[inline]
     pub(crate) unsafe fn append_int_raw_unchecked(&mut self, key: &CStr, x: i64) -> MapResult<()> {
-        let error =
-            API::get_cached().map_set_int(self, key.as_ptr(), x, ffi::VSMapAppendMode::maAppend);
+        let error = API::get_cached().map_set_int(
+            &mut self.inner,
+            key.as_ptr(),
+            x,
+            ffi::VSMapAppendMode::maAppend,
+        );
 
         handle_append_prop_error(error)
     }
@@ -677,8 +745,12 @@ impl<'elem> Map<'elem> {
         key: &CStr,
         x: f64,
     ) -> MapResult<()> {
-        let error =
-            API::get_cached().map_set_float(self, key.as_ptr(), x, ffi::VSMapAppendMode::maAppend);
+        let error = API::get_cached().map_set_float(
+            &mut self.inner,
+            key.as_ptr(),
+            x,
+            ffi::VSMapAppendMode::maAppend,
+        );
 
         handle_append_prop_error(error)
     }
@@ -694,7 +766,7 @@ impl<'elem> Map<'elem> {
         x: &[u8],
     ) -> MapResult<()> {
         let error = API::get_cached().map_set_data(
-            self,
+            &mut *self.as_mut_ptr(),
             key.as_ptr(),
             x,
             ffi::VSDataTypeHint::dtUnknown,
@@ -715,7 +787,7 @@ impl<'elem> Map<'elem> {
         x: &Node,
     ) -> MapResult<()> {
         let error = API::get_cached().map_set_node(
-            self,
+            &mut *self.as_mut_ptr(),
             key.as_ptr(),
             x.as_ptr(),
             ffi::VSMapAppendMode::maAppend,
@@ -735,7 +807,7 @@ impl<'elem> Map<'elem> {
         x: &Frame<'elem>,
     ) -> MapResult<()> {
         let error = API::get_cached().map_set_frame(
-            self,
+            &mut *self.as_mut_ptr(),
             key.as_ptr(),
             &raw const **x,
             ffi::VSMapAppendMode::maAppend,
@@ -755,7 +827,7 @@ impl<'elem> Map<'elem> {
         x: &Function<'elem>,
     ) -> MapResult<()> {
         let error = API::get_cached().map_set_func(
-            self,
+            &mut *self.as_mut_ptr(),
             key.as_ptr(),
             x.as_ptr(),
             ffi::VSMapAppendMode::maAppend,
@@ -767,7 +839,7 @@ impl<'elem> Map<'elem> {
     /// Sets a property value to an integer.
     #[inline]
     pub fn set_int(&mut self, key: &str, x: i64) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe {
             self.set_int_raw_unchecked(&key, x);
         }
@@ -775,7 +847,7 @@ impl<'elem> Map<'elem> {
     }
 
     pub fn set_string(&mut self, key: &str, x: &str) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe {
             self.set_string_raw_unchecked(&key, x);
         }
@@ -785,7 +857,7 @@ impl<'elem> Map<'elem> {
     /// Sets a property value to a floating point number.
     #[inline]
     pub fn set_float(&mut self, key: &str, x: f64) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe {
             self.set_float_raw_unchecked(&key, x);
         }
@@ -795,7 +867,7 @@ impl<'elem> Map<'elem> {
     /// Sets a property value to data.
     #[inline]
     pub fn set_data(&mut self, key: &str, x: &[u8]) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe {
             self.set_data_raw_unchecked(&key, x);
         }
@@ -805,7 +877,7 @@ impl<'elem> Map<'elem> {
     /// Sets a property value to a node.
     #[inline]
     pub fn set_node(&mut self, key: &str, x: &Node) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe {
             self.set_node_raw_unchecked(&key, x);
         }
@@ -815,7 +887,7 @@ impl<'elem> Map<'elem> {
     /// Sets a property value to a frame.
     #[inline]
     pub fn set_frame(&mut self, key: &str, x: &Frame<'elem>) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe {
             self.set_frame_raw_unchecked(&key, x);
         }
@@ -825,7 +897,7 @@ impl<'elem> Map<'elem> {
     /// Sets a property value to a function.
     #[inline]
     pub fn set_function(&mut self, key: &str, x: &Function<'elem>) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe {
             self.set_function_raw_unchecked(&key, x);
         }
@@ -833,7 +905,7 @@ impl<'elem> Map<'elem> {
     }
 
     pub fn set_int_array(&mut self, key: &str, x: Vec<i64>) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe {
             self.set_int_array_raw_unchecked(&key, x);
         }
@@ -841,7 +913,7 @@ impl<'elem> Map<'elem> {
     }
 
     pub fn set_float_array(&mut self, key: &str, x: Vec<f64>) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         unsafe {
             self.set_float_array_raw_unchecked(&key, x);
         }
@@ -851,7 +923,7 @@ impl<'elem> Map<'elem> {
     #[inline]
     pub(crate) unsafe fn set_int_array_raw_unchecked(&mut self, key: &CStr, x: Vec<i64>) {
         let error = API::get_cached().map_set_int_array(
-            self.handle.as_mut(),
+            &mut self.inner,
             key.as_ptr(),
             x.as_ptr(),
             x.len().try_into().unwrap(),
@@ -863,7 +935,7 @@ impl<'elem> Map<'elem> {
     #[inline]
     pub(crate) unsafe fn set_float_array_raw_unchecked(&mut self, key: &CStr, x: Vec<f64>) {
         let error = API::get_cached().map_set_float_array(
-            self.handle.as_mut(),
+            &mut self.inner,
             key.as_ptr(),
             x.as_ptr(),
             x.len().try_into().unwrap(),
@@ -878,8 +950,12 @@ impl<'elem> Map<'elem> {
     /// The caller must ensure `key` is valid.
     #[inline]
     pub(crate) unsafe fn set_int_raw_unchecked(&mut self, key: &CStr, x: i64) {
-        let error =
-            API::get_cached().map_set_int(self, key.as_ptr(), x, ffi::VSMapAppendMode::maReplace);
+        let error = API::get_cached().map_set_int(
+            &mut self.inner,
+            key.as_ptr(),
+            x,
+            ffi::VSMapAppendMode::maReplace,
+        );
 
         debug_assert!(error == 0);
     }
@@ -890,8 +966,12 @@ impl<'elem> Map<'elem> {
     /// The caller must ensure `key` is valid.
     #[inline]
     pub(crate) unsafe fn set_float_raw_unchecked(&mut self, key: &CStr, x: f64) {
-        let error =
-            API::get_cached().map_set_float(self, key.as_ptr(), x, ffi::VSMapAppendMode::maReplace);
+        let error = API::get_cached().map_set_float(
+            &mut self.inner,
+            key.as_ptr(),
+            x,
+            ffi::VSMapAppendMode::maReplace,
+        );
 
         debug_assert!(error == 0);
     }
@@ -903,7 +983,7 @@ impl<'elem> Map<'elem> {
     #[inline]
     pub(crate) unsafe fn set_data_raw_unchecked(&mut self, key: &CStr, x: &[u8]) {
         let error = API::get_cached().map_set_data(
-            self,
+            &mut *self.as_mut_ptr(),
             key.as_ptr(),
             x,
             ffi::VSDataTypeHint::dtUnknown,
@@ -920,7 +1000,7 @@ impl<'elem> Map<'elem> {
     #[inline]
     pub(crate) unsafe fn set_string_raw_unchecked(&mut self, key: &CStr, x: &str) {
         let error = API::get_cached().map_set_data(
-            self,
+            &mut *self.as_mut_ptr(),
             key.as_ptr(),
             x.as_bytes(),
             ffi::VSDataTypeHint::dtUtf8,
@@ -937,7 +1017,7 @@ impl<'elem> Map<'elem> {
     #[inline]
     pub(crate) unsafe fn set_node_raw_unchecked(&mut self, key: &CStr, x: &Node) {
         let error = API::get_cached().map_set_node(
-            self,
+            &mut *self.as_mut_ptr(),
             key.as_ptr(),
             x.as_ptr(),
             ffi::VSMapAppendMode::maReplace,
@@ -953,7 +1033,7 @@ impl<'elem> Map<'elem> {
     #[inline]
     pub(crate) unsafe fn set_frame_raw_unchecked(&mut self, key: &CStr, x: &Frame<'elem>) {
         let error = API::get_cached().map_set_frame(
-            self,
+            &mut *self.as_mut_ptr(),
             key.as_ptr(),
             &raw const **x,
             ffi::VSMapAppendMode::maReplace,
@@ -969,7 +1049,7 @@ impl<'elem> Map<'elem> {
     #[inline]
     pub(crate) unsafe fn set_function_raw_unchecked(&mut self, key: &CStr, x: &Function<'elem>) {
         let error = API::get_cached().map_set_func(
-            self,
+            &mut *self.as_mut_ptr(),
             key.as_ptr(),
             x.as_ptr(),
             ffi::VSMapAppendMode::maReplace,
@@ -979,17 +1059,17 @@ impl<'elem> Map<'elem> {
     }
 
     fn consume_frame(
-        self,
+        &self,
         frame: Frame<'elem>,
         key: &str,
         append: ffi::VSMapAppendMode,
     ) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         let frame = mem::ManuallyDrop::new(frame);
         let frame_ptr = frame.as_ptr();
         let res = unsafe {
             API::get_cached().map_consume_frame(
-                self.handle.as_ptr(),
+                &self.inner as *const _ as *mut _,
                 key.as_ptr(),
                 frame_ptr,
                 append as i32,
@@ -1004,23 +1084,23 @@ impl<'elem> Map<'elem> {
 
     /// Consumes a frame and appends or sets it in the map.
     #[inline]
-    pub fn append_consume_frame(self, frame: Frame<'elem>, key: &str) -> MapResult<()> {
+    pub fn append_consume_frame(&self, frame: Frame<'elem>, key: &str) -> MapResult<()> {
         self.consume_frame(frame, key, ffi::VSMapAppendMode::maAppend)
     }
 
     /// Consumes a frame and sets it in the map. Replaces any existing values.
     #[inline]
-    pub fn set_consume_frame(self, frame: Frame<'elem>, key: &str) -> MapResult<()> {
+    pub fn set_consume_frame(&self, frame: Frame<'elem>, key: &str) -> MapResult<()> {
         self.consume_frame(frame, key, ffi::VSMapAppendMode::maReplace)
     }
 
-    fn consume_node(self, node: Node, key: &str, append: ffi::VSMapAppendMode) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+    fn consume_node(&self, node: Node, key: &str, append: ffi::VSMapAppendMode) -> MapResult<()> {
+        let key = MapRef::make_raw_key(key)?;
         let node = mem::ManuallyDrop::new(node);
         let node_ptr = node.as_ptr();
         let res = unsafe {
             API::get_cached().map_consume_node(
-                self.handle.as_ptr(),
+                &self.inner as *const _ as *mut _,
                 key.as_ptr(),
                 node_ptr,
                 append as i32,
@@ -1035,28 +1115,28 @@ impl<'elem> Map<'elem> {
 
     /// Consumes a node and appends or sets it in the map.
     #[inline]
-    pub fn append_consume_node(self, node: Node, key: &str) -> MapResult<()> {
+    pub fn append_consume_node(&self, node: Node, key: &str) -> MapResult<()> {
         self.consume_node(node, key, ffi::VSMapAppendMode::maAppend)
     }
 
     /// Consumes a node and sets it in the map. Replaces any existing values.
     #[inline]
-    pub fn set_consume_node(self, node: Node, key: &str) -> MapResult<()> {
+    pub fn set_consume_node(&self, node: Node, key: &str) -> MapResult<()> {
         self.consume_node(node, key, ffi::VSMapAppendMode::maReplace)
     }
 
     fn consume_function(
-        self,
+        &self,
         func: Function<'elem>,
         key: &str,
         append: ffi::VSMapAppendMode,
     ) -> MapResult<()> {
-        let key = Map::make_raw_key(key)?;
+        let key = MapRef::make_raw_key(key)?;
         let func = mem::ManuallyDrop::new(func);
         let func_ptr = func.as_ptr();
         let res = unsafe {
             API::get_cached().map_consume_function(
-                self.handle.as_ptr(),
+                &self.inner as *const _ as *mut _,
                 key.as_ptr(),
                 func_ptr,
                 append as i32,
@@ -1071,13 +1151,13 @@ impl<'elem> Map<'elem> {
 
     /// Consumes a function and appends or sets it in the map.
     #[inline]
-    pub fn append_consume_function(self, func: Function<'elem>, key: &str) -> MapResult<()> {
+    pub fn append_consume_function(&self, func: Function<'elem>, key: &str) -> MapResult<()> {
         self.consume_function(func, key, ffi::VSMapAppendMode::maAppend)
     }
 
     /// Consumes a function and sets it in the map. Replaces any existing values.
     #[inline]
-    pub fn set_consume_function(self, func: Function<'elem>, key: &str) -> MapResult<()> {
+    pub fn set_consume_function(&self, func: Function<'elem>, key: &str) -> MapResult<()> {
         self.consume_function(func, key, ffi::VSMapAppendMode::maReplace)
     }
 
@@ -1086,4 +1166,13 @@ impl<'elem> Map<'elem> {
 
 pub trait IntoOwnedMap {
     fn into_owned_map<'elem>(self) -> Map<'elem>;
+}
+
+impl Drop for Map<'_> {
+    #[inline]
+    fn drop(&mut self) {
+        unsafe {
+            API::get_cached().free_map(self.handle.as_mut());
+        }
+    }
 }

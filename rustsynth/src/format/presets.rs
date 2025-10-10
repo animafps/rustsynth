@@ -83,7 +83,7 @@ const fn make_video_id(
 
 impl PresetVideoFormat {
     /// Consumes the `PresetVideoFormatID` and returns the corresponding `VideoFormat` from the core.
-    #[must_use] 
+    #[must_use]
     pub fn into_format(self, core: &CoreRef) -> VideoFormat {
         core.get_video_format_by_id(self as u32).unwrap()
     }

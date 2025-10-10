@@ -54,7 +54,7 @@ impl ProgressTracker {
         }
     }
 
-    pub fn finish(&mut self) {
+    pub fn finish(&self) {
         let elapsed = self.start_time.elapsed().as_secs_f64();
         let fps = self.total_frames as f64 / elapsed;
 
