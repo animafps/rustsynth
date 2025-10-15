@@ -4,6 +4,9 @@ use syn::{self, parse_macro_input, DeriveInput, Ident, ItemMod};
 
 /// Derive macro generating an impl of `rustsynth::map::IntoOwnedMap`.
 ///
+/// This macro automatically generates an implementation that converts a struct
+/// into a VapourSynth map by storing each field as a map entry.
+///
 /// # Example
 /// ```
 /// use rustsynth::IntoOwnedMap;
@@ -43,10 +46,14 @@ fn impl_map_macro(ast: &syn::DeriveInput) -> TokenStream {
     };
     let gen = quote! {
         impl rustsynth::map::IntoOwnedMap for #name {
-            fn into_owned_map<'elem>(self) -> rustsynth::map::OwnedMap<'elem> {
-                let mut map = rustsynth::map::OwnedMap::new();
+            fn into_owned_map<'elem>(self) -> rustsynth::map::Map<'elem> {
+                // Ensure API is initialized before creating a map
+                // This is required for Map::new() to work correctly
+                let mut map = rustsynth::map::Map::new()
+                    .expect("Failed to create map - ensure VapourSynth API is initialized with init_api() or use within a VapourSynth plugin context");
                 #(
-                    map.set(stringify!(#fields), &self.#fields).unwrap();
+                    map.set(stringify!(#fields), &self.#fields)
+                        .expect(&format!("Failed to set field '{}' in map", stringify!(#fields)));
                 )*
                 map
             }

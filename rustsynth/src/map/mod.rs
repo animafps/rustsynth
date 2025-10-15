@@ -107,7 +107,7 @@ fn handle_append_prop_error(error: i32) -> MapResult<()> {
 impl<'elem> Map<'elem> {
     /// Creates a new owned map.
     pub fn new() -> MapResult<Self> {
-        let handle = unsafe { API::get_cached().create_map() };
+        let handle = API::get().ok_or(MapError::CreationFailed)?.create_map();
         let handle = NonNull::new(handle).ok_or(MapError::CreationFailed)?;
 
         Ok(Self {
