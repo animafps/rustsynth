@@ -119,6 +119,7 @@ fn main() {
         .rustified_enum("VSTransferCharacteristics")
         .bitfield_enum("VSCoreCreationFlags")
         .bitfield_enum("VSPluginConfigFlags")
+        .translate_enum_integer_types(true)
         .use_core()
         .prepend_enum_name(false)
         .derive_eq(false)
