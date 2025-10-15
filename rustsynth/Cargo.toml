@@ -1,6 +1,6 @@
 [package]
 name = "rustsynth"
-version = "0.6.0"
+version = "0.7.0"
 description = "Safe VapourSynth wrapper"
 edition.workspace = true
 license.workspace = true
@@ -16,7 +16,7 @@ bitflags = "2.9"
 half = { version = "2.0", optional = true }
 futures = "0.3"
 log = "0.4"
-rustsynth-derive = { version = "^0.6.0", path = "../rustsynth-derive", optional = true }
+rustsynth-derive = { version = "^0.7.0", path = "../rustsynth-derive", optional = true }
 
 [features]
 # Enable the half::f16 type to be used for frame pixel data.

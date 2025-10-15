@@ -420,7 +420,7 @@ checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
 
 [[package]]
 name = "rustsynth"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "bitflags",
  "futures",
@@ -433,7 +433,7 @@ dependencies = [
 
 [[package]]
 name = "rustsynth-derive"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -442,7 +442,7 @@ dependencies = [
 
 [[package]]
 name = "rustsynth-sys"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "bindgen",
 ]
