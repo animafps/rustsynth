@@ -14,7 +14,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustsynth = "0.5"
+rustsynth = "0.7"
 ```
 
 Further guide see [the book](https://rustsynth.anima.nz)
@@ -45,6 +45,14 @@ Low-level FFI bindings to VapourSynth C API.
 [![crates.io](https://img.shields.io/crates/v/rustsynth-derive.svg)](https://crates.io/crates/rustsynth-derive)
 
 Procedural macros for creating VapourSynth plugins.
+
+## Examples/Tools
+
+### rspipe
+
+[![crates.io](https://img.shields.io/crates/v/rspipe.svg)](https://crates.io/crates/rspipe)
+
+vspipe-rs
 
 ## Community
 

@@ -30,20 +30,20 @@ Show script info:
 
 Write to stdout:
 
-`vspipe [options] script.vpy -`
+`rspipe [options] script.vpy -`
 
 Request all frames but don’t output them:
 
-`vspipe [options] script.vpy --`
+`rspipe [options] script.vpy --`
 
 Write frames 5-100 to file:
 
-`vspipe --start 5 --end 100 script.vpy output.raw`
+`rspipe --start 5 --end 100 script.vpy output.raw`
 
 Pipe to x264:
 
-`vspipe script.vpy - -c y4m | x264 --demuxer y4m -o script.mkv -`
+`rspipe script.vpy - -c y4m | x264 --demuxer y4m -o script.mkv -`
 
 Pass values to a script:
 
-`vspipe --arg deinterlace=yes --arg "message=fluffy kittens" script.vpy output.raw`
+`rspipe --arg deinterlace=yes --arg "message=fluffy kittens" script.vpy output.raw`
