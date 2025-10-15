@@ -2,7 +2,13 @@
 name = "rspipe"
 version = "0.1.0"
 edition = "2024"
+description = "Command line tool for processing video with VapourSynth scripts"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+categories = ["command-line-utilities", "multimedia::video"]
+keywords = ["vapoursynth", "video", "cli"]
 
 [dependencies]
-rustsynth = {path = "../rustsynth"}
+rustsynth = { version="^0.7.0", path = "../rustsynth" }
 clap = "4.5"
