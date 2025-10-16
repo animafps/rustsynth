@@ -42,15 +42,15 @@ pub type CoreResult<T> = Result<T, CoreError>;
 
 bitflags! {
     /// Options when creating a core.
-    pub struct CoreCreationFlags: u32 {
+    pub struct CoreCreationFlags: i32 {
         /// No flags.
         const NONE = 0;
         /// Required to use the graph inspection api functions. Increases memory usage due to the extra information stored.
-        const ENABLE_GRAPH_INSPECTION = ffi::VSCoreCreationFlags::ccfEnableGraphInspection.0;
-        /// Don’t autoload any user plugins. Core plugins are always loaded.
-        const DISABLE_AUTO_LOADING = ffi::VSCoreCreationFlags::ccfDisableAutoLoading.0;
-        /// Don’t unload plugin libraries when the core is destroyed. Due to a small amount of memory leaking every load and unload (windows feature, not my fault) of a library this may help in applications with extreme amount of script reloading.
-        const DISABLE_LIBRARY_UNLOADING = ffi::VSCoreCreationFlags::ccfDisableLibraryUnloading.0;
+        const ENABLE_GRAPH_INSPECTION = ffi::VSCoreCreationFlags::ccfEnableGraphInspection.0 as i32;
+        /// Don't autoload any user plugins. Core plugins are always loaded.
+        const DISABLE_AUTO_LOADING = ffi::VSCoreCreationFlags::ccfDisableAutoLoading.0 as i32;
+        /// Don't unload plugin libraries when the core is destroyed. Due to a small amount of memory leaking every load and unload (windows feature, not my fault) of a library this may help in applications with extreme amount of script reloading.
+        const DISABLE_LIBRARY_UNLOADING = ffi::VSCoreCreationFlags::ccfDisableLibraryUnloading.0 as i32;
     }
 }
 
@@ -84,7 +84,7 @@ impl<'core> CoreRef<'core> {
     pub fn new(flags: CoreCreationFlags) -> Self {
         let api = API::get().unwrap();
         unsafe {
-            let handle = api.create_core(flags.bits() as i32);
+            let handle = api.create_core(flags.bits());
             Self::from_ptr(handle)
         }
     }
