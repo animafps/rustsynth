@@ -115,7 +115,7 @@ fn generate_vs_plugin(input: ItemMod) -> syn::Result<proc_macro2::TokenStream> {
                     name.as_ptr(),
                     plugin_version,
                     api_version,
-                    flags,
+                    flags.bits() as i32,
                     plugin
                 );
                 // Register all filters in this plugin

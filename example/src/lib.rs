@@ -15,7 +15,7 @@ mod plugin {
     const NAME: &str = "Example Plugin";
     const PLUGIN_VER: i32 = MakeVersion!(1, 0);
     const API_VER: i32 = ffi::VAPOURSYNTH_API_VERSION;
-    const FLAGS: i32 = PluginConfigFlags::NONE.bits();
+    const FLAGS: PluginConfigFlags = PluginConfigFlags::NONE;
 
     #[vapoursynth_filter(video)]
     #[derive(Clone)]

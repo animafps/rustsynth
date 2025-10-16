@@ -44,13 +44,19 @@ bitflags! {
     /// Options when creating a core.
     pub struct CoreCreationFlags: u32 {
         /// No flags.
-        const NONE = 0b00000000;
+        const NONE = 0;
         /// Required to use the graph inspection api functions. Increases memory usage due to the extra information stored.
-        const ENABLE_GRAPH_INSPECTION = 0b00000001;
+        const ENABLE_GRAPH_INSPECTION = ffi::VSCoreCreationFlags::ccfEnableGraphInspection.0;
         /// Don’t autoload any user plugins. Core plugins are always loaded.
-        const DISABLE_AUTO_LOADING = 0b00000010;
+        const DISABLE_AUTO_LOADING = ffi::VSCoreCreationFlags::ccfDisableAutoLoading.0;
         /// Don’t unload plugin libraries when the core is destroyed. Due to a small amount of memory leaking every load and unload (windows feature, not my fault) of a library this may help in applications with extreme amount of script reloading.
-        const DISABLE_LIBRARY_UNLOADING = 0b00000100;
+        const DISABLE_LIBRARY_UNLOADING = ffi::VSCoreCreationFlags::ccfDisableLibraryUnloading.0;
+    }
+}
+
+impl CoreCreationFlags {
+    pub const fn to_ffi(&self) -> ffi::VSCoreCreationFlags {
+        ffi::VSCoreCreationFlags(self.bits() as _)
     }
 }
 

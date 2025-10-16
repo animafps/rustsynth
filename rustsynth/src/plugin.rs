@@ -242,9 +242,9 @@ unsafe extern "C" fn public_function(
 pub type PublicFunction = fn(in_map: &MapRef<'_>, out_map: &mut MapRef<'_>, core: CoreRef);
 
 bitflags! {
-    pub struct PluginConfigFlags: i32 {
+    pub struct PluginConfigFlags: u32 {
         /// Allow functions to be added to the plugin object after the plugin loading phase. Mostly useful for Avisynth compatibility and other foreign plugin loaders.
-        const MODIFIABLE = 1;
+        const MODIFIABLE = ffi::VSPluginConfigFlags::pcModifiable.0 as u32;
         const NONE  = 0;
     }
 }
@@ -252,7 +252,7 @@ bitflags! {
 impl PluginConfigFlags {
     #[must_use]
     pub const fn as_ffi(&self) -> ffi::VSPluginConfigFlags {
-        VSPluginConfigFlags(self.bits() as u32)
+        VSPluginConfigFlags(self.bits() as _)
     }
 }
 
