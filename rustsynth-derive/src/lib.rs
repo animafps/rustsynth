@@ -339,6 +339,7 @@ fn generate_vs_filter(
 
                         match filter.process_frame(n, frame_data_array, &frame_ctx_wrapper, core_ref) {
                             Ok(output_frame) => {
+                                let output_frame = MannuallyDrop::new(output_frame);
                                 output_frame.as_ptr()
                             },
                             Err(error_msg) => {
