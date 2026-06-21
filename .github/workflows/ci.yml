@@ -50,6 +50,10 @@ jobs:
       - uses: actions/checkout@v5
         with:
           submodules: recursive
+      - name: Find vapoursynth.lib
+        run: |
+          pip install vapoursynth
+          python -c "import vapoursynth; print(vapoursynth.__file__)"
       - uses: actions/cache@v4
         with:
           path: |
@@ -89,6 +93,8 @@ jobs:
           pip install vapoursynth
           vapoursynth config
           vapoursynth register-install
+      - name: Find vapoursynth.lib
+        run: python -c "import vapoursynth; print(vapoursynth.__file__)"
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
