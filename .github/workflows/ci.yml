@@ -44,16 +44,10 @@ jobs:
   build-test-lint-macos:
     name: macOS - build, test and lint
     runs-on: macos-latest
-    env:
-      VAPOURSYNTH_LIB_DIR: /opt/homebrew/lib/
     steps:
       - uses: actions/checkout@v5
         with:
           submodules: recursive
-      - name: Find vapoursynth.lib
-        run: |
-          pip install vapoursynth
-          python -c "import vapoursynth; print(vapoursynth.__file__)"
       - uses: actions/cache@v4
         with:
           path: |
@@ -65,7 +59,13 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install VapourSynth
         run: |
-          brew install vapoursynth
+          pip install vapoursynth
+          vapoursynth config
+          vapoursynth register-install
+      - name: Set VAPOURSYNTH_LIB_PATH
+        run: |
+          path=$(python -c "import os, vapoursynth; print(os.path.dirname(vapoursynth.__file__))")
+          echo "VAPOURSYNTH_LIB_PATH=$path" >> $GITHUB_ENV
       - name: Build
         run: |
           rustup update nightly && rustup default nightly && rustup component add clippy rustfmt
@@ -82,8 +82,6 @@ jobs:
   build-test-lint-windows:
     name: Windows - build, test and lint
     runs-on: windows-latest
-    env:
-      VAPOURSYNTH_LIB_DIR: ${{ github.workspace }}\vapoursynth-portable\sdk\lib64\
     steps:
       - uses: actions/checkout@v5
         with:
@@ -93,8 +91,12 @@ jobs:
           pip install vapoursynth
           vapoursynth config
           vapoursynth register-install
-      - name: Find vapoursynth.lib
-        run: python -c "import vapoursynth; print(vapoursynth.__file__)"
+      - name: Set VAPOURSYNTH_LIB_PATH
+        run: |
+          $path = python -c "import os, vapoursynth; print(os.path.dirname(vapoursynth.__file__))"
+          echo "VAPOURSYNTH_LIB_PATH=$path" >> $env:GITHUB_ENV
+        shell: pwsh
+
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
@@ -106,7 +108,7 @@ jobs:
           cargo build
       - name: Test
         run: |
-          Copy-Item "${{ github.workspace }}\vapoursynth-portable\*.dll" "target\debug\deps\" -Force
+          Copy-Item "${{ env.VAPOURSYNTH_LIB_PATH }}\*.dll" "target\debug\deps\" -Force
           cargo test --workspace --lib --bins --tests --benches
       - name: Lint
         run: |
