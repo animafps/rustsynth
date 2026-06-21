@@ -62,10 +62,10 @@ jobs:
           pip install vapoursynth
           vapoursynth config
           vapoursynth register-install
-      - name: Set VAPOURSYNTH_LIB_PATH
+      - name: Set VAPOURSYNTH_LIB_DIR
         run: |
           path=$(python -c "import os, vapoursynth; print(os.path.dirname(vapoursynth.__file__))")
-          echo "VAPOURSYNTH_LIB_PATH=$path" >> $GITHUB_ENV
+          echo "VAPOURSYNTH_LIB_DIR=$path" >> $GITHUB_ENV
       - name: Build
         run: |
           rustup update nightly && rustup default nightly && rustup component add clippy rustfmt
@@ -91,10 +91,10 @@ jobs:
           pip install vapoursynth
           vapoursynth config
           vapoursynth register-install
-      - name: Set VAPOURSYNTH_LIB_PATH
+      - name: Set VAPOURSYNTH_LIB_DIR
         run: |
           $path = python -c "import os, vapoursynth; print(os.path.dirname(vapoursynth.__file__))"
-          echo "VAPOURSYNTH_LIB_PATH=$path" >> $env:GITHUB_ENV
+          echo "VAPOURSYNTH_LIB_DIR=$path" >> $env:GITHUB_ENV
         shell: pwsh
 
       - name: Set up Rust
@@ -108,7 +108,7 @@ jobs:
           cargo build
       - name: Test
         run: |
-          Copy-Item "${{ env.VAPOURSYNTH_LIB_PATH }}\*.dll" "target\debug\deps\" -Force
+          Copy-Item "${{ env.VAPOURSYNTH_LIB_DIR }}\*.dll" "target\debug\deps\" -Force
           cargo test --workspace --lib --bins --tests --benches
       - name: Lint
         run: |
