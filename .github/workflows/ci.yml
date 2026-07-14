@@ -117,6 +117,12 @@ jobs:
             }
           }
 
+      - name: Inspect VapourSynth package layout
+        shell: pwsh
+        run: |
+          $vsDir = python -c "import os, vapoursynth; print(os.path.dirname(vapoursynth.__file__))"
+          Get-ChildItem -Recurse $vsDir | Select-Object FullName
+          
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
