@@ -105,12 +105,15 @@ jobs:
             $dll = Join-Path $vsDir "$name.dll"
             if (Test-Path $dll) {
               $def = Join-Path $vsDir "$name.def"
+              $lib = Join-Path $vsDir "$name.lib"
+
               "EXPORTS" | Out-File $def -Encoding ascii
               dumpbin /exports $dll |
                 Select-String '^\s+\d+\s+[0-9A-F]+\s+[0-9A-F]+\s+(\S+)$' |
                 ForEach-Object { $_.Matches.Groups[1].Value } |
                 Out-File $def -Append -Encoding ascii
-              lib /def:$def /out:(Join-Path $vsDir "$name.lib") /machine:x64
+
+              lib "/def:$def" "/out:$lib" /machine:x64
             }
           }
 
